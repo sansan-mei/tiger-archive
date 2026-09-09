@@ -53,7 +53,7 @@ test('all nine combinations assemble and dispose geometry via plugin visual hook
   class Group{constructor(){this.children=[];this.position=new Vector();this.scale=new Vector();this.rotation={};}add(o){this.children.push(o);}traverse(fn){fn(this);this.children.forEach(c=>c.traverse(fn));}}
   class Mesh extends Group{constructor(g,m){super();this.geometry=g;this.material=m;this.isMesh=true;}}
   class Resource{constructor(options){Object.assign(this,options);}dispose(){this.disposed=true;}}
-  const T={Group,Mesh,BoxGeometry:Resource,CylinderGeometry:Resource,TorusGeometry:Resource,SphereGeometry:Resource,MeshStandardMaterial:Resource,MeshBasicMaterial:Resource};
+  const T={Group,Mesh,BoxGeometry:Resource,CylinderGeometry:Resource,TorusGeometry:Resource,SphereGeometry:Resource,MeshToonMaterial:Resource,MeshStandardMaterial:Resource,MeshBasicMaterial:Resource};
   const ctx=browser();
   for(const tankType of Object.keys(C.TANKS))for(const weaponType of Object.keys(C.WEAPONS)){
     const view=ctx.createTankModel(T,{tankType,weaponType});assert.equal(view.wheels.length,14);assert.ok(view.gun.children.length>1);

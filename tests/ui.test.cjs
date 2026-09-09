@@ -2,16 +2,16 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),vm=requir
 const {RoomServer}=require('../room-server.js'),C=require('../battle-core.js');
 const ROOT=path.resolve(__dirname,'..');
 test('page event wiring creates a room, starts, renders snapshots, pauses locally and leaves',()=>{
-  const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),nodes=new Map(),windowEvents={};let document,frame,renderedCamera,now=0;
+  const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),nodes=new Map(),windowEvents={},documentEvents={};let document,frame,renderedCamera,now=0;
   const ctx2d=new Proxy({},{get:(o,k)=>o[k]??(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   class Element{
     constructor(id=''){this.id=id;this.listeners={};this.children=[];this.style={};this.dataset={};this.hidden=false;this.disabled=false;this.value='';this.classList={add(){},remove(){}};}
     addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}emit(k,event={}){for(const fn of this.listeners[k]||[])fn({preventDefault(){},...event});}
     add(...items){this.children.push(...items);}append(...items){this.add(...items);}appendChild(e){this.add(e);}replaceChildren(...items){this.children=items;if(this.id.endsWith('-select'))this.value=items.find(i=>i.selected)?.value||items[0]?.value;}
-    remove(){}focus(){document.activeElement=this;}getContext(){return ctx2d;}getBoundingClientRect(){return {left:0,top:0,width:1280,height:800};}setPointerCapture(){}
+    remove(){}focus(){document.activeElement=this;}getContext(){return ctx2d;}getBoundingClientRect(){return {left:0,top:0,width:1280,height:800};}setPointerCapture(){}requestPointerLock(){document.pointerLockElement=this;for(const fn of documentEvents.pointerlockchange||[])fn();}
   }
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))nodes.set(id,new Element(id));nodes.get('player-name').value='Tester';
-  document={hidden:false,activeElement:null,getElementById:id=>nodes.get(id),createElement:()=>new Element(),querySelectorAll:()=>[],addEventListener(){}};
+  document={hidden:false,activeElement:null,getElementById:id=>nodes.get(id),createElement:()=>new Element(),querySelectorAll:()=>[],addEventListener:(k,fn)=>{(documentEvents[k]??=[]).push(fn);},exitPointerLock(){this.pointerLockElement=null;for(const fn of documentEvents.pointerlockchange||[])fn();}};
   class Renderer{constructor(){this.shadowMap={};}setPixelRatio(){}setSize(){}render(scene,camera){renderedCamera=camera;}}
   const rooms=new RoomServer({now:()=>now}),sockets=[];
   class WS{
@@ -50,5 +50,22 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(renderedCamera.position.distanceTo(oldCamera)>1,'mouse orbits camera');
   const still=renderedCamera.position.clone();advance(6);
   assert.ok(renderedCamera.position.distanceTo(still)<.001,'stationary mouse does not spin camera');
+  // Absolute cursor coordinates stay fixed under pointer lock; deltas must still turn multiple circles.
+  Object.assign(e,{x:0,y:0,z:40,floor:0,rampId:null,rampDir:0,speed:0});advance(6);
+  const canvas=nodes.get('battle-canvas');canvas.emit('pointerdown',{pointerType:'mouse',button:0,clientX:640,clientY:400});
+  assert.equal(document.pointerLockElement,canvas);
+  const pivot=new (require('three').Vector3)(e.x,e.y+3.2,e.z);let angle=0,previous=Math.atan2(renderedCamera.position.z-pivot.z,renderedCamera.position.x-pivot.x);
+  for(let i=0;i<24;i++){
+    for(const fn of documentEvents.mousemove)fn({clientX:640,clientY:400,movementX:80,movementY:0});advance(3);
+    const current=Math.atan2(renderedCamera.position.z-pivot.z,renderedCamera.position.x-pivot.x);angle+=C.wrap(current-previous);previous=current;
+  }
+  assert.ok(Math.abs(angle)>Math.PI*2,'relative mouse input rotates past 360 degrees');
+  const oldHeight=renderedCamera.position.y;
+  for(const fn of documentEvents.mousemove)fn({clientX:640,clientY:400,movementX:0,movementY:80});advance(6);
+  assert.ok(Math.abs(renderedCamera.position.y-oldHeight)>1,'vertical movement changes orbit elevation');
+  assert.ok(Math.abs(renderedCamera.position.distanceTo(pivot)-12)<.001,'pitch preserves orbit radius');
+  const direction=renderedCamera.getWorldDirection(new (require('three').Vector3)());
+  assert.ok(direction.dot(pivot.clone().sub(renderedCamera.position).normalize())>.99999,'pitch keeps the same look-at pivot');
+  document.exitPointerLock();assert.equal(nodes.get('game-overlay').hidden,false);assert.equal(nodes.get('menu-title').textContent,'操作已暂停');
   nodes.get('pause-btn').emit('click');nodes.get('leave-room').emit('click');assert.equal(nodes.get('room-lobby').hidden,true);assert.equal(nodes.get('start-button').hidden,false);
 });

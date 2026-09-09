@@ -26,3 +26,28 @@ select:focus-visible{outline:2px solid var(--orange)}
 .menu{max-height:92dvh;overflow-y:auto}.network-panel{margin:18px 0;padding:14px;border:1px solid #a9b88a55;text-align:left}.network-panel p{font-size:13px;line-height:1.5;margin:8px 0}.network-panel label{display:inline-flex;flex-direction:column;font-size:12px;gap:5px;margin:4px 8px 8px 0}.network-panel input{width:145px;max-width:100%;padding:9px;background:#24352a;color:#e5edd6;border:1px solid #829474}.network-actions{display:flex;flex-wrap:wrap;gap:8px}.network-actions button{font-size:12px;padding:10px 12px;width:auto;margin:0}.network-actions button:disabled{opacity:.45;cursor:not-allowed}#room-players{padding-left:18px;font-size:13px;line-height:1.8}#network-status{color:#d0e8af;overflow-wrap:anywhere}[hidden]{display:none!important}
 
 .ramp-status{position:absolute;bottom:125px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#24352acc;color:#d0e8af;font-size:12px;pointer-events:none;white-space:nowrap}
+
+/* Summer field notes: warm paper, soft greens and terracotta accents. */
+:root{--cream:#384d48;--orange:#c88060;--green:#779b75;--line:#6c877d40}
+html,body{background:#a8cddd;color:#384d48;font-family:"Trebuchet MS","PingFang SC",sans-serif}
+.topbar{background:linear-gradient(#f8f0d6dd,transparent)}
+.logo{color:#354f48}.logo span,.mission span{color:#617c71}
+#pause-btn,.telemetry,.map-box,.weapon{background:#fff8e7e8;border-color:#8caa9255;color:#3e574c;border-radius:8px;box-shadow:0 4px 0 #58786518;backdrop-filter:blur(4px)}
+.eyebrow,.hp-number span,.telemetry-bottom,.map-box>div,.weapon>span:last-child{color:#71816c}.telemetry-bottom b{color:#476658}
+progress,progress::-webkit-progress-bar{background:#89997930}
+.controls-hint{color:#466052;text-shadow:0 1px 3px #fff8e9}.controls-hint span,.controls-hint kbd{color:#344a41}
+.enemy-tag{color:#fff4d3;text-shadow:0 1px 3px #48584c}.enemy-tag i{background:#d28d70}
+.overlay{background:#aec4b060;backdrop-filter:blur(5px)}
+.menu{background:#fff9e9f5;border:1px solid #fffef4;box-shadow:0 18px 80px #395b4b30;border-radius:16px;padding:30px 34px}
+.menu h1{font-family:Georgia,"Songti SC",serif;font-weight:normal;letter-spacing:-2px;color:#456750;line-height:1.05}.menu h1 em{color:#c18363;-webkit-text-stroke:0}
+.menu>p,.menu .mode-note,.menu-guide span{color:#74816c}.menu-guide strong{color:#456451}
+.menu>button{background:#799877;color:#fffbec;border-radius:7px}.menu>button:hover{background:#658764}.menu #restart-button{color:#5e7d68;border-color:#b7c4a7}
+.garage,.network-panel{border-color:#aabb9c70;border-radius:8px;background:#f4f0de80}
+.garage label,.garage p,.network-panel label{color:#667f68}.garage select,.network-panel input{background:#fffdf3;border:1px solid #a6b794;border-radius:5px;color:#48614c;padding:10px}
+.network-actions button{background:#7d9b7a;color:#fffbea;border:1px solid #718e70;border-radius:6px;min-height:38px}.network-actions button:hover{background:#688766}.network-actions button:disabled{background:#c8ceba;border-color:#bcc4af;color:#68765f;opacity:.8;cursor:not-allowed}
+#network-status{color:#6f8667}#room-players{color:#536e59}.ramp-status{background:#fff7e2e8;color:#5c785e;border:1px solid #b7c9a3;border-radius:20px;bottom:202px;font-size:11px}
+#event-notice{background:#fff4d6e6;color:#6c7454;padding:7px 14px;border-radius:20px;text-shadow:none}#event-notice:empty{display:none}
+#aim-reticle{border-color:#fff6d8;box-shadow:0 0 0 1px #536c5a55}
+@media(max-width:700px){.menu{padding:22px}.ramp-status{bottom:106px;font-size:9px}.telemetry,.map-box{background:#fff8e7d9}}
+@media(pointer:coarse){.touch-controls button{background:#fff5dce8;color:#547157;border-color:#9dae89}#fire-button{background:#c58264ed;color:#fff4d9}.ramp-status{bottom:246px}}
+@media(min-width:701px) and (pointer:fine){.weapon{left:auto;right:30px;bottom:25px;transform:none;width:210px}.ramp-status{bottom:58px}.controls-hint{left:220px;right:250px;line-height:1.8}}

@@ -2,10 +2,10 @@
 window.createTankModel=function(T,{tankType,weaponType,color=0x9d956f}){
   const spec=window.TankBattle.TANKS[tankType],weapon=window.TankBattle.WEAPONS[weaponType];
   const tank=new T.Group(),turret=new T.Group(),gun=new T.Group();
-  const paint=new T.MeshStandardMaterial({color,roughness:.8,metalness:.25});
-  const edge=new T.MeshStandardMaterial({color:0x566047,roughness:.9});
-  const rubber=new T.MeshStandardMaterial({color:0x28352b,roughness:1});
-  const glow=new T.MeshStandardMaterial({color:0x67d8e0,emissive:0x176b7e,emissiveIntensity:1.0});
+  const paint=new T.MeshToonMaterial({color});
+  const edge=new T.MeshToonMaterial({color:0x71836c});
+  const rubber=new T.MeshToonMaterial({color:0x4a5a56});
+  const glow=new T.MeshToonMaterial({color:0x67d8e0,emissive:0x176b7e,emissiveIntensity:1.0});
   const geometry=new T.BoxGeometry(1,1,1),wheels=[];
   function block(w,h,d,x,y,z,material=paint,parent=tank){
     const m=new T.Mesh(geometry,material);m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
@@ -25,7 +25,7 @@ window.createTankModel=function(T,{tankType,weaponType,color=0x9d956f}){
   gun.position.set(-1.12,.51,0);turret.add(gun);block(.3,.58,1.3,0,0,0,edge,gun);
   window.TankPlugins.weapons[weaponType].buildVisual(ctx);
   tank.scale.setScalar(spec.scale);
-  const wreck=new T.MeshStandardMaterial({color:0x343a32,roughness:1});
+  const wreck=new T.MeshToonMaterial({color:0x6c7166});
   const originals=new Map();tank.traverse(o=>{if(o.isMesh)originals.set(o,o.material);});
   const shield=new T.Mesh(new T.SphereGeometry(4.2,16,10),new T.MeshBasicMaterial({color:0x85e8e2,wireframe:true,transparent:true,opacity:.30,depthWrite:false}));
   shield.position.y=1.6;shield.visible=false;tank.add(shield);
