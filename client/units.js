@@ -3,6 +3,7 @@
   T,
   C,
   scene,
+  floorGroups,
   labelHost,
   sphere,
   shellMat,

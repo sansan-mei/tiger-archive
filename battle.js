@@ -41,6 +41,7 @@
     T,
     C,
     scene,
+    floorGroups,
     labelHost: $("enemy-labels"),
     sphere,
     shellMat,

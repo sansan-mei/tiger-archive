@@ -423,5 +423,18 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(Number(nodes.get("speed").textContent) > 0);
   for (const fn of windowEvents.keyup)
     fn({ code: "KeyD", preventDefault() {} });
+  // Run real local AI and weapon presentation, not just room snapshots.
+  // A frame exception must fail the test rather than silently skip rendering.
+  for (const weapon of ["rocket", "laser"]) {
+    nodes.get("pause-btn").emit("click");
+    nodes.get("weapon-select").value = weapon;
+    nodes.get("restart-button").emit("click");
+    for (const fn of windowEvents.keydown)
+      fn({ code: "KeyF", preventDefault() {}, repeat: false });
+    advance(360);
+    for (const fn of windowEvents.keyup)
+      fn({ code: "KeyF", preventDefault() {} });
+    advance(90);
+  }
   nodes.get("pause-btn").emit("click");
 });
