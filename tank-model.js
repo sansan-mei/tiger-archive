@@ -29,7 +29,8 @@ window.createTankModel=function(T,{tankType,weaponType,color=0x9d956f}){
   const originals=new Map();tank.traverse(o=>{if(o.isMesh)originals.set(o,o.material);});
   const shield=new T.Mesh(new T.SphereGeometry(4.2,16,10),new T.MeshBasicMaterial({color:0x85e8e2,wireframe:true,transparent:true,opacity:.30,depthWrite:false}));
   shield.position.y=1.6;shield.visible=false;tank.add(shield);
-  return {tank,turret,gun,wheels,paint,glow,shield,wreck,originals,recoil:0,dead:false,spec,weapon,
+  const frontShield=new T.Mesh(shield.geometry,new T.MeshBasicMaterial({color:0xffc66e,wireframe:true,transparent:true,opacity:.45,depthWrite:false}));frontShield.scale.set(.07,.6,.85);frontShield.position.set(-3.8,1,0);turret.add(frontShield);
+  return {frontShield,tank,turret,gun,wheels,paint,glow,shield,wreck,originals,recoil:0,dead:false,spec,weapon,
     dispose(){
       const geometries=new Set(),materials=new Set();tank.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)materials.add(o.material);});
       for(const m of originals.values())materials.add(m);materials.add(wreck);

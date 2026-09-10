@@ -65,7 +65,7 @@ async function main(){
       const {createClient}=require('redis'),{RedisStore}=require('./redis-store.js');
       const client=createClient({url:process.env.REDIS_URL,disableOfflineQueue:true,socket:{connectTimeout:3000,reconnectStrategy:false}});
       client.on('error',()=>console.error('Redis connection error')); // Never log a URL or credential.
-      store=new RedisStore(client,{prefix:process.env.REDIS_PREFIX||'tiger:rooms:v5'});
+      store=new RedisStore(client,{prefix:process.env.REDIS_PREFIX||'tiger:rooms:v7'});
       app.rooms.restore(await store.open());await store.save(app.rooms.checkpoint());
       timer=setInterval(()=>{
         if(pending)return;

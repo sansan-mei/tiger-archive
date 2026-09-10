@@ -25,7 +25,7 @@ test('light / medium / heavy have distinct health, acceleration and maximum spee
     const b=make({tank});put(b.entities[0],0,50);
     ticks(b,60,{p1:{forward:true}});result.push({hp:b.entities[0].hp,speed:b.entities[0].speed});
   }
-  assert.deepEqual(result,[{hp:90,speed:14},{hp:130,speed:11},{hp:190,speed:8}]);
+  assert.deepEqual(result,[{hp:140,speed:14},{hp:210,speed:11},{hp:280,speed:8}]);
 });
 test('reverse, braking, chassis turn and independent turret movement',()=>{
   const b=make(),p=b.entities[0];put(p,0,40);const heading=p.heading;
@@ -34,18 +34,18 @@ test('reverse, braking, chassis turn and independent turret movement',()=>{
   ticks(b,30,{p1:{reverse:true}});assert.ok(p.z>z);
   b.step({p1:{brake:true}});const x=p.x,z2=p.z;ticks(b,20,{p1:{left:true}});assert.equal(p.x,x);assert.equal(p.z,z2);assert.notEqual(p.heading,heading);
 });
-test('standard cannon has a server-enforced cooldown and four hits defeat medium armour',()=>{
+test('standard cannon has a server-enforced cooldown and nine hits defeat medium armour plus shield',()=>{
   const b=make(),p=b.entities[0],enemy=b.entities[1];put(p,0,30);put(enemy,0,-20);
   assert.equal(b.shoot(p),true);assert.equal(b.shoot(p),false);
-  const events=ticks(b,300,{p1:{fire:true}});
+  const events=ticks(b,620,{p1:{fire:true}});
   assert.equal(enemy.hp,0);assert.equal(p.kills,1);assert.equal(b.status,'playing');assert.equal(enemy.deaths,1);
   assert.equal(events.filter(e=>e.type==='end').length,0);
 });
 test('rapid cannon fires more often with lower damage',()=>{
   const b=make({weapon:'rapid'}),p=b.entities[0];put(p,0,40);p.aim=0;
   const events=ticks(b,60,{p1:{fire:true}});
-  assert.equal(events.filter(e=>e.type==='shot').length,5);
-  assert.equal(C.WEAPONS.rapid.damage,10);
+  assert.equal(events.filter(e=>e.type==='shot').length,4);
+  assert.equal(C.WEAPONS.rapid.damage,9);
   assert.ok(C.WEAPONS.rapid.damage<C.WEAPONS.standard.damage);
 });
 test('laser minimum charge, partial release, and maximum auto discharge',()=>{
@@ -65,7 +65,7 @@ test('continuous projectile collision and laser both respect cover',()=>{
   for(const weapon of ['standard','rapid','laser']){
     const b=make({weapon,obstacles:[cover]});put(b.entities[0],0,20);put(b.entities[1],0,-20);
     const events=ticks(b,120,{p1:{fire:true}});
-    assert.equal(b.entities[1].hp,130);assert.ok(events.some(e=>e.type==='impact'&&e.kind==='cover'));
+    assert.equal(b.entities[1].hp,210);assert.ok(events.some(e=>e.type==='impact'&&e.kind==='cover'));
   }
 });
 test('barrel inside cover cannot shoot from the far side',()=>{
@@ -74,7 +74,7 @@ test('barrel inside cover cannot shoot from the far side',()=>{
 });
 test('height-aware collision separates floors and floor slabs block a downward ray',()=>{
   const b=make();put(b.entities[0],0,20,0);put(b.entities[1],0,0,1);
-  ticks(b,120,{p1:{fire:true}});assert.equal(b.entities[1].hp,130);
+  ticks(b,120,{p1:{fire:true}});assert.equal(b.entities[1].hp,210);
   const hit=b.collision({x:0,y:10,z:0},{x:0,y:2,z:0},'p2',{bodies:false});
   assert.equal(hit.kind,'floor');assert.equal(hit.id,1);
 });
@@ -99,7 +99,7 @@ test('ramp allows stopping, aiming, charging, firing and damage; interact grants
   b.step({p1:{brake:true}});const position={x:p.x,y:p.y,z:p.z};
   const events=ticks(b,90,{p1:{brake:true,aimYaw:0,fire:true,interact:true}});
   assert.deepEqual({x:p.x,y:p.y,z:p.z},position);assert.ok(events.some(e=>e.type==='beam'));assert.notEqual(p.aim,p.heading);
-  assert.equal(b.damage(p,10,'p2',position),true);assert.equal(p.hp,120);
+  assert.equal(b.damage(p,10,'p2',position),true);assert.equal(p.hp,210);assert.equal(p.shield,80);
 });
 test('ramps block sideways entry, departure and driving through another tank',()=>{
   const b=make(),p=b.entities[0],other=b.entities[1];put(p,-36,32);ticks(b,100,{p1:{forward:true}});b.step({p1:{brake:true}});
@@ -119,7 +119,7 @@ test('slope entities remain hittable by projectiles and checkpoint determinism h
 });
 test('FFA damage applies to any other participant; no hardcoded player/enemy immunity',()=>{
   const b=make({eight:true}),a=b.entities[1],target=b.entities[2];
-  assert.equal(b.damage(target,20,a.id,{x:target.x,y:target.y,z:target.z}),true);assert.equal(target.hp,target.maxHp-20);
+  assert.equal(b.damage(target,20,a.id,{x:target.x,y:target.y,z:target.z}),true);assert.equal(target.hp,target.maxHp);assert.equal(target.shield,C.TANKS[target.tankType].shield-20);
 });
 test('fixed-tick checkpoint restore produces an identical continuation',()=>{
   const a=make();ticks(a,40,{p1:{forward:true,fire:true}});
@@ -131,7 +131,7 @@ test('fixed-tick checkpoint restore produces an identical continuation',()=>{
 test('pause and finished match freeze all authority state',()=>{
   const b=make();ticks(b,20,{p1:{fire:true}});b.pause();
   const saved=b.snapshot();ticks(b,100,{p1:{forward:true,fire:true}});assert.deepEqual(b.snapshot(),saved);
-  b.start();b.entities[0].kills=14;b.damage(b.entities[1],999,'p1',{x:0,y:0,z:0});b.step();const final=b.snapshot();ticks(b,30);assert.deepEqual(b.snapshot(),final);
+  b.start();b.entities[0].kills=14;b.damage(b.entities[1],10000,'p1',{x:0,y:0,z:0});b.step();const final=b.snapshot();ticks(b,30);assert.deepEqual(b.snapshot(),final);
 });
 test('input schema rejects direct health, loadout changes, NaN and invalid flags',()=>{
   for(const input of [{hp:999},{weaponType:'laser'},{forward:1},{aimYaw:NaN},{aimPitch:4},{fire:'yes'}])assert.throws(()=>C.normalizeInput(input));

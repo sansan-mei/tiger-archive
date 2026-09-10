@@ -76,7 +76,10 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(direction.dot(pivot.clone().sub(renderedCamera.position).normalize())>.99999,'pitch keeps the same look-at pivot');
   document.exitPointerLock();assert.equal(nodes.get('game-overlay').hidden,false);assert.equal(nodes.get('menu-title').textContent,'操作已暂停');
   nodes.get('start-button').emit('click');
-  room.authority.battle.damage(e,999,room.authority.battle.entities[1].id,e);
+  for(const fn of windowEvents.keydown)fn({code:'ShiftLeft',preventDefault(){},repeat:false});advance(3);
+  assert.equal(e.barrier,60);assert.ok(nodes.get('ability-status').textContent.includes('Shift'));
+  for(const fn of windowEvents.keyup)fn({code:'ShiftLeft',preventDefault(){}});
+  room.authority.battle.damage(e,10000,room.authority.battle.entities[1].id,e);
   room.authority.history.push(...room.authority.battle.events);advance(6);
   assert.equal(nodes.get('game-overlay').hidden,true,'death does not open blocking menu');
   assert.equal(nodes.get('respawn-status').hidden,false);advance(240);

@@ -18,7 +18,7 @@ BIND_ADDRESS=0.0.0.0
 MAX_ROOMS=16
 PUBLIC_ORIGIN=https://tank.example.com
 REDIS_URL='redis://default:URL_ENCODED_PASSWORD@host.docker.internal:6379/0'
-REDIS_PREFIX=tiger:rooms:v5
+REDIS_PREFIX=tiger:rooms:v7
 ```
 
 - 直接通过 IP:8080 访问时，PUBLIC_ORIGIN 可留空；服务会要求 WebSocket Origin 与请求 Host 相同。
@@ -123,4 +123,4 @@ location / {
 
 ## 从 E 楼梯版升级到直坡版
 
-本版协议 v5、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v5，使用新的房间数据命名空间，不要恢复旧楼梯对局。
+本版协议 v7、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v7，使用新的房间数据命名空间，不要恢复旧楼梯对局。

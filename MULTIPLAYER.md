@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v5）
+# 多人接入边界（协议 v7）
 
 ## 已实现
 
@@ -103,6 +103,8 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 具体 Docker、Redis 和反向代理步骤见 [DEPLOY.md](DEPLOY.md)。配置检查不能代替部署实测。
 
-## 计分赛与补给（v5）
+## 计分赛与补给（v7）
 
-权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、45 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
+权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
+
+协议 v7 新增 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。六个内置插件升级至 2.1.0，握手拒绝旧清单。维修包随装甲数值调整为 40。

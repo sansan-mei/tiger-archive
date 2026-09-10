@@ -96,7 +96,7 @@
   const sphere=new T.IcosahedronGeometry(1,0),shellMat=new T.MeshBasicMaterial({color:0xffd18a});
   const labelHost=$('enemy-labels');
   function createViews(){
-    for(const view of views.values()){scene.remove(view.tank);view.label?.remove();view.dispose();}views.clear();
+    for(const view of views.values()){scene.remove(view.tank);view.label?.remove();view.warning?.geometry.dispose();view.warning?.material.dispose();scene.remove(view.warning);view.dispose();}views.clear();
     session.current().entities.forEach((body,i)=>{
       const view=window.createTankModel(T,{tankType:body.tankType,weaponType:body.weaponType,color:palette[i]});
       view.tank.traverse(o=>{o.userData.entityId=body.id;});scene.add(view.tank);
@@ -106,7 +106,7 @@
         const bar=document.createElement('div'),fill=document.createElement('i');bar.appendChild(fill);label.append(text,bar);labelHost.appendChild(label);
         view.label=label;view.bar=fill;
       }
-      views.set(body.id,view);
+      view.warning=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3()]),new T.LineBasicMaterial({color:0xff6a45,transparent:true,opacity:.7}));view.warning.visible=false;scene.add(view.warning);views.set(body.id,view);
     });
   }
   createViews();
@@ -144,10 +144,11 @@
       if(e.type==='shot'){const view=views.get(e.id);if(view)view.recoil=1;puff(e,.5,3);const me=session.current().entities.find(p=>p.id===playerId);sound(C.WEAPONS[e.weaponType].sound==='energy',e.id===playerId?1:Math.max(.05,1-Math.hypot(e.x-me.x,e.z-me.z)/70)*.5);}
       if(e.type==='beam')beam(e);
       if(e.type==='impact'){puff(e,.7,5);if(e.owner===playerId&&e.targetId){hitTime=.22;notify('命中 '+e.targetId);}}
-      if(e.type==='damage'&&e.id===playerId){damageTime=.6;attackerId=e.owner;notify('受到攻击 −'+e.amount+' · 寻找掩体');sound(false,.5);}
-      if(e.type==='damage'&&e.owner===playerId){hitTime=.4;notify('命中 '+e.id+' · −'+e.amount);}
+      if(e.type==='damage'&&e.id===playerId){damageTime=.6;attackerId=e.owner;notify('受到攻击 −'+Math.ceil(e.amount)+' · 寻找掩体');sound(false,.5);}
+      if(e.type==='damage'&&e.owner===playerId){hitTime=.4;notify('命中 '+e.id+' · −'+Math.ceil(e.amount));}
+      if(e.type==='ability'){if(e.id===playerId){notify({dash:'矢量冲刺 · 可同时开火',barrier:'应急屏障 · 临时护盾 +60',deploy:'堡垒部署 · 正面减伤 70%，注意侧后方'}[e.ability]);sound(true,.6);}}
       if(e.type==='respawn'&&e.id===playerId){clearInput();deathShown=false;observing=false;updateChaseCamera(session.current().entities.find(p=>p.id===playerId),0,true);notify('已复活 · 保护 2 秒，开炮解除');}
-      if(e.type==='pickup'&&e.id===playerId){notify(e.kind==='repair'?'维修补给 · 恢复 45 装甲':'加速补给 · 6 秒内极速 +35%');sound(true,.4);}
+      if(e.type==='pickup'&&e.id===playerId){notify(e.kind==='repair'?'维修补给 · 恢复 40 装甲':'加速补给 · 6 秒内极速 +35%');sound(true,.4);}
       if(e.type==='destroy'){puff(e,2.3,12);notify(e.id===playerId?'你已被击毁':e.owner+' 击毁 '+e.id);}
       if(e.type==='rampEnter'&&e.id===playerId)notify('驶入斜坡 · 可停车、倒车和交战');
       if(e.type==='rampExit'&&e.id===playerId)notify('已驶出斜坡 · '+(e.floor+1)+' 楼');
@@ -194,7 +195,7 @@
   for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,()=>{mouseFire=false;if(session.online)session.input(command(session.current().entities.find(e=>e.id===playerId)),true);});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('wheel',e=>{if(status()!=='playing')return;e.preventDefault();zoom=Math.max(8,Math.min(18,zoom+e.deltaY*.01));},{passive:false});
-  const bindings={KeyW:'forward',ArrowUp:'forward',KeyS:'reverse',ArrowDown:'reverse',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',Space:'brake',KeyF:'fire'};
+  const bindings={KeyW:'forward',ArrowUp:'forward',KeyS:'reverse',ArrowDown:'reverse',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',Space:'brake',KeyF:'fire',ShiftLeft:'ability',ShiftRight:'ability'};
   window.addEventListener('keydown',e=>{
     if((e.code==='Escape'||e.code==='KeyP')&&!e.repeat){e.preventDefault();if(status()==='playing')pause();else if(status()==='paused'&&e.code==='KeyP'){resume();if(!window.matchMedia('(pointer: coarse)').matches)lockMouse();}return;}
     if(status()!=='playing'||document.activeElement!==canvas||!bindings[e.code])return;
@@ -222,7 +223,9 @@
   function config(){return {tankType:$('tank-select').value,weaponType:$('weapon-select').value};}
   function updateLoadout(){
     const value=config(),tank=C.TANKS[value.tankType],weapon=C.WEAPONS[value.weaponType];
-    $('loadout-summary').textContent=tank.name+' · '+tank.hp+' 装甲 / '+Math.round(tank.speed*3.6)+' km/h；'+weapon.name+' · '+weapon.damage+' 最大伤害'+(weapon.charge?' / 按住蓄力，松开发射':' / '+(weapon.cooldown/60).toFixed(2)+' 秒装填');
+    $('loadout-summary').textContent=tank.name+' · '+tank.hp+' 装甲 + '+tank.shield+' 护盾 / '+Math.round(tank.speed*3.6)+' km/h；'+weapon.name+' · '+weapon.damage+' 最大伤害'+(weapon.charge?' / 按住蓄力，松开发射':' / '+(weapon.cooldown/60).toFixed(2)+' 秒装填');
+
+    $('loadout-summary').textContent+='。Shift：'+{dash:'矢量冲刺 0.5 秒，可同时开火，8 秒冷却',barrier:'应急屏障 +60，持续 4 秒，12 秒冷却',deploy:'部署 5 秒，正面 120° 减伤 70%，移动减速，14 秒冷却'}[tank.ability]+'。停火且未受击 5 秒后恢复护盾。';
   }
   for(const id of ['tank-select','weapon-select'])$(id).addEventListener('change',updateLoadout);
   updateLoadout();
@@ -350,14 +353,24 @@
       }
       view.turret.quaternion.copy(view.tank.quaternion).invert().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),e.aim));view.gun.rotation.z=-e.pitch;
       view.recoil=Math.max(0,view.recoil-(truth.status==='playing'?dt*5:0));view.gun.position.x=-1.12+view.recoil*.28;
-      if(!e.alive&&!view.dead){view.dead=true;view.tank.traverse(o=>{if(o.isMesh&&o!==view.shield)o.material=view.wreck;});}
+      if(!e.alive&&!view.dead){view.dead=true;view.tank.traverse(o=>{if(o.isMesh&&o!==view.shield&&o!==view.frontShield)o.material=view.wreck;});}
       if(e.alive&&view.dead){view.dead=false;for(const [mesh,material] of view.originals)mesh.material=material;}
-      view.shield.visible=e.alive&&e.protectedUntil>truth.tick;
-      view.glow.emissiveIntensity=1+(e.charge/(C.WEAPONS[e.weaponType].charge||1))*5;
+      view.shield.visible=e.alive&&(e.protectedUntil>truth.tick||e.barrier>0);
+      view.frontShield.visible=e.alive&&C.TANKS[e.tankType].ability==='deploy'&&e.abilityUntil>truth.tick;
+      view.warning.visible=e.alive&&view.tank.visible&&e.charge>0;
+      if(view.warning.visible){
+        const start=new T.Vector3(e.x,e.y+2.2,e.z),direction=new T.Vector3(-Math.cos(e.aim)*Math.cos(e.pitch),Math.sin(e.pitch),Math.sin(e.aim)*Math.cos(e.pitch));
+        const warningRay=new T.Raycaster(start,direction,.1,140),wallHit=warningRay.intersectObjects(floorGroups.filter(g=>g.visible),true)[0];
+        const end=start.clone().addScaledVector(direction,wallHit?Math.min(140,wallHit.distance):140);
+        view.warning.geometry.setFromPoints([start,end]);view.warning.material.opacity=.35+.45*(e.charge/C.WEAPONS[e.weaponType].charge);
+        if(!view.wasCharging)sound(true,.12);
+      }
+      view.wasCharging=e.charge>0;
+      view.glow.emissiveIntensity=(e.abilityUntil>truth.tick?4:1)+(e.charge/(C.WEAPONS[e.weaponType].charge||1))*5;
       if(truth.status==='playing')for(const w of view.wheels)w.rotateY(e.speed*dt/.43);
       if(view.label){
         projected.set(e.x,e.y+4.6,e.z).project(camera);const shown=e.alive&&view.tank.visible&&projected.z>-1&&projected.z<1&&Math.abs(projected.x)<1.1&&Math.abs(projected.y)<1.1;
-        view.label.style.display=shown?'block':'none';view.label.style.left=((projected.x*.5+.5)*window.innerWidth)+'px';view.label.style.top=((-projected.y*.5+.5)*window.innerHeight)+'px';view.bar.style.width=(e.hp/e.maxHp*100)+'%';
+        view.label.style.display=shown?'block':'none';view.label.style.left=((projected.x*.5+.5)*window.innerWidth)+'px';view.label.style.top=((-projected.y*.5+.5)*window.innerHeight)+'px';view.bar.style.width=((e.hp+e.shield+e.barrier)/(e.maxHp+C.TANKS[e.tankType].shield+e.barrier)*100)+'%';
       }
     }
     const liveIds=new Set(state.bullets.map(b=>b.id));
@@ -388,7 +401,10 @@
     hudTime+=dt;
     if(hudTime>.08){
       hudTime=0;const weapon=C.WEAPONS[p.weaponType],tank=C.TANKS[p.tankType];
-      $('hp-number').textContent=p.hp;$('max-hp').textContent=p.maxHp;$('hp-bar').max=p.maxHp;$('hp-bar').value=p.hp;
+      $('hp-number').textContent=Math.ceil(p.hp);
+      $('shield-number').textContent=Math.ceil(p.shield)+' / '+tank.shield+(p.barrier?' + '+Math.ceil(p.barrier)+' 临时':'');$('shield-bar').max=tank.shield;$('shield-bar').value=p.shield;
+      const abilityNames={dash:'矢量冲刺',barrier:'应急屏障',deploy:'堡垒部署'};
+      $('ability-status').textContent='Shift · '+abilityNames[tank.ability]+' · '+(p.abilityUntil>truth.tick?'生效中 '+((p.abilityUntil-truth.tick)/60).toFixed(1)+'s':p.abilityCooldown?'冷却 '+Math.ceil(p.abilityCooldown/60)+'s':'就绪');$('max-hp').textContent=p.maxHp;$('hp-bar').max=p.maxHp;$('hp-bar').value=p.hp;
       $('vehicle-label').textContent=tank.name+' / '+p.id;$('speed').textContent=Math.round(Math.abs(p.speed)*3.6);
       $('enemy-count').textContent=truth.entities.filter(e=>e.id!==playerId&&e.alive).length;
       $('weapon-label').textContent=weapon.name;

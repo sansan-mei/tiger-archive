@@ -1,8 +1,8 @@
 /* Authoritative simulation: no DOM, renderer, timers, network library or wall clock. */
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./plugins/catalog.js'):root.TankPlugins);if(typeof module==='object'&&module.exports)module.exports=api;else root.TankBattle=api;})(typeof window==='undefined'?globalThis:window,function(Plugins){
   'use strict';
-  const VERSION=5,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
-  const RULES=Object.freeze({duration:18000,killLimit:15,respawn:240,protection:120,boost:360,pickupCooldown:1200});
+  const VERSION=7,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
+  const RULES=Object.freeze({duration:18000,killLimit:15,respawn:240,protection:120,boost:360,pickupCooldown:1200,shieldDelay:300,repair:40});
   const clone=value=>JSON.parse(JSON.stringify(value));
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const wrap=a=>((a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
@@ -78,10 +78,10 @@
   }
   function normalizeInput(raw={}){
     if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Invalid input');
-    const allowed=['forward','reverse','left','right','brake','fire','interact','aimLeft','aimRight','cancelFire','aimYaw','aimPitch'];
+    const allowed=['forward','reverse','left','right','brake','fire','interact','aimLeft','aimRight','cancelFire','aimYaw','aimPitch','ability'];
     if(Object.keys(raw).some(k=>!allowed.includes(k)))throw new Error('Unknown input field');
     const input={};
-    for(const key of allowed.slice(0,10)){if(raw[key]!==undefined&&typeof raw[key]!=='boolean')throw new Error('Invalid input flag');input[key]=raw[key]===true;}
+    for(const key of allowed.filter(k=>!['aimYaw','aimPitch'].includes(k))){if(raw[key]!==undefined&&typeof raw[key]!=='boolean')throw new Error('Invalid input flag');input[key]=raw[key]===true;}
     if(raw.aimYaw!==undefined){if(!finite(raw.aimYaw)||Math.abs(raw.aimYaw)>Math.PI*8)throw new Error('Invalid aim yaw');input.aimYaw=wrap(raw.aimYaw);}
     if(raw.aimPitch!==undefined){if(!finite(raw.aimPitch)||Math.abs(raw.aimPitch)>.65)throw new Error('Invalid aim pitch');input.aimPitch=clamp(raw.aimPitch,-.55,.55);}
     return input;
@@ -98,7 +98,7 @@
         if(typeof p.id!=='string'||!/^[a-zA-Z0-9_-]{1,32}$/.test(p.id)||!['human','bot'].includes(p.controller)||!Object.hasOwn(TANKS,p.tankType)||!Object.hasOwn(WEAPONS,p.weaponType))throw new Error('Invalid participant');
         const s=this.map.spawns[p.spawn??i];if(!s)throw new Error('Invalid spawn');
         const spec=TANKS[p.tankType];
-        return {id:p.id,controller:p.controller,tankType:p.tankType,weaponType:p.weaponType,x:s.x,y:this.map.levels[s.floor].y,z:s.z,floor:s.floor,heading:-Math.PI/2,aim:-Math.PI/2,pitch:0,hp:spec.hp,maxHp:spec.hp,alive:true,speed:0,cooldown:0,charge:0,fireHeld:false,needsRelease:false,rampId:null,rampDir:0,kills:0,deaths:0,respawnAt:0,protectedUntil:0,boostUntil:0,forfeited:false,brain:{target:null,path:[],pathTick:0,blocked:0}};
+        return {id:p.id,controller:p.controller,tankType:p.tankType,weaponType:p.weaponType,x:s.x,y:this.map.levels[s.floor].y,z:s.z,floor:s.floor,heading:-Math.PI/2,aim:-Math.PI/2,pitch:0,hp:spec.hp,maxHp:spec.hp,shield:spec.shield,barrier:0,lastDamageTick:0,abilityCooldown:0,abilityUntil:0,abilityHeld:false,alive:true,speed:0,cooldown:0,charge:0,fireHeld:false,needsRelease:false,rampId:null,rampDir:0,kills:0,deaths:0,respawnAt:0,protectedUntil:0,boostUntil:0,forfeited:false,brain:{target:null,path:[],pathTick:0,blocked:0}};
       });
       for(const e of this.entities)if(!this.valid(e.x,e.z,e.floor,e))throw new Error('Overlapping or obstructed spawn');
     }
@@ -246,22 +246,30 @@
         if(body.brain.blocked>20){input.forward=false;input.reverse=true;input.left=true;if(body.brain.blocked>48)body.brain.blocked=0;}
       }
       if(los&&range<95&&Math.abs(wrap(aimYaw-body.aim))<.09&&!body.cooldown)input.fire=true;
+      input.ability=body.abilityCooldown===0&&!body.abilityHeld&&(body.tankType==='light'?!!goal:los&&range<55);
       return input;
     }
-    damage(target,amount,owner,point){
+    damage(target,amount,owner,point,direction=null){
       if(!target.alive||target.protectedUntil>this.tick)return false;
-      const dealt=Math.min(target.hp,amount);
-      target.hp=Math.max(0,target.hp-amount);this.emit('damage',{id:target.id,owner,hp:target.hp,amount:dealt,...point});
-      if(!target.hp){target.alive=false;target.deaths++;target.respawnAt=this.tick+RULES.respawn;target.boostUntil=0;target.speed=0;target.charge=0;const killer=this.getEntity(owner);if(killer&&killer!==target)killer.kills++;this.emit('destroy',{id:target.id,owner,x:target.x,y:target.y+1.5,z:target.z});}
+      const attacker=this.getEntity(owner),spec=TANKS[target.tankType];
+      const dx=direction?-direction.x:(attacker?.x??point.x)-target.x,dz=direction?-direction.z:(attacker?.z??point.z)-target.z;
+      const frontal=spec.ability==='deploy'&&target.abilityUntil>this.tick&&(-Math.cos(target.aim)*dx+Math.sin(target.aim)*dz)/Math.max(.001,Math.hypot(dx,dz))>=.5;
+      if(frontal)amount=Math.ceil(amount*.3);
+      target.lastDamageTick=this.tick;
+      const barrierDamage=Math.min(target.barrier,amount);target.barrier-=barrierDamage;amount-=barrierDamage;
+      const shieldDamage=Math.min(target.shield,amount);target.shield-=shieldDamage;amount-=shieldDamage;
+      const hullDamage=Math.min(target.hp,amount);target.hp-=hullDamage;
+      this.emit('damage',{id:target.id,owner,hp:target.hp,amount:hullDamage+shieldDamage+barrierDamage,shieldDamage:shieldDamage+barrierDamage,frontal,...point});
+      if(!target.hp){target.alive=false;target.deaths++;target.respawnAt=this.tick+RULES.respawn;target.boostUntil=0;target.abilityUntil=0;target.barrier=0;target.speed=0;target.charge=0;const killer=this.getEntity(owner);if(killer&&killer!==target)killer.kills++;this.emit('destroy',{id:target.id,owner,x:target.x,y:target.y+1.5,z:target.z});}
       return true;
     }
     resolveHit(hit,shot){
       this.emit('impact',{owner:shot.owner,kind:hit.kind,targetId:hit.kind==='tank'?hit.id:null,...hit.point,weaponType:shot.weaponType});
-      if(hit.kind==='tank')this.damage(this.getEntity(hit.id),shot.damage,shot.owner,hit.point);
+      if(hit.kind==='tank')this.damage(this.getEntity(hit.id),shot.damage,shot.owner,hit.point,{x:shot.dx,z:shot.dz});
     }
     shoot(body,power=1){
       if(this.status!=='playing'||!body.alive||body.cooldown)return false;
-      body.protectedUntil=0;
+      body.protectedUntil=0;body.lastDamageTick=this.tick;
       const spec=WEAPONS[body.weaponType],c=Math.cos(body.pitch),dir={x:-Math.cos(body.aim)*c,y:Math.sin(body.pitch),z:Math.sin(body.aim)*c};
       const start={x:body.x,y:body.y+2.2,z:body.z},length=spec.muzzle*TANKS[body.tankType].scale;
       const muzzle={x:start.x+dir.x*length,y:start.y+dir.y*length,z:start.z+dir.z*length};
@@ -278,16 +286,27 @@
     }
     releaseControl(id){
       const body=this.getEntity(id);if(!body)return;
-      body.speed=0;body.charge=0;body.fireHeld=false;body.needsRelease=true;
+      body.speed=0;body.charge=0;body.fireHeld=false;body.abilityHeld=false;body.needsRelease=true;
     }
     tickEntity(body,input){
-      if(input.cancelFire){input={...input,fire:false};body.charge=0;body.fireHeld=false;body.needsRelease=true;}
+      if(input.cancelFire){input={...input,fire:false};body.charge=0;body.fireHeld=false;body.abilityHeld=false;body.needsRelease=true;}
       const spec=TANKS[body.tankType],weapon=WEAPONS[body.weaponType];
       if(!body.alive)return;
+      if(body.abilityCooldown)body.abilityCooldown--;
+      if(body.abilityUntil<=this.tick)body.barrier=0;
+      if(input.ability&&!body.abilityHeld&&!body.abilityCooldown){
+        body.abilityCooldown=spec.abilityCooldown;body.abilityUntil=this.tick+spec.abilityDuration;
+        if(spec.ability==='barrier')body.barrier=60;
+        this.emit('ability',{id:body.id,ability:spec.ability});
+      }
+      body.abilityHeld=input.ability===true;
+      if(this.tick-body.lastDamageTick>=RULES.shieldDelay)body.shield=Math.min(spec.shield,body.shield+spec.shield/(6*TICK_RATE));
       if(body.cooldown)body.cooldown--;
       if(!input.fire)body.needsRelease=false;
       body.heading=wrap(body.heading+((input.left?1:0)-(input.right?1:0))*spec.turn*DT);
-      const throttle=(input.forward?1:0)-(input.reverse?1:0),desired=input.brake?0:throttle>0?spec.speed*(body.boostUntil>this.tick?1.35:1):throttle<0?-spec.reverse:0;
+      const active=body.abilityUntil>this.tick,throttle=(input.forward?1:0)-(input.reverse?1:0);let desired=input.brake?0:throttle>0?spec.speed*(body.boostUntil>this.tick?1.35:1):throttle<0?-spec.reverse:0;
+      if(active&&spec.ability==='deploy')desired*=.35;
+      if(active&&spec.ability==='dash'){desired=input.brake?0:(input.reverse?-1:1)*26;body.speed=desired;}
       body.speed+=clamp(desired-body.speed,-spec.accel*DT,spec.accel*DT);if(input.brake)body.speed=0;
       const nx=body.x-Math.cos(body.heading)*body.speed*DT,nz=body.z+Math.sin(body.heading)*body.speed*DT;
       const surface=this.surface(body,nx,nz);
@@ -321,12 +340,12 @@
       for(const body of this.entities){
         if(!body.alive&&!body.forfeited&&body.respawnAt&&this.tick>=body.respawnAt){
           const candidates=this.map.spawns.filter(s=>this.valid(s.x,s.z,s.floor,body)).map(s=>({s,safety:Math.min(...this.entities.filter(e=>e.alive&&e.id!==body.id).map(e=>Math.hypot(e.x-s.x,e.z-s.z)+Math.abs(e.floor-s.floor)*30),200)})).sort((a,b)=>b.safety-a.safety);
-          if(candidates.length){const s=candidates[0].s;Object.assign(body,{x:s.x,z:s.z,y:this.map.levels[s.floor].y,floor:s.floor,alive:true,hp:body.maxHp,speed:0,rampId:null,rampDir:0,cooldown:0,charge:0,fireHeld:false,needsRelease:true,respawnAt:0,protectedUntil:this.tick+RULES.protection});body.brain={target:null,path:[],pathTick:0,blocked:0};this.emit('respawn',{id:body.id});}
+          if(candidates.length){const s=candidates[0].s;Object.assign(body,{x:s.x,z:s.z,y:this.map.levels[s.floor].y,floor:s.floor,alive:true,hp:body.maxHp,shield:TANKS[body.tankType].shield,barrier:0,lastDamageTick:this.tick,abilityCooldown:0,abilityUntil:0,abilityHeld:true,speed:0,rampId:null,rampDir:0,cooldown:0,charge:0,fireHeld:false,needsRelease:true,respawnAt:0,protectedUntil:this.tick+RULES.protection});body.brain={target:null,path:[],pathTick:0,blocked:0};this.emit('respawn',{id:body.id});}
         }
         if(!body.alive||body.rampId)continue;
         for(const pickup of this.pickups){
           if(pickup.readyAt>this.tick||pickup.floor!==body.floor||Math.hypot(body.x-pickup.x,body.z-pickup.z)>3)continue;
-          if(pickup.kind==='repair'){if(body.hp===body.maxHp)continue;body.hp=Math.min(body.maxHp,body.hp+45);}else body.boostUntil=this.tick+RULES.boost;
+          if(pickup.kind==='repair'){if(body.hp===body.maxHp)continue;body.hp=Math.min(body.maxHp,body.hp+RULES.repair);}else body.boostUntil=this.tick+RULES.boost;
           pickup.readyAt=this.tick+RULES.pickupCooldown;this.emit('pickup',{id:body.id,pickupId:pickup.id,kind:pickup.kind});
         }
       }

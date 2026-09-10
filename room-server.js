@@ -92,7 +92,7 @@ class RoomServer{
   }
   migrateHost(room){if(!room.seats.some(s=>s.id===room.host&&s.clientId))room.host=(room.seats.find(s=>s.clientId)||room.seats[0])?.id??null;}
   eliminate(room,seat){
-    const a=room.authority,e=a?.battle.getEntity(seat.id);if(e){e.forfeited=true;e.protectedUntil=0;}if(e?.alive&&a.battle.status==='playing'){
+    const a=room.authority,e=a?.battle.getEntity(seat.id);if(e){e.forfeited=true;e.protectedUntil=0;e.shield=0;e.barrier=0;e.abilityUntil=0;}if(e?.alive&&a.battle.status==='playing'){
       const index=a.battle.events.length;a.battle.damage(e,e.hp,null,{x:e.x,y:e.y,z:e.z});
       a.history.push(...a.battle.events.slice(index));if(a.history.length>256)a.history.splice(0,a.history.length-256);
     }

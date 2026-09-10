@@ -65,7 +65,7 @@ test('replicas reject malformed snapshots, oversized packets, wrong matches and 
 test('replica copies cannot mutate authoritative or stored client state',()=>{
   const {a,clients}=setup(),r=clients[0].r;r.receive(a.statePacket());
   const copy=r.renderState();copy.entities[0].hp=1;
-  assert.equal(r.current.entities[0].hp,130);assert.equal(a.battle.entities[0].hp,130);
+  assert.equal(r.current.entities[0].hp,210);assert.equal(a.battle.entities[0].hp,210);
 });
 test('30, 60 and 120 fps local drivers yield identical 60 Hz world states',()=>{
   const result=[];
@@ -79,7 +79,7 @@ test('30, 60 and 120 fps local drivers yield identical 60 Hz world states',()=>{
 test('restart creates a fresh epoch, loadout and rejects old state packets',()=>{
   const s=new S.LocalSession();s.start();s.advance(.1,{fire:true});
   const old=s.authority.statePacket();s.restart({tankType:'heavy',weaponType:'laser'});
-  assert.equal(s.current().entities[0].maxHp,190);assert.equal(s.current().entities[0].weaponType,'laser');
+  assert.equal(s.current().entities[0].maxHp,280);assert.equal(s.current().entities[0].weaponType,'laser');
   assert.equal(s.current().tick,0);assert.equal(s.replica.receive(old).ok,false);
 });
 test('ramp height is validated and interpolated through authority snapshots',()=>{
