@@ -95,6 +95,8 @@
         !number(e.pitch, -0.55, 0.55) ||
         !integer(e.cooldown, 0, weapon.cooldown) ||
         !integer(e.charge, 0, weapon.charge) ||
+        !integer(e.criticalProgress, 0, weapon.criticalHits || 0) ||
+        (!e.alive && e.criticalProgress !== 0) ||
         !integer(e.kills, 0, 1000) ||
         !integer(e.deaths, 0, 1000) ||
         ![e.respawnAt, e.protectedUntil, e.boostUntil].every((v) =>
@@ -200,7 +202,23 @@
         !number(b.dy, -1, 1) ||
         !number(b.dz, -1, 1) ||
         !integer(b.life, 0, C.WEAPONS[b.weaponType].life) ||
-        !integer(b.damage, 1, C.WEAPONS[b.weaponType].damage)
+        typeof b.critical !== "boolean" ||
+        !integer(
+          b.ownerLife,
+          0,
+          s.entities.find((e) => e.id === b.owner).deaths,
+        ) ||
+        (b.critical && !C.WEAPONS[b.weaponType].criticalHits) ||
+        !integer(
+          b.damage,
+          1,
+          C.WEAPONS[b.weaponType].damage *
+            (b.critical ? C.WEAPONS[b.weaponType].criticalMultiplier : 1),
+        ) ||
+        (C.WEAPONS[b.weaponType].criticalHits &&
+          b.damage !==
+            C.WEAPONS[b.weaponType].damage *
+              (b.critical ? C.WEAPONS[b.weaponType].criticalMultiplier : 1))
       )
         throw new Error("Invalid projectile");
     return s;
@@ -417,6 +435,8 @@
           )
             throw new Error("Invalid event");
           last = e.eventId;
+          if (e.critical !== undefined && typeof e.critical !== "boolean")
+            throw new Error("Invalid critical effect");
           for (const key of ["x", "y", "z", "power"])
             if (e[key] !== undefined && !number(e[key], -200, 200))
               throw new Error("Invalid effect");

@@ -6,7 +6,15 @@
 })(typeof window === "undefined" ? globalThis : window, function (C) {
   "use strict";
   const { ABILITIES, RULES, TANKS, WEAPONS } = C;
-  function damage(battle, target, amount, owner, point, direction = null) {
+  function damage(
+    battle,
+    target,
+    amount,
+    owner,
+    point,
+    direction = null,
+    critical = false,
+  ) {
     if (!target.alive || target.protectedUntil > battle.tick) return false;
     const attacker = battle.getEntity(owner),
       spec = TANKS[target.tankType],
@@ -36,6 +44,7 @@
       amount: hullDamage + shieldDamage + barrierDamage,
       shieldDamage: shieldDamage + barrierDamage,
       frontal,
+      critical,
       ...point,
     });
     if (!target.hp) {
@@ -47,6 +56,7 @@
       target.barrier = 0;
       target.speed = 0;
       target.charge = 0;
+      target.criticalProgress = 0;
       const killer = battle.getEntity(owner);
       if (killer && killer !== target) killer.kills++;
       battle.emit("destroy", {
@@ -67,15 +77,32 @@
       ...hit.point,
       weaponType: shot.weaponType,
     });
-    if (hit.kind === "tank")
-      battle.damage(
+    const spec = WEAPONS[shot.weaponType];
+    if (hit.kind === "tank") {
+      const applied = battle.damage(
         battle.getEntity(hit.id),
         shot.damage,
         shot.owner,
         hit.point,
         { x: shot.dx, z: shot.dz },
+        shot.critical === true,
       );
-    const spec = WEAPONS[shot.weaponType];
+      const owner = battle.getEntity(shot.owner);
+      // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
+      if (
+        applied &&
+        spec.criticalHits &&
+        !shot.critical &&
+        owner?.alive &&
+        owner.id !== hit.id &&
+        owner.deaths === shot.ownerLife &&
+        owner.weaponType === shot.weaponType
+      )
+        owner.criticalProgress = Math.min(
+          spec.criticalHits,
+          owner.criticalProgress + 1,
+        );
+    }
     if (spec.splashDamage) {
       battle.emit("explosion", {
         owner: shot.owner,
@@ -151,11 +178,18 @@
     if (spec.trigger === "delayed") power = 1;
     body.cooldown = spec.cooldown;
     body.charge = 0;
+    const critical =
+      !!spec.criticalHits && body.criticalProgress >= spec.criticalHits;
+    if (critical) body.criticalProgress = 0;
     const shot = {
       id: battle.nextBullet++,
       owner: body.id,
       weaponType: body.weaponType,
-      damage: Math.round(spec.damage * power),
+      critical,
+      ownerLife: body.deaths,
+      damage: Math.round(
+        spec.damage * power * (critical ? spec.criticalMultiplier : 1),
+      ),
       ...muzzle,
       dx: dir.x,
       dy: dir.y,
@@ -163,6 +197,7 @@
       life: spec.life,
     };
     battle.emit("shot", {
+      critical,
       id: body.id,
       weaponType: body.weaponType,
       power,

@@ -136,6 +136,19 @@
             s.delivery !== "projectile"
           )
             throw new Error("Invalid explosion");
+        if (s.criticalHits !== undefined || s.criticalMultiplier !== undefined)
+          if (
+            !Number.isInteger(s.criticalHits) ||
+            s.criticalHits < 1 ||
+            s.criticalHits > 10 ||
+            !Number.isInteger(s.criticalMultiplier) ||
+            s.criticalMultiplier < 2 ||
+            s.criticalMultiplier > 3 ||
+            s.trigger !== "automatic" ||
+            s.delivery !== "projectile" ||
+            s.splashDamage
+          )
+            throw new Error("Invalid critical mechanic");
         for (const key of ["damage", "cooldown", "life", "charge", "minCharge"])
           if (!Number.isInteger(s[key]))
             throw new Error("Expected integer: " + key);

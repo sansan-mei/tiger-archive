@@ -87,3 +87,5 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 
 .aim-lock-label{display:none;position:absolute;top:36px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:#ff7373;text-shadow:0 1px 3px #000}
 #aim-reticle[data-assisted="true"] .aim-lock-label{display:block}
+
+#event-notice[data-critical="true"]{background:#ffb347;color:#34200e;font-weight:800;font-size:16px;box-shadow:0 0 18px #ff9d3255}

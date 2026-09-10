@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v13）
+# 机甲与武器插件（API v1，协议 v14）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种单位 × 4 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -64,7 +64,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 联机一致性
 
-协议已升级为 v13。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议已升级为 v14。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -72,14 +72,20 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 - plugins/tanks/human.js：人类，版本 1.0.1；movement: strafe、muzzleScale: 0.55、height: 2.8。移动参考由 moveYaw 输入提供，伤害碰撞体采用更小半径及指定高度。
 - plugins/weapons/rocket.js：火箭筒，版本 1.0.2；damage: 20、splashDamage: 80、splashRadius: 6。爆炸参数需同时提供，且只能用于 projectile 类型；权威核心统一处理二次伤害和遮挡。
-- 共用清单已包含两者。车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.1.2、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
+- 共用清单已包含两者。车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.3.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v13 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.1.2、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.3.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v14 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。
 
 ## 卡通几何上下文
 
 `buildVisual(ctx)` 只创建客户端外观，提供 `tankType`、`accent`、`ink`、`block/cylinder` 和 `weaponLength`。武器以局部 -X 为前向，从安装点延伸至 `-weaponLength`；工厂根据当前炮口距离和人类缩放计算长度。四把武器都用基础几何造型，不再提供外部模型加载接口。
 
 静态几何按父节点与材质合并；轮子、腿、炮塔和武器保留动画枢轴。新增逐部件动画时应保留该部件为独立组，不把它当静态块合并。资源由每个 view 独立持有，切换配置时统一释放。
+
+## 命中积攒强化弹
+
+武器可声明 criticalHits（1–10 整数）和 criticalMultiplier（2–3 整数），仅支持无范围伤害的 automatic/projectile 武器。标准炮使用 2 和 2，普通/强化伤害为 35/70。省略这两个字段的武器不启用。从标准炮复制配置制作其他触发/投送类型时，应去掉这两个字段。
+
+实体 criticalProgress 从零累加至 criticalHits；有效普通弹直接命中后累加，发射强化弹清零，强化命中不累加。弹丸持有 critical 和 ownerLife（发射时射手 deaths），防止前一条命的弹丸给新生命累积。表现层从快照读取进度，不能调用权威计数。

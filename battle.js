@@ -93,6 +93,7 @@
   });
   function notify(message) {
     $("event-notice").textContent = message;
+    $("event-notice").dataset.critical = "false";
     noticeTime = 3;
   }
   function eventsReceived(events) {
@@ -129,7 +130,13 @@
       }
       if (e.type === "damage" && e.owner === playerId) {
         hitTime = 0.4;
-        notify("命中 " + e.id + " · −" + Math.ceil(e.amount));
+        notify(
+          (e.critical ? "强化命中！ " : "命中 ") +
+            e.id +
+            " · −" +
+            Math.ceil(e.amount),
+        );
+        $("event-notice").dataset.critical = String(e.critical === true);
       }
       if (e.type === "ability") {
         if (e.id === playerId) {
@@ -248,6 +255,13 @@
           ? " / 按住蓄力，松开发射"
           : " / " + (weapon.cooldown / 60).toFixed(2) + " 秒装填");
 
+    if (weapon.criticalHits)
+      $("loadout-summary").textContent +=
+        " / 命中 " +
+        weapon.criticalHits +
+        " 次，下一发强化至 " +
+        weapon.damage * weapon.criticalMultiplier +
+        " 伤害";
     $("loadout-summary").textContent +=
       "。Shift：" +
       C.describeAbility(tank.ability) +

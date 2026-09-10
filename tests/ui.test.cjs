@@ -14,6 +14,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   let document,
     frame,
     renderedCamera,
+    renderedScene,
     now = 0;
   const ctx2d = new Proxy(
     {},
@@ -93,6 +94,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     setSize() {}
     render(scene, camera) {
       renderedCamera = camera;
+      renderedScene = scene;
     }
   }
   const rooms = new RoomServer({ now: () => now }),
@@ -239,6 +241,21 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   }
   advance(3);
   const driver = room.authority.battle.entities[0];
+  assert.equal(driver.weaponType, "standard");
+  driver.criticalProgress = 2;
+  advance(18);
+  assert.match(nodes.get("weapon-description").textContent, /强化弹就绪/);
+  let halo;
+  renderedScene.traverse((o) => {
+    if (o.name === "critical-muzzle-glow" && o.userData.entityId === driver.id)
+      halo = o;
+  });
+  assert.ok(halo?.visible);
+  assert.equal(halo.userData.aimIgnore, true);
+  driver.criticalProgress = 0;
+  advance(18);
+  assert.equal(halo.visible, false);
+  assert.match(nodes.get("weapon-description").textContent, /0\/2/);
   for (const heading of [0, Math.PI / 2, -Math.PI / 2, Math.PI - 0.01]) {
     driver.heading = heading;
     advance(6);

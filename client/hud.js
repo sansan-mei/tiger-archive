@@ -118,6 +118,17 @@
         : weapon.charge
           ? "蓄满自动发射；也可松开提前发射"
           : "按住连续开火 · 弹药无限";
+    if (weapon.criticalHits)
+      $("weapon-description").textContent =
+        p.criticalProgress >= weapon.criticalHits
+          ? "强化弹就绪 · 下一发 " +
+            weapon.damage * weapon.criticalMultiplier +
+            " 伤害"
+          : "强化弹进度 " +
+            p.criticalProgress +
+            "/" +
+            weapon.criticalHits +
+            " · 直接命中积攒";
     const remaining = Math.max(
       0,
       Math.ceil((C.RULES.duration - truth.tick) / 60),

@@ -238,6 +238,10 @@
         if (!view.wasCharging) sound(true, 0.12);
       }
       view.wasCharging = e.charge > 0;
+      view.criticalGlow.visible =
+        e.alive &&
+        !!view.weapon.criticalHits &&
+        e.criticalProgress >= view.weapon.criticalHits;
       view.glow.emissiveIntensity =
         (e.abilityUntil > truth.tick ? 4 : 1) +
         (e.charge / (C.WEAPONS[e.weaponType].charge || 1)) * 5;

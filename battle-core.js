@@ -95,6 +95,7 @@
           speed: 0,
           cooldown: 0,
           charge: 0,
+          criticalProgress: 0,
           fireHeld: false,
           needsRelease: false,
           falling: false,

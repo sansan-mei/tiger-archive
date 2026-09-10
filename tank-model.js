@@ -146,6 +146,20 @@ window.createTankModel = function (
     if (o.geometry) retained.add(o.geometry);
   });
   for (const g of retired) if (!retained.has(g)) g.dispose();
+  const criticalGlow = new T.Mesh(
+    new T.SphereGeometry(0.3, 8, 6),
+    new T.MeshBasicMaterial({
+      color: 0xffa52f,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    }),
+  );
+  criticalGlow.position.x = -ctx.weaponLength + 0.31;
+  criticalGlow.name = "critical-muzzle-glow";
+  criticalGlow.visible = false;
+  criticalGlow.userData.aimIgnore = true;
+  gun.add(criticalGlow);
   const wreck = new T.MeshToonMaterial({ color: 0x6c7166 });
   const originals = new Map();
   tank.traverse((o) => {
@@ -180,6 +194,7 @@ window.createTankModel = function (
   frontShield.position.set(-3.8, 1, 0);
   turret.add(frontShield);
   return {
+    criticalGlow,
     assetSource: authored ? "blender" : "procedural",
     frontShield,
     tank,

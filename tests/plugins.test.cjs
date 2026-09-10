@@ -66,7 +66,7 @@ test("manifest ignores registration order but detects changed stats or versions"
 test("an additional weapon works without an ID branch in the core", () => {
   const ctx = browser((b) =>
     vm.runInContext(
-      "TankPlugins.register({...TankPlugins.weapons.standard,id:'pulse',spec:{...TankPlugins.weapons.standard.spec,delivery:'ray',damage:120,range:90,cooldown:20}})",
+      "TankPlugins.register({...TankPlugins.weapons.standard,id:'pulse',spec:{...TankPlugins.weapons.standard.spec,criticalHits:undefined,criticalMultiplier:undefined,delivery:'ray',damage:120,range:90,cooldown:20}})",
       b,
     ),
   );

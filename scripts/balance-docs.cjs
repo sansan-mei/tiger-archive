@@ -17,17 +17,24 @@ function renderBalance() {
     "|---|---:|---:|---:|---:|---|",
     ...Object.values(C.WEAPONS).map((w) => {
       const hits = ["light", "medium", "heavy", "human"]
-        .map((id) =>
-          Math.ceil(
-            (C.TANKS[id].hp + C.TANKS[id].shield) /
-              (w.damage + (w.splashDamage || 0)),
-          ),
-        )
+        .map((id) => {
+          let remaining = C.TANKS[id].hp + C.TANKS[id].shield,
+            hits = 0;
+          while (remaining > 0) {
+            hits++;
+            const critical =
+              w.criticalHits && hits % (w.criticalHits + 1) === 0;
+            remaining -=
+              w.damage * (critical ? w.criticalMultiplier : 1) +
+              (w.splashDamage || 0);
+          }
+          return hits;
+        })
         .join(" / ");
-      return `| ${w.name} | ${w.damage} | ${w.splashDamage || 0} | ${w.cooldown / C.TICK_RATE} | ${w.charge / C.TICK_RATE} | ${hits} |`;
+      return `| ${w.name} | ${w.damage}${w.criticalHits ? " / 强化 " + w.damage * w.criticalMultiplier : ""} | ${w.splashDamage || 0} | ${w.cooldown / C.TICK_RATE} | ${w.charge / C.TICK_RATE} | ${hits} |`;
     }),
   ].join("\n");
-  return `${units}\n\n${weapons}\n\n枪数基准：满装甲满基础护盾、无技能或补给、连续满威力直接命中，不触发脱战恢复；火箭直击目标追加满额爆炸伤害。`;
+  return `${units}\n\n${weapons}\n\n枪数基准：满装甲满基础护盾、无技能或补给、连续满威力直接命中，不触发脱战恢复；火箭直击目标追加满额爆炸伤害；标准炮从零进度开始，每两次普通命中后的下一发强化。`;
 }
 const start = "<!-- BALANCE:START -->",
   end = "<!-- BALANCE:END -->";

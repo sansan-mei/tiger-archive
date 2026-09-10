@@ -18,7 +18,7 @@ BIND_ADDRESS=0.0.0.0
 MAX_ROOMS=16
 PUBLIC_ORIGIN=https://tank.example.com
 REDIS_URL='redis://default:URL_ENCODED_PASSWORD@host.docker.internal:6379/0'
-REDIS_PREFIX=tiger:rooms:v13
+REDIS_PREFIX=tiger:rooms:v14
 ```
 
 - 直接通过 IP:8080 访问时，PUBLIC_ORIGIN 可留空；服务会要求 WebSocket Origin 与请求 Host 相同。
@@ -121,9 +121,9 @@ location / {
 
 已完成自动化模拟及适配层测试，没有启动真实 TCP 监听、连接你的 Redis、运行 Docker 镜像或执行浏览器 WebGL 验收。部署后需用两台设备测试加入、移动/射击、驾驶上下坡、离开重连，以及容器重启恢复。非运行状态的 Docker 配置检查也不能替代这些测试。
 
-## 更新到当前 v13 版本
+## 更新到当前 v14 版本
 
-本版协议 v13、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v13，使用新的房间数据命名空间，不要恢复旧激光蓄力规则的对局。
+本版协议 v14、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v14，使用新的房间数据命名空间，不要恢复旧激光蓄力规则的对局。
 
 ## 联机验收顺序
 
@@ -134,8 +134,10 @@ location / {
 5. 启用实际 Redis，验证容器重启、检查点恢复和独占租约失败时的停止行为。
 6. 最后扩到 8 人与不同网络，观察操控延迟、消息流量和服务负载。
 
-以上为待执行验收步骤。当前自动化测试共 131 项通过；尚未进行真实弱网和异机联机验收。配置解析和模拟测试不替代上述步骤。
+以上为待执行验收步骤。当前自动化测试共 136 项通过；尚未进行真实弱网和异机联机验收。配置解析和模拟测试不替代上述步骤。
 
 房间列表新增同源 `GET /api/rooms` 接口，反向代理需与页面和 `/ws` 一起转发到游戏服务。更新后重启 Node；Docker 部署更新镜像后重建容器。旧进程没有该接口时会显示列表加载失败，手动刷新无法代替服务端更新。
 
 镜像现在采用多阶段构建，默认混淆自有前端 JavaScript，并使用 `ASSET_MODE=release`。构建参数 `OBFUSCATE_CLIENT=false` 可临时生成可读前端排查问题，需重新构建才生效。不能通过只重启容器来切换。详见 [OBFUSCATION.md](OBFUSCATION.md)。完整混淆构建及实机性能仍待部署验收。
+
+强化弹验收：标准炮连续两次普通命中后出现强化就绪，下一发造成 70 基础伤害；强化弹打空后回到 0/2；死亡清零；房间重连恢复合法进度。当前新增网络字段需要 v14 客户端与服务端配套部署。

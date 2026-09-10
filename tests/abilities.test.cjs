@@ -130,7 +130,7 @@ test("ability and shield state survives authority/replica and checkpoint continu
 test("continuous full-power weapon hits meet the 2/3/4 laser baseline and balanced cannon counts", () => {
   const expected = {
     laser: [2, 3, 4],
-    standard: [6, 9, 12],
+    standard: [5, 7, 9],
     rapid: [16, 24, 31],
   };
   for (const [weaponType, counts] of Object.entries(expected))

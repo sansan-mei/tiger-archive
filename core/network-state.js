@@ -29,6 +29,7 @@
     "speed",
     "cooldown",
     "charge",
+    "criticalProgress",
     "fireHeld",
     "needsRelease",
     "falling",
