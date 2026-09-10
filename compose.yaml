@@ -1,6 +1,9 @@
 services:
   tank:
-    build: .
+    build:
+      context: .
+      args:
+        OBFUSCATE_CLIENT: "${OBFUSCATE_CLIENT:-true}"
     image: tiger-field-trial:local
     restart: unless-stopped
     init: true

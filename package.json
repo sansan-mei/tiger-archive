@@ -8,11 +8,16 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "build:client": "node scripts/client-release.cjs",
+    "start:release": "ASSET_MODE=release node server.js"
   },
   "dependencies": {
     "redis": "6.2.1",
     "three": "0.158.0",
     "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "5.7.0"
   }
 }

@@ -77,3 +77,7 @@ Replica 在 welcome 时核对配置清单，随后校验网络字段、版本、
 轻量回归：`node --test tests/*.test.cjs`。架构测试保留拆分前 900 tick 的完整模拟结果，排除版本和清单格式后逐字段比对；其余用例覆盖规则、传输、插件和页面替身。更新基准必须确认玩法变化，不能只为让测试通过而重录。
 
 本次协议升级为 v9，Redis 默认前缀 tiger:rooms:v9。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
+
+## 发布副本
+
+开发继续使用双入口模块和原始文件。scripts/client-release.cjs 是显式发布命令，按共用清单生成 public-dist；server.js 通过 ASSET_MODE 区分源码和发布目录，发布模式启动前检查文件齐全，缺失时不回退源码。Docker 构建阶段运行混淆，权威 Node 模拟仍读取原始模块。配置及发布步骤见 OBFUSCATION.md。

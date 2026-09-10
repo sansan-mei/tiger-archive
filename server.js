@@ -7,7 +7,9 @@ const { WebSocketServer } = require("ws");
 const { RoomServer } = require("./room-server.js");
 const C = require("./battle-core.js");
 const ROOT = __dirname;
-function assetPath(url) {
+function assetPath(url, { mode = "source" } = {}) {
+  if (!["source", "release"].includes(mode))
+    throw new Error("Invalid ASSET_MODE");
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(url, "http://local").pathname);
@@ -24,6 +26,7 @@ function assetPath(url) {
     ...require("./app-manifest.js").scripts.map((file) => "/" + file),
   ]);
   if (!allowed.has(pathname)) return null;
+  if (mode === "release") return path.join(ROOT, "public-dist", pathname);
   return pathname === "/vendor/three.min.js"
     ? path.join(ROOT, "node_modules/three/build/three.min.js")
     : path.join(ROOT, pathname);
@@ -42,7 +45,27 @@ function originAllowed(req, publicOrigin) {
 function createApp({
   publicOrigin = process.env.PUBLIC_ORIGIN || "",
   maxRooms = 16,
+  assetMode = process.env.ASSET_MODE || "source",
 } = {}) {
+  if (!["source", "release"].includes(assetMode))
+    throw new Error("Invalid ASSET_MODE");
+  if (assetMode === "release") {
+    for (const file of [
+      "index.html",
+      "battle.html",
+      "battle.css",
+      "app-manifest.js",
+      "client/bootstrap.js",
+      ...require("./app-manifest.js").scripts,
+    ]) {
+      if (!fs.existsSync(assetPath("/" + file, { mode: assetMode })))
+        throw new Error(
+          "Missing release asset: " +
+            file +
+            "; generate public-dist before starting release mode",
+        );
+    }
+  }
   const rooms = new RoomServer({ maxRooms });
   const server = http.createServer((req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -76,7 +99,7 @@ function createApp({
       );
       return;
     }
-    const file = assetPath(req.url);
+    const file = assetPath(req.url, { mode: assetMode });
     if (!file) {
       res.writeHead(404);
       res.end();

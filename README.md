@@ -2,7 +2,7 @@
 
 三层战场的坦克自由混战原型。支持本地训练（1 名玩家 + 7 AI）与 WebSocket 房间对战（2–8 人），可使用现有 Redis 保存恢复检查点。
 
-当前协议 **v9**，八个内容插件（原六个 **2.1.0**，人类／火箭筒 **1.0.0**），Redis 默认前缀 `tiger:rooms:v9`。最近一次代码验证 **92/92 测试通过**；异机联机、真实 Redis 和 Docker 运行仍待验收。
+当前协议 **v9**，八个内容插件（原六个 **2.1.0**，人类／火箭筒 **1.0.0**），Redis 默认前缀 `tiger:rooms:v9`。最近一次代码验证 **95/95 测试通过**；异机联机、真实 Redis 和 Docker 运行仍待验收。
 
 ## 启动与操作
 
@@ -123,3 +123,7 @@
 - 当前仍下发全部敌人位置，没有可见性过滤、按 IP 防刷、本机预测和延迟补偿，适合先做小范围联机内测。
 
 代码更新后重启 Node 服务并刷新所有客户端；Docker 部署需更新镜像。本次架构调整区分广播状态与恢复检查点，协议升级为 v9，显式 Redis 前缀应改为 tiger:rooms:v9，旧版本检查点不兼容。部署与验收步骤见 [DEPLOY.md](DEPLOY.md)，消息格式见 [MULTIPLAYER.md](MULTIPLAYER.md)。
+
+## 前端发布混淆
+
+开发源码保持可读，Docker 默认在构建阶段生成混淆后的前端；也可通过 `pnpm run build:client` 生成 public-dist，再用 `pnpm run start:release` 提供服务。发布模式不回退提供源码，Three.js 不混淆，不生成 source map。配置、调试开关和验证边界见 [OBFUSCATION.md](OBFUSCATION.md)。本次未执行发布构建或镜像构建。
