@@ -256,7 +256,7 @@ async function main() {
       });
       client.on("error", () => console.error("Redis connection error")); // Never log a URL or credential.
       store = new RedisStore(client, {
-        prefix: process.env.REDIS_PREFIX || "tiger:rooms:v11",
+        prefix: process.env.REDIS_PREFIX || "tiger:rooms:v12",
       });
       app.rooms.restore(await store.open());
       await store.save(app.rooms.checkpoint());

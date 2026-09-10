@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v11）
+# 多人接入边界（协议 v12）
 
 ## 已实现
 
@@ -57,12 +57,12 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 11, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 12, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 11, type: "input", matchId, epoch, connection,
+      version: 12, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state：
 
     {
-      version: 11, type: "state", matchId, epoch, snapshotSeq,
+      version: 12, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { kind: "network", version, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -103,24 +103,24 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 具体 Docker、Redis 和反向代理步骤见 [DEPLOY.md](DEPLOY.md)。配置检查不能代替部署实测。
 
-## 计分赛与补给（v11）
+## 计分赛与补给（v12）
 
 权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-当前协议 v11 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。原六个插件为 2.1.0，人类和火箭筒插件为 1.0.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
+当前协议 v12 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。激光插件为 2.2.0，其余原五个插件为 2.1.0，人类和火箭筒插件为 1.0.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
 - 服务端输入队列保留 ability 的按下/松开变化，与 fire 一样按顺序消费。同状态的瞄准更新仍可合并；cancelFire 清空待执行操作，队列上限仍为 8。
 - 前台游戏更新时检查权威 tick 是否推进。1.5 秒没有推进则暂停本机输入、尝试发送一次取消操作并显示提示；随后不再用旧 tick 持续发送输入。相同 tick 的快照不能重置超时。
 - 5 秒未推进则关闭旧连接，通过现有重连凭证流程重新连接。短暂卡顿后收到更新快照会提示“已恢复”，保留操作暂停直到点击继续；重连首帧走原有 onMatch 流程并清空本机按键。
-- 手动暂停不会被普通快照自动解除；大厅与已结算对局不触发战斗同步超时。输入修复的行为在 v11 中保留；本次广播结构调整需要 v11 握手。
+- 手动暂停不会被普通快照自动解除；大厅与已结算对局不触发战斗同步超时。输入修复的行为在 v12 中保留；本次广播结构调整需要 v12 握手。
 
 ## 当前反作弊与实测边界
 
 已实现单连接限流、序号/连接/对局校验、服务器权威结算、Origin 检查和静态文件允许列表。Origin 检查与插件清单核对不等于用户身份认证或反作弊证明。当前广播状态仍下发所有敌人位置，缺少可见性过滤、按 IP 的连接/建房限制和自动瞄准异常检测。没有账号或持久化战绩系统。
 
-先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。107 项自动化测试是模拟验证，不能证明这些部署场景已通过。
+先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。111 项自动化测试是模拟验证，不能证明这些部署场景已通过。
 
 ## 人类移动与爆炸判定
 
@@ -128,16 +128,20 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 11, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 12, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
-浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v11；需要重启 Node 服务加载接口。
+浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v12；需要重启 Node 服务加载接口。
 
-## 坡道下穿（v11）
+## 坡道下穿（v12）
 
-移动层与 AI 导航共用坡底净空检查。下穿单位保留原 floor、平地 y、rampId: null、rampDir: 0；坡上单位仍保留连续高度与 rampId。无需增加客户端位置字段或新的输入。快照校验拒绝位于低净空坡底的非法平地实体，网络副本与服务端检查点均适用。行为变化提升协议到 v11，防止旧移动规则客户端或检查点混用。
+移动层与 AI 导航共用坡底净空检查。下穿单位保留原 floor、平地 y、rampId: null、rampDir: 0；坡上单位仍保留连续高度与 rampId。无需增加客户端位置字段或新的输入。快照校验拒绝位于低净空坡底的非法平地实体，网络副本与服务端检查点均适用。行为变化提升协议到 v12，防止旧移动规则客户端或检查点混用。
 
-## 指定出口下落（v11）
+## 指定出口下落（v12）
 
 新增由服务器生成的 falling、fallVelocity、fallVX、fallVZ，完整检查点和网络状态均包含这些字段。falling 时 floor 保留离开层，y 连续减少，落地后更新 floor/y 并清空速度；rampId 始终为 null。按 60 Hz 计算重力 20 m/s²、终端下落速度 30 m/s，水平惯性取驶出瞬间速度，边界处停止对应水平分量。输入仍只有操作，不能上传空中位置或速度。
 
 新增 fallStart / land 事件只驱动提示及特效，移动和射击结算始终由服务器计算。校验拒绝向上速度、超速、坡道与下落混用及错误高度。Replica 对三维位置插值，恢复检查点保留空中惯性；断开操作不会暂停下落。AI 不主动规划下落口。
+
+## 瞄准反馈与宽光束（v12）
+
+红色瞄准标记由客户端可见场景射线产生，不作为命中请求发送。真实命中仍由服务器根据瞄准输入、炮口和 ray 武器 beamRadius 计算，伤害/射程不变。beam 事件新增 radius（0–1 米，未声明宽度的旧式 ray 为 0），由副本校验并用于显示。激光插件 2.2.0；协议和 Redis 前缀升级 v12。

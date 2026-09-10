@@ -36,6 +36,9 @@
         weaponType: body.weaponType,
         color: palette[i],
       });
+      view.basePaintColor = view.paint.color.clone();
+      view.shield.userData.aimIgnore = true;
+      view.frontShield.userData.aimIgnore = true;
       view.tank.traverse((o) => {
         o.userData.entityId = body.id;
       });
@@ -69,9 +72,21 @@
       views.set(body.id, view);
     });
   }
-  function update({ state, truth, cameraFloor, camera, dt, time }) {
+  function update({
+    state,
+    truth,
+    cameraFloor,
+    camera,
+    dt,
+    time,
+    targetedId = null,
+  }) {
     for (const e of state.entities) {
       const view = views.get(e.id);
+      const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();
+      view.paint.color.copy(view.basePaintColor);
+      if (targeted) view.paint.color.setHex(0xe34848);
+      if (view.label) view.label.dataset.targeted = String(targeted);
       view.tank.position.set(e.x, e.y, e.z);
       const ramp = e.rampId ? C.MAP.ramps.find((r) => r.id === e.rampId) : null;
       const slope = ramp
@@ -303,5 +318,21 @@
       );
     }
   }
-  return { views, bullets, createViews, update };
+  function aimHit(ray, floors) {
+    const entities = getEntities();
+    const roots = [...views]
+      .filter(
+        ([id, v]) =>
+          id !== getPlayerId() &&
+          v.tank.visible &&
+          entities.some((e) => e.id === id && e.alive),
+      )
+      .map(([, v]) => v.tank);
+    return ray.intersectObjects([...roots, ...floors], true).find((hit) => {
+      for (let node = hit.object; node; node = node.parent)
+        if (!node.visible || node.userData.aimIgnore) return false;
+      return true;
+    });
+  }
+  return { views, bullets, createViews, update, aimHit };
 };

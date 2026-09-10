@@ -121,7 +121,21 @@
       }
     return true;
   }
-  function collision(battle, a, b, owner = null, { bodies = true } = {}) {
+  function collision(
+    battle,
+    a,
+    b,
+    owner = null,
+    { bodies = true, radius = 0 } = {},
+  ) {
+    // Swept beam: expand solid obstacles and bodies equally, so the wider beam cannot cut through cover.
+    const sweep = (start, end, min, max, verticalRadius = radius) =>
+      slabHit(
+        start,
+        end,
+        { x: min.x - radius, y: min.y - verticalRadius, z: min.z - radius },
+        { x: max.x + radius, y: max.y + verticalRadius, z: max.z + radius },
+      );
     let closest = null;
     const check = (t, data) => {
       if (t !== null && (!closest || t < closest.t)) closest = { t, ...data };
@@ -129,7 +143,7 @@
     for (const o of battle.map.obstacles) {
       const y = battle.map.levels[o.floor].y;
       check(
-        slabHit(
+        sweep(
           a,
           b,
           { x: o.x - o.w / 2 - 0.12, y: y - 0.1, z: o.z - o.d / 2 - 0.12 },
@@ -141,7 +155,7 @@
     for (const level of battle.map.levels)
       for (const q of deckRects(battle.map, level)) {
         check(
-          slabHit(
+          sweep(
             a,
             b,
             { x: q.x0, y: level.y - 0.6, z: q.z0 },
@@ -156,18 +170,25 @@
         y: p.y - rampHeight(battle.map, r, p.z),
       });
       check(
-        slabHit(
+        sweep(
           transform(a),
           transform(b),
           { x: r.a.x - r.width / 2, y: -0.6, z: Math.min(r.a.z, r.b.z) },
           { x: r.a.x + r.width / 2, y: 0, z: Math.max(r.a.z, r.b.z) },
+          radius *
+            Math.hypot(
+              1,
+              (battle.map.levels[r.b.floor].y -
+                battle.map.levels[r.a.floor].y) /
+                (r.b.z - r.a.z),
+            ),
         ),
         { kind: "ramp", id: r.id },
       );
       for (const side of [-1, 1]) {
         const x = r.a.x + side * (r.width / 2 - 0.12);
         check(
-          slabHit(
+          sweep(
             transform(a),
             transform(b),
             { x: x - 0.12, y: 0, z: Math.min(r.a.z, r.b.z) },
@@ -182,7 +203,7 @@
         if (!e.alive || e.id === owner) continue;
         const r = TANKS[e.tankType].radius * 0.87;
         check(
-          slabHit(
+          sweep(
             a,
             b,
             { x: e.x - r, y: e.y + 0.15, z: e.z - r },

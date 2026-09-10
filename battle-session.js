@@ -420,6 +420,12 @@
           for (const key of ["x", "y", "z", "power"])
             if (e[key] !== undefined && !number(e[key], -200, 200))
               throw new Error("Invalid effect");
+          if (
+            e.type === "beam" &&
+            e.radius !== undefined &&
+            !number(e.radius, 0, 1)
+          )
+            throw new Error("Invalid beam radius");
           if (e.type === "beam")
             for (const p of [e.from, e.to])
               if (

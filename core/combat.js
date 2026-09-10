@@ -170,16 +170,22 @@
       dy: dir.y,
       dz: dir.z,
     });
-    const near = battle.collision(start, muzzle, body.id);
+    const beamRadius = spec.delivery === "ray" ? spec.beamRadius || 0 : 0;
+    const near = battle.collision(start, muzzle, body.id, {
+      radius: beamRadius,
+    });
     if (spec.delivery === "ray") {
       const end = {
           x: start.x + dir.x * spec.range,
           y: start.y + dir.y * spec.range,
           z: start.z + dir.z * spec.range,
         },
-        hit = near || battle.collision(muzzle, end, body.id);
+        hit =
+          near ||
+          battle.collision(muzzle, end, body.id, { radius: beamRadius });
       battle.emit("beam", {
         id: body.id,
+        radius: beamRadius,
         from: muzzle,
         to: hit ? hit.point : end,
         power,

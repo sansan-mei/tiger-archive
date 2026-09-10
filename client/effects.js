@@ -48,8 +48,8 @@
       to = new T.Vector3(event.to.x, event.to.y, event.to.z);
     const m = new T.Mesh(
       new T.CylinderGeometry(
-        0.045 + event.power * 0.07,
-        0.045 + event.power * 0.07,
+        event.radius || 0.045 + event.power * 0.07,
+        event.radius || 0.045 + event.power * 0.07,
         from.distanceTo(to),
         8,
       ),

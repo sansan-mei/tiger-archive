@@ -1,6 +1,6 @@
 # 项目架构
 
-当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v11；开发规则以共享核心为准。
+当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v12；开发规则以共享核心为准。
 
 ## 数据流
 
@@ -76,7 +76,7 @@ Replica 在 welcome 时核对配置清单，随后校验网络字段、版本、
 
 轻量回归：`node --test tests/*.test.cjs`。架构测试保留拆分前 900 tick 的完整模拟结果，排除版本和清单格式后逐字段比对；其余用例覆盖规则、传输、插件和页面替身。更新基准必须确认玩法变化，不能只为让测试通过而重录。
 
-本次协议升级为 v11，Redis 默认前缀 tiger:rooms:v11。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
+本次协议升级为 v12，Redis 默认前缀 tiger:rooms:v12。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
 
 ## 发布副本
 

@@ -428,20 +428,14 @@
     const before = session.current(),
       localBefore = before.entities.find((e) => e.id === playerId);
     input.state.activeAim = null;
+    let targetedId = null;
     if (input.state.mouseKnown) {
       ray.setFromCamera(pointer, camera);
-      const targetRoots = [...views]
-        .filter(
-          ([id, v]) =>
-            id !== playerId &&
-            v.tank.visible &&
-            before.entities.some((e) => e.id === id && e.alive),
-        )
-        .map(([, v]) => v.tank);
-      const hit = ray.intersectObjects(
-        [...targetRoots, ...floorGroups.filter((g) => g.visible)],
-        true,
-      )[0];
+      const hit = units.aimHit(
+        ray,
+        floorGroups.filter((g) => g.visible),
+      );
+      targetedId = hit?.object.userData.entityId || null;
       if (hit)
         input.state.activeAim = {
           x: hit.point.x,
@@ -485,7 +479,10 @@
     camera.lookAt(cameraRig.look);
     sun.position.set(target.x - 25, target.y + 52, target.z + 20);
     sun.target.position.set(target.x, target.y, target.z);
-    units.update({ state, truth, cameraFloor, camera, dt, time });
+    units.update({ state, truth, cameraFloor, camera, dt, time, targetedId });
+    $("aim-reticle").dataset.targeted = String(
+      Boolean(targetedId) && p.alive && truth.status === "playing",
+    );
     if (!reduced) {
       clouds.rotation.y = time * 0.000004;
       foliage.rotation.z = Math.sin(time * 0.0004) * 0.0015;

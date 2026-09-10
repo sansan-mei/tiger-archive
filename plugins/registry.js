@@ -117,6 +117,14 @@
         )
           throw new Error("Invalid turret mount");
       } else {
+        if (
+          s.beamRadius !== undefined &&
+          (!Number.isFinite(s.beamRadius) ||
+            s.beamRadius < 0.05 ||
+            s.beamRadius > 1 ||
+            s.delivery !== "ray")
+        )
+          throw new Error("Invalid beam radius");
         if (s.splashDamage !== undefined || s.splashRadius !== undefined)
           if (
             !Number.isInteger(s.splashDamage) ||

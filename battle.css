@@ -78,3 +78,9 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 .network-panel #create-room{background:#c3e4a6;border-color:#c3e4a6;color:#18221b;font-weight:700}
 .network-panel #create-room:hover{background:#d2edba}
 @media(max-width:540px){.network-panel{padding:15px}.room-card{padding:11px;gap:8px}.room-card button{padding:9px}.room-browser-head h2{font-size:22px}}
+
+#aim-reticle[data-targeted="true"]{border-color:#ff4545;box-shadow:0 0 0 3px #ff454533,0 0 14px #ff454570}
+#aim-reticle[data-targeted="true"]::before,#aim-reticle[data-targeted="true"]::after,#aim-reticle[data-targeted="true"] i{background:#ff4545}
+#aim-reticle[data-targeted="true"] b{border-color:#ff4545}
+.enemy-tag[data-targeted="true"]{color:#ff5555;font-weight:700;text-shadow:0 1px 3px #300,0 0 8px #ff3333}
+.enemy-tag[data-targeted="true"]>div{border-color:#ff5555}

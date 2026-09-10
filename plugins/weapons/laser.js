@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "laser",
-    version: "2.1.0",
+    version: "2.2.0",
     apiVersion: 1,
     spec: {
       name: "蓄力激光炮",
@@ -20,6 +20,7 @@
       trigger: "charge",
       delivery: "ray",
       range: 140,
+      beamRadius: 0.45,
       minPower: 0.35,
       sound: "energy",
     },
