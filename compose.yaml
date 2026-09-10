@@ -12,7 +12,7 @@ services:
       MAX_ROOMS: "${MAX_ROOMS:-16}"
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-}"
       REDIS_URL: "${REDIS_URL:-}"
-      REDIS_PREFIX: "${REDIS_PREFIX:-tiger:rooms:v7}"
+      REDIS_PREFIX: "${REDIS_PREFIX:-tiger:rooms:v8}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     read_only: true

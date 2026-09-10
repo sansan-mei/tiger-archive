@@ -11,12 +11,14 @@
       const table=plugin.kind==='tank'?tanks:weapons;if(Object.hasOwn(table,plugin.id))throw new Error('Duplicate plugin ID');
       const s=plugin.spec;
       if(!s||typeof s.name!=='string'||!s.name.length)throw new Error('Missing plugin name');
-      const ranges=plugin.kind==='tank'?{hp:[1,1000],shield:[0,1000],abilityCooldown:[1,3600],abilityDuration:[1,600],speed:[1,30],reverse:[1,15],accel:[1,50],turn:[.1,5],radius:[1,3.1],scale:[.1,2]}:{damage:[1,1000],cooldown:[1,3600],speed:[0,200],life:[0,600],charge:[0,3600],minCharge:[0,3600],muzzle:[0,10],range:[1,200],minPower:[0,1]};
+      const ranges=plugin.kind==='tank'?{hp:[1,1000],shield:[0,1000],abilityCooldown:[1,3600],abilityDuration:[1,600],speed:[1,30],reverse:[1,15],accel:[1,50],turn:[.1,5],radius:[.6,3.1],scale:[.1,2]}:{damage:[1,1000],cooldown:[1,3600],speed:[0,200],life:[0,600],charge:[0,3600],minCharge:[0,3600],muzzle:[0,10],range:[1,200],minPower:[0,1]};
       for(const [key,[min,max]] of Object.entries(ranges))if(typeof s[key]!=='number'||!Number.isFinite(s[key])||s[key]<min||s[key]>max)throw new Error('Invalid stat: '+key);
       if(plugin.kind==='tank'){
-        if(!['dash','barrier','deploy'].includes(s.ability)||!Number.isInteger(s.shield)||s.abilityDuration>s.abilityCooldown)throw new Error('Invalid ability');
+        if(!['dash','barrier','deploy','dodge'].includes(s.ability)||!Number.isInteger(s.shield)||s.abilityDuration>s.abilityCooldown)throw new Error('Invalid ability');
+        if(s.movement!==undefined&&s.movement!=='strafe'||s.muzzleScale!==undefined&&(!Number.isFinite(s.muzzleScale)||s.muzzleScale<.1||s.muzzleScale>1)||s.height!==undefined&&(!Number.isFinite(s.height)||s.height<1||s.height>3))throw new Error('Invalid infantry dimensions');
         if(!Array.isArray(s.mount)||s.mount.length!==3||!s.mount.every(n=>Number.isFinite(n)&&Math.abs(n)<=4))throw new Error('Invalid turret mount');
       }else{
+        if(s.splashDamage!==undefined||s.splashRadius!==undefined)if(!Number.isInteger(s.splashDamage)||s.splashDamage<1||s.splashDamage>200||!Number.isFinite(s.splashRadius)||s.splashRadius<1||s.splashRadius>12||s.delivery!=='projectile')throw new Error('Invalid explosion');
         for(const key of ['damage','cooldown','life','charge','minCharge'])if(!Number.isInteger(s[key]))throw new Error('Expected integer: '+key);
         if(!['automatic','charge'].includes(s.trigger)||!['projectile','ray'].includes(s.delivery)||!['cannon','energy'].includes(s.sound)||s.minCharge>s.charge||s.trigger==='charge'&&(!s.charge||!s.minCharge)||s.trigger==='automatic'&&(s.charge||s.minCharge)||s.delivery==='projectile'&&(!s.speed||!s.life))throw new Error('Invalid weapon behavior');
       }

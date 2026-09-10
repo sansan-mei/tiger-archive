@@ -1,7 +1,7 @@
 /* Authoritative simulation: no DOM, renderer, timers, network library or wall clock. */
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./plugins/catalog.js'):root.TankPlugins);if(typeof module==='object'&&module.exports)module.exports=api;else root.TankBattle=api;})(typeof window==='undefined'?globalThis:window,function(Plugins){
   'use strict';
-  const VERSION=7,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
+  const VERSION=8,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
   const RULES=Object.freeze({duration:18000,killLimit:15,respawn:240,protection:120,boost:360,pickupCooldown:1200,shieldDelay:300,repair:40});
   const clone=value=>JSON.parse(JSON.stringify(value));
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -78,16 +78,17 @@
   }
   function normalizeInput(raw={}){
     if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Invalid input');
-    const allowed=['forward','reverse','left','right','brake','fire','interact','aimLeft','aimRight','cancelFire','aimYaw','aimPitch','ability'];
+    const allowed=['forward','reverse','left','right','brake','fire','interact','aimLeft','aimRight','cancelFire','aimYaw','aimPitch','ability','moveYaw'];
     if(Object.keys(raw).some(k=>!allowed.includes(k)))throw new Error('Unknown input field');
     const input={};
-    for(const key of allowed.filter(k=>!['aimYaw','aimPitch'].includes(k))){if(raw[key]!==undefined&&typeof raw[key]!=='boolean')throw new Error('Invalid input flag');input[key]=raw[key]===true;}
+    for(const key of allowed.filter(k=>!['aimYaw','aimPitch','moveYaw'].includes(k))){if(raw[key]!==undefined&&typeof raw[key]!=='boolean')throw new Error('Invalid input flag');input[key]=raw[key]===true;}
     if(raw.aimYaw!==undefined){if(!finite(raw.aimYaw)||Math.abs(raw.aimYaw)>Math.PI*8)throw new Error('Invalid aim yaw');input.aimYaw=wrap(raw.aimYaw);}
     if(raw.aimPitch!==undefined){if(!finite(raw.aimPitch)||Math.abs(raw.aimPitch)>.65)throw new Error('Invalid aim pitch');input.aimPitch=clamp(raw.aimPitch,-.55,.55);}
+    if(raw.moveYaw!==undefined){if(!finite(raw.moveYaw)||Math.abs(raw.moveYaw)>Math.PI*8)throw new Error('Invalid move yaw');input.moveYaw=wrap(raw.moveYaw);}
     return input;
   }
   function defaultParticipants(loadout={tankType:'medium',weaponType:'standard'}){
-    return MAP.spawns.map((spawn,i)=>({id:i?'bot'+i:'p1',controller:i?'bot':'human',tankType:i?['light','medium','heavy'][i%3]:loadout.tankType,weaponType:i?['rapid','standard','laser'][i%3]:loadout.weaponType,spawn:i}));
+    return MAP.spawns.map((spawn,i)=>({id:i?'bot'+i:'p1',controller:i?'bot':'human',tankType:i?['light','medium','heavy','human'][i%4]:loadout.tankType,weaponType:i?['rapid','standard','laser','rocket'][i%4]:loadout.weaponType,spawn:i}));
   }
   class Battle{
     constructor({participants=defaultParticipants(),matchId='local',epoch=1,map=MAP}={}){
@@ -166,7 +167,7 @@
       if(bodies)for(const e of this.entities){
         if(!e.alive||e.id===owner)continue;
         const r=TANKS[e.tankType].radius*.87;
-        check(slabHit(a,b,{x:e.x-r,y:e.y+.15,z:e.z-r},{x:e.x+r,y:e.y+3.0,z:e.z+r}),{kind:'tank',id:e.id});
+        check(slabHit(a,b,{x:e.x-r,y:e.y+.15,z:e.z-r},{x:e.x+r,y:e.y+(TANKS[e.tankType].height||3.0),z:e.z+r}),{kind:'tank',id:e.id});
       }
       if(closest)closest.point={x:a.x+(b.x-a.x)*closest.t,y:a.y+(b.y-a.y)*closest.t,z:a.z+(b.z-a.z)*closest.t};
       return closest;
@@ -266,12 +267,26 @@
     resolveHit(hit,shot){
       this.emit('impact',{owner:shot.owner,kind:hit.kind,targetId:hit.kind==='tank'?hit.id:null,...hit.point,weaponType:shot.weaponType});
       if(hit.kind==='tank')this.damage(this.getEntity(hit.id),shot.damage,shot.owner,hit.point,{x:shot.dx,z:shot.dz});
+      const spec=WEAPONS[shot.weaponType];
+      if(spec.splashDamage){
+        this.emit('explosion',{owner:shot.owner,...hit.point,radius:spec.splashRadius});
+        // Start outside the impacted surface so the wall itself blocks its far side.
+        const origin={x:hit.point.x-shot.dx*.03,y:hit.point.y-shot.dy*.03,z:hit.point.z-shot.dz*.03};
+        for(const target of this.entities){
+          if(!target.alive)continue;
+          const center={x:target.x,y:target.y+1.5,z:target.z},direct=hit.kind==='tank'&&hit.id===target.id;
+          const distance=Math.max(0,Math.hypot(center.x-hit.point.x,center.y-hit.point.y,center.z-hit.point.z)-TANKS[target.tankType].radius);
+          if(!direct&&(distance>=spec.splashRadius||this.collision(origin,center,null,{bodies:false})))continue;
+          const amount=direct?spec.splashDamage:Math.max(1,Math.round(spec.splashDamage*(1-distance/spec.splashRadius)));
+          this.damage(target,amount,shot.owner,center,direct?{x:shot.dx,z:shot.dz}:{x:center.x-origin.x,z:center.z-origin.z});
+        }
+      }
     }
     shoot(body,power=1){
       if(this.status!=='playing'||!body.alive||body.cooldown)return false;
       body.protectedUntil=0;body.lastDamageTick=this.tick;
       const spec=WEAPONS[body.weaponType],c=Math.cos(body.pitch),dir={x:-Math.cos(body.aim)*c,y:Math.sin(body.pitch),z:Math.sin(body.aim)*c};
-      const start={x:body.x,y:body.y+2.2,z:body.z},length=spec.muzzle*TANKS[body.tankType].scale;
+      const start={x:body.x,y:body.y+2.2,z:body.z},length=spec.muzzle*TANKS[body.tankType].scale*(TANKS[body.tankType].muzzleScale||1);
       const muzzle={x:start.x+dir.x*length,y:start.y+dir.y*length,z:start.z+dir.z*length};
       body.cooldown=spec.cooldown;body.charge=0;
       const shot={id:this.nextBullet++,owner:body.id,weaponType:body.weaponType,damage:Math.round(spec.damage*power),...muzzle,dx:dir.x,dy:dir.y,dz:dir.z,life:spec.life};
@@ -303,8 +318,14 @@
       if(this.tick-body.lastDamageTick>=RULES.shieldDelay)body.shield=Math.min(spec.shield,body.shield+spec.shield/(6*TICK_RATE));
       if(body.cooldown)body.cooldown--;
       if(!input.fire)body.needsRelease=false;
-      body.heading=wrap(body.heading+((input.left?1:0)-(input.right?1:0))*spec.turn*DT);
+      const strafe=spec.movement==='strafe'&&body.controller==='human';
+      if(!strafe)body.heading=wrap(body.heading+((input.left?1:0)-(input.right?1:0))*spec.turn*DT);
       const active=body.abilityUntil>this.tick,throttle=(input.forward?1:0)-(input.reverse?1:0);let desired=input.brake?0:throttle>0?spec.speed*(body.boostUntil>this.tick?1.35:1):throttle<0?-spec.reverse:0;
+      if(strafe){const forward=(input.forward?1:0)-(input.reverse?1:0),side=(input.right?1:0)-(input.left?1:0),yaw=input.moveYaw??body.aim;
+        if(forward||side)body.heading=wrap(yaw-Math.atan2(side,forward));
+        desired=input.brake?0:forward||side?spec.speed*(body.boostUntil>this.tick?1.35:1):0;
+      }
+      if(active&&spec.ability==='dodge'){desired=input.brake?0:16;body.speed=desired;}
       if(active&&spec.ability==='deploy')desired*=.35;
       if(active&&spec.ability==='dash'){desired=input.brake?0:(input.reverse?-1:1)*26;body.speed=desired;}
       body.speed+=clamp(desired-body.speed,-spec.accel*DT,spec.accel*DT);if(input.brake)body.speed=0;

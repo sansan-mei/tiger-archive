@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v7）
+# 多人接入边界（协议 v8）
 
 ## 已实现
 
@@ -57,17 +57,17 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 7, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 8, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 7, type: "input", matchId, epoch, connection,
+      version: 8, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
         aimLeft, aimRight, cancelFire, ability,
-        aimYaw, aimPitch
+        aimYaw, aimPitch, moveYaw
       }
     }
 
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state：
 
     {
-      version: 7, type: "state", matchId, epoch, snapshotSeq,
+      version: 8, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { version, pluginManifest, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -103,21 +103,25 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 具体 Docker、Redis 和反向代理步骤见 [DEPLOY.md](DEPLOY.md)。配置检查不能代替部署实测。
 
-## 计分赛与补给（v7）
+## 计分赛与补给（v8）
 
 权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-当前协议 v7 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。六个内置插件升级至 2.1.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
+当前协议 v8 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。原六个插件为 2.1.0，人类和火箭筒插件为 1.0.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
 - 服务端输入队列保留 ability 的按下/松开变化，与 fire 一样按顺序消费。同状态的瞄准更新仍可合并；cancelFire 清空待执行操作，队列上限仍为 8。
 - 前台游戏更新时检查权威 tick 是否推进。1.5 秒没有推进则暂停本机输入、尝试发送一次取消操作并显示提示；随后不再用旧 tick 持续发送输入。相同 tick 的快照不能重置超时。
 - 5 秒未推进则关闭旧连接，通过现有重连凭证流程重新连接。短暂卡顿后收到更新快照会提示“已恢复”，保留操作暂停直到点击继续；重连首帧走原有 onMatch 流程并清空本机按键。
-- 手动暂停不会被普通快照自动解除；大厅与已结算对局不触发战斗同步超时。该修复没有改变协议或 Redis 前缀，仍使用 v7。
+- 手动暂停不会被普通快照自动解除；大厅与已结算对局不触发战斗同步超时。输入修复的行为在 v8 中保留；新增人类和火箭筒需要 v8 握手。
 
 ## 当前反作弊与实测边界
 
 已实现单连接限流、序号/连接/对局校验、服务器权威结算、Origin 检查和静态文件允许列表。Origin 检查与插件清单核对不等于用户身份认证或反作弊证明。当前完整快照下发所有敌人位置，缺少可见性过滤、按 IP 的连接/建房限制和自动瞄准异常检测。没有账号或持久化战绩系统。
 
-先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。78 项自动化测试是模拟验证，不能证明这些部署场景已通过。
+先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。85 项自动化测试是模拟验证，不能证明这些部署场景已通过。
+
+## 人类移动与爆炸判定
+
+moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的有限弧度校验；不允许客户端直接上传位移。服务器归一化移动方向、限制速度、执行闪避及坡面碰撞。新增 explosion 事件只驱动画面，直击和范围伤害、距离衰减、遮挡、自伤及击毁归属由核心计算。完整快照仍包含权威实体及火箭弹状态。

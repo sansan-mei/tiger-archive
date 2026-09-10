@@ -11,7 +11,7 @@ function make({tank='medium',weapon='standard',obstacles=[],eight=false}={}){
 }
 function put(e,x,z,floor=0){Object.assign(e,{x,z,floor,y:C.MAP.levels[floor].y,speed:0});}
 function ticks(b,n,inputs={}){const events=[];for(let i=0;i<n;i++)events.push(...b.step(inputs));return events;}
-test('eight independently configured entities and all nine combinations are accepted',()=>{
+test('eight independently configured entities and all sixteen combinations are accepted',()=>{
   const b=make({eight:true});assert.equal(b.entities.length,8);
   for(const tank of Object.keys(C.TANKS))for(const weapon of Object.keys(C.WEAPONS)){
     const battle=make({tank,weapon});assert.equal(battle.entities[0].maxHp,C.TANKS[tank].hp);assert.equal(battle.entities[0].weaponType,weapon);
@@ -85,7 +85,7 @@ test('a shot outside the upper slab can hit a lower-floor tank',()=>{
 });
 test('all hulls drive continuously up and reverse down every ramp without interaction',()=>{
   for(const tank of Object.keys(C.TANKS))for(const r of C.MAP.ramps){
-    const b=make({tank}),p=b.entities[0],sign=Math.sign(r.b.z-r.a.z);put(p,r.a.x,r.a.z-sign*4,r.a.floor);p.heading=sign<0?-Math.PI/2:Math.PI/2;
+    const b=make({tank}),p=b.entities[0],sign=Math.sign(r.b.z-r.a.z);put(p,r.a.x,r.a.z-sign*4,r.a.floor);p.heading=sign<0?-Math.PI/2:Math.PI/2;p.aim=p.heading;
     let seen=false,previous=p.y;
     for(let i=0;i<420&&p.floor!==r.b.floor;i++){b.step({p1:{forward:true}});assert.ok(Math.abs(p.y-previous)<.08);previous=p.y;seen ||= !!p.rampId;}
     assert.ok(seen);assert.equal(p.floor,r.b.floor);assert.equal(p.y,C.MAP.levels[r.b.floor].y);

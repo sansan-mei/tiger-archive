@@ -95,4 +95,8 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
   e.kills=15;advance(6);assert.equal(nodes.get('menu-title').textContent,'本局冠军');
   assert.equal(nodes.get('match-results').hidden,false);assert.equal(nodes.get('match-results').children.length,2);
   nodes.get('leave-room').emit('click');assert.equal(nodes.get('room-lobby').hidden,true);assert.equal(nodes.get('start-button').hidden,false);
+  nodes.get('tank-select').value='human';nodes.get('weapon-select').value='rocket';nodes.get('tank-select').emit('change');
+  nodes.get('start-button').emit('click');advance(12);assert.equal(Number(nodes.get('hp-number').textContent),80);assert.ok(nodes.get('weapon-label').textContent.includes('火箭'));
+  for(const fn of windowEvents.keydown)fn({code:'KeyD',preventDefault(){},repeat:false});advance(20);assert.ok(Number(nodes.get('speed').textContent)>0);
+  for(const fn of windowEvents.keyup)fn({code:'KeyD',preventDefault(){}});nodes.get('pause-btn').emit('click');
 });

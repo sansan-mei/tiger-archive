@@ -58,7 +58,7 @@
       const value=this.suspended?{cancelFire:true}:input,serialized=JSON.stringify(value),now=this.now();
       // Changed controls (including release) go out immediately. Stable input is 30 Hz.
       // Aim-only changes are capped at 30 Hz so a high-refresh display cannot flood peers.
-      const flags=JSON.stringify({...value,aimYaw:undefined,aimPitch:undefined});
+      const flags=JSON.stringify({...value,aimYaw:undefined,aimPitch:undefined,moveYaw:undefined});
       if(!force&&flags===this.lastFlags&&now-this.lastSent<1000/30)return;
       if(this.send({version:C.VERSION,type:'input',matchId:this.replica.matchId,epoch:this.replica.epoch,connection:this.replica.connection,seq:this.sequence++,clientTick:this.replica.current.tick,input:value})){
         this.lastInput=serialized;this.lastFlags=flags;this.lastSent=now;

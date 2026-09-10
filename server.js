@@ -8,7 +8,7 @@ function assetPath(url){
   let pathname;try{pathname=decodeURIComponent(new URL(url,'http://local').pathname);}catch{return null;}
   if(pathname==='/')pathname='/index.html';
   const allowed=new Set(['/index.html','/battle.html','/battle.css','/battle.js','/battle-core.js','/battle-session.js','/network-session.js','/tank-model.js','/vendor/three.min.js']);
-  if(!allowed.has(pathname)&&!/^\/plugins\/(registry\.js|tanks\/(common|light|medium|heavy)\.js|weapons\/(standard|rapid|laser)\.js)$/.test(pathname))return null;
+  if(!allowed.has(pathname)&&!/^\/plugins\/(registry\.js|tanks\/(common|light|medium|heavy|human)\.js|weapons\/(standard|rapid|laser|rocket)\.js)$/.test(pathname))return null;
   return pathname==='/vendor/three.min.js'?path.join(ROOT,'node_modules/three/build/three.min.js'):path.join(ROOT,pathname);
 }
 function originAllowed(req,publicOrigin){
@@ -65,7 +65,7 @@ async function main(){
       const {createClient}=require('redis'),{RedisStore}=require('./redis-store.js');
       const client=createClient({url:process.env.REDIS_URL,disableOfflineQueue:true,socket:{connectTimeout:3000,reconnectStrategy:false}});
       client.on('error',()=>console.error('Redis connection error')); // Never log a URL or credential.
-      store=new RedisStore(client,{prefix:process.env.REDIS_PREFIX||'tiger:rooms:v7'});
+      store=new RedisStore(client,{prefix:process.env.REDIS_PREFIX||'tiger:rooms:v8'});
       app.rooms.restore(await store.open());await store.save(app.rooms.checkpoint());
       timer=setInterval(()=>{
         if(pending)return;
