@@ -30,7 +30,6 @@ window.createTankModel = function (
   geometry.computeVertexNormals();
   const accent = new T.MeshToonMaterial({ color: 0xffbd61 });
   const ink = new T.MeshToonMaterial({ color: 0x152b40 });
-  const weaponPaint = new T.MeshToonMaterial({ vertexColors: true });
   const wheels = [],
     limbs = [];
   function block(w, h, d, x, y, z, material = paint, parent = tank) {
@@ -52,44 +51,11 @@ window.createTankModel = function (
     parent.add(m);
     return m;
   }
-  function blaster(key) {
-    const data = window.TankBlasterMeshes[key];
-    const meshGeometry = new T.BufferGeometry();
-    meshGeometry.setAttribute(
-      "position",
-      new T.Float32BufferAttribute(data.positions, 3),
-    );
-    meshGeometry.setAttribute(
-      "normal",
-      new T.Float32BufferAttribute(data.normals, 3),
-    );
-    const colors = [],
-      colorValue = new T.Color();
-    for (let i = 0; i < data.colors.length; i += 3) {
-      colorValue
-        .setRGB(
-          data.colors[i] / 255,
-          data.colors[i + 1] / 255,
-          data.colors[i + 2] / 255,
-        )
-        .convertSRGBToLinear();
-      colors.push(colorValue.r, colorValue.g, colorValue.b);
-    }
-    meshGeometry.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
-    meshGeometry.setIndex(data.indices);
-    const mesh = new T.Mesh(meshGeometry, weaponPaint);
-    const length =
-      weapon.muzzle - (spec.movement === "strafe" ? 0.35 / 0.55 : 1.54);
-    mesh.scale.set(length, length, length);
-    mesh.castShadow = mesh.receiveShadow = true;
-    mesh.name = "kenney-blaster-" + key;
-    gun.add(mesh);
-    return mesh;
-  }
   const ctx = {
     T,
     tankType,
-    blaster,
+    weaponLength:
+      weapon.muzzle - (spec.movement === "strafe" ? 0.35 / 0.55 : 1.54),
     accent,
     ink,
     block,
@@ -232,16 +198,7 @@ window.createTankModel = function (
         if (o.material) materials.add(o.material);
       });
       for (const m of originals.values()) materials.add(m);
-      for (const material of [
-        paint,
-        edge,
-        rubber,
-        glow,
-        accent,
-        ink,
-        weaponPaint,
-        wreck,
-      ])
+      for (const material of [paint, edge, rubber, glow, accent, ink, wreck])
         materials.add(material);
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();

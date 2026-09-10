@@ -87,7 +87,6 @@ test("target highlighting restores paint and ignores invisible shields, walls an
     "plugins/registry.js",
     "plugins/tanks/common.js",
     ...require("../app-manifest.js").plugins,
-    "client/art/blasters.js",
     "tank-model.js",
     "client/units.js",
   ])

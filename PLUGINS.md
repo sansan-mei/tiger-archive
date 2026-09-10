@@ -70,15 +70,15 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 ## 新增模块
 
 - plugins/tanks/human.js：人类，版本 1.0.1；movement: strafe、muzzleScale: 0.55、height: 2.8。移动参考由 moveYaw 输入提供，伤害碰撞体采用更小半径及指定高度。
-- plugins/weapons/rocket.js：火箭筒，版本 1.0.1；damage: 20、splashDamage: 80、splashRadius: 6。爆炸参数需同时提供，且只能用于 projectile 类型；权威核心统一处理二次伤害和遮挡。
-- 共用清单已包含两者。激光插件为 2.2.1，其余原五个内容插件保持 2.1.1。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
+- plugins/weapons/rocket.js：火箭筒，版本 1.0.2；damage: 20、splashDamage: 80、splashRadius: 6。爆炸参数需同时提供，且只能用于 projectile 类型；权威核心统一处理二次伤害和遮挡。
+- 共用清单已包含两者。车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard/rapid 2.1.2、laser 2.2.2、rocket 1.0.2。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件升级 2.2.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v12 对半径进行校验，其余五个原始插件保持 2.1.1，人类/火箭筒保持 1.0.1。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.2.2，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v12 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard/rapid 2.1.2、laser 2.2.2、rocket 1.0.2。
 
 ## 卡通几何上下文
 
-`buildVisual(ctx)` 仍只创建客户端外观。上下文新增 `tankType`、`accent`、`ink` 和 `blaster(key)`：后者将已加载的 Kenney 几何装入当前 `gun`，按当前武器炮口距离缩放，`b/j/r/h` 分别用于标准炮、快速炮、激光炮、火箭筒。自建武器仍可使用 `block/cylinder`。
+`buildVisual(ctx)` 只创建客户端外观，提供 `tankType`、`accent`、`ink`、`block/cylinder` 和 `weaponLength`。武器以局部 -X 为前向，从安装点延伸至 `-weaponLength`；工厂根据当前炮口距离和人类缩放计算长度。四把武器都用基础几何造型，不再提供外部模型加载接口。
 
-`client/art/blasters.js` 在 `tank-model.js` 前加载，不在 Node 插件目录中执行。静态装甲按父节点与材质合并；轮子、腿、炮塔和武器保留动画枢轴。新增逐部件动画时应保留该部件为独立组，不把它当静态块合并。资源由每个 view 独立持有，切换配置时统一释放。
+静态几何按父节点与材质合并；轮子、腿、炮塔和武器保留动画枢轴。新增逐部件动画时应保留该部件为独立组，不把它当静态块合并。资源由每个 view 独立持有，切换配置时统一释放。
