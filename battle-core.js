@@ -1,7 +1,8 @@
 /* Authoritative simulation: no DOM, renderer, timers, network library or wall clock. */
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./plugins/catalog.js'):root.TankPlugins);if(typeof module==='object'&&module.exports)module.exports=api;else root.TankBattle=api;})(typeof window==='undefined'?globalThis:window,function(Plugins){
   'use strict';
-  const VERSION=4,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
+  const VERSION=5,TICK_RATE=60,DT=1/TICK_RATE,MAX_PLAYERS=8;
+  const RULES=Object.freeze({duration:18000,killLimit:15,respawn:240,protection:120,boost:360,pickupCooldown:1200});
   const clone=value=>JSON.parse(JSON.stringify(value));
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const wrap=a=>((a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
@@ -11,7 +12,7 @@
   const TANKS=Object.freeze(Object.fromEntries(Object.entries(Plugins.tanks).map(([id,p])=>[id,p.spec])));
   const WEAPONS=Object.freeze(Object.fromEntries(Object.entries(Plugins.weapons).map(([id,p])=>[id,p.spec])));
   const MAP=Object.freeze({
-    id:'triple-deck-ramps-v2',
+    id:'summer-crossfire-v3',
     levels:[{id:0,y:0,bound:64},{id:1,y:8,bound:46},{id:2,y:16,bound:46}],
     obstacles:[
       {id:'g1',floor:0,x:-17,z:11,w:13,d:8,h:4},{id:'g2',floor:0,x:18,z:9,w:11,d:9,h:4},
@@ -20,7 +21,19 @@
       {id:'m1',floor:1,x:-15,z:0,w:9,d:15,h:4},{id:'m2',floor:1,x:15,z:0,w:9,d:15,h:4},
       {id:'m3',floor:1,x:0,z:25,w:10,d:6,h:3},
       {id:'t1',floor:2,x:0,z:0,w:13,d:12,h:4},{id:'t2',floor:2,x:-21,z:-1,w:6,d:10,h:3},
-      {id:'t3',floor:2,x:22,z:11,w:7,d:7,h:3}
+      {id:'t3',floor:2,x:22,z:11,w:7,d:7,h:3},
+      {id:'spawn-g0',floor:0,x:8,z:47,w:4,d:10,h:3},
+      {id:'spawn-g1',floor:0,x:-47,z:-37,w:12,d:3,h:3},
+      {id:'spawn-g2',floor:0,x:47,z:-37,w:12,d:3,h:3},
+      {id:'flank-west',floor:0,x:-23,z:-24,w:6,d:9,h:3},
+      {id:'flank-east',floor:0,x:23,z:-24,w:6,d:9,h:3},
+      {id:'spawn-m0',floor:1,x:-23,z:29,w:3,d:9,h:3},
+      {id:'spawn-m1',floor:1,x:23,z:29,w:3,d:9,h:3},
+      {id:'spawn-m2',floor:1,x:8,z:-33,w:3,d:12,h:3},
+      {id:'spawn-t0',floor:2,x:-20,z:29,w:3,d:12,h:3},
+      {id:'spawn-t1',floor:2,x:16,z:-34,w:3,d:12,h:3},
+      {id:'overlook-west',floor:2,x:-8,z:40,w:9,d:2,h:1.1},
+      {id:'overlook-east',floor:2,x:8,z:-40,w:9,d:2,h:1.1}
     ],
     ramps:[
       {id:'west-01',width:12,a:{floor:0,x:-36,z:30},b:{floor:1,x:-36,z:2}},
@@ -28,6 +41,7 @@
       {id:'west-12',width:12,a:{floor:1,x:-36,z:-30},b:{floor:2,x:-36,z:-2}},
       {id:'east-12',width:12,a:{floor:1,x:36,z:-30},b:{floor:2,x:36,z:-2}}
     ],
+    pickups:[{id:'repair-0',kind:'repair',floor:0,x:0,z:0},{id:'boost-0',kind:'boost',floor:0,x:0,z:-38},{id:'repair-1',kind:'repair',floor:1,x:0,z:0},{id:'boost-1',kind:'boost',floor:1,x:0,z:38},{id:'repair-2',kind:'repair',floor:2,x:0,z:26},{id:'boost-2',kind:'boost',floor:2,x:0,z:-26}],
     spawns:[
       {x:0,z:52,floor:0},{x:-50,z:-48,floor:0},{x:50,z:-48,floor:0},
       {x:-29,z:34,floor:1},{x:29,z:34,floor:1},{x:0,z:-33,floor:1},
@@ -79,12 +93,12 @@
     constructor({participants=defaultParticipants(),matchId='local',epoch=1,map=MAP}={}){
       if(!Array.isArray(participants)||participants.length<2||participants.length>MAX_PLAYERS)throw new Error('A match requires 2–8 participants');
       if(new Set(participants.map(p=>p.id)).size!==participants.length)throw new Error('Duplicate player ID');
-      this.map=clone(map);this.matchId=matchId;this.epoch=epoch;this.tick=0;this.status='ready';this.winnerId=null;this.nextBullet=1;this.nextEvent=1;this.events=[];this.bullets=[];
+      this.map=clone(map);this.matchId=matchId;this.epoch=epoch;this.tick=0;this.status='ready';this.winnerId=null;this.nextBullet=1;this.nextEvent=1;this.events=[];this.bullets=[];this.pickups=(this.map.pickups||[]).map(p=>({...p,readyAt:0}));
       this.entities=participants.map((p,i)=>{
         if(typeof p.id!=='string'||!/^[a-zA-Z0-9_-]{1,32}$/.test(p.id)||!['human','bot'].includes(p.controller)||!Object.hasOwn(TANKS,p.tankType)||!Object.hasOwn(WEAPONS,p.weaponType))throw new Error('Invalid participant');
         const s=this.map.spawns[p.spawn??i];if(!s)throw new Error('Invalid spawn');
         const spec=TANKS[p.tankType];
-        return {id:p.id,controller:p.controller,tankType:p.tankType,weaponType:p.weaponType,x:s.x,y:this.map.levels[s.floor].y,z:s.z,floor:s.floor,heading:-Math.PI/2,aim:-Math.PI/2,pitch:0,hp:spec.hp,maxHp:spec.hp,alive:true,speed:0,cooldown:0,charge:0,fireHeld:false,needsRelease:false,rampId:null,rampDir:0,kills:0,brain:{target:null,path:[],pathTick:0,blocked:0}};
+        return {id:p.id,controller:p.controller,tankType:p.tankType,weaponType:p.weaponType,x:s.x,y:this.map.levels[s.floor].y,z:s.z,floor:s.floor,heading:-Math.PI/2,aim:-Math.PI/2,pitch:0,hp:spec.hp,maxHp:spec.hp,alive:true,speed:0,cooldown:0,charge:0,fireHeld:false,needsRelease:false,rampId:null,rampDir:0,kills:0,deaths:0,respawnAt:0,protectedUntil:0,boostUntil:0,forfeited:false,brain:{target:null,path:[],pathTick:0,blocked:0}};
       });
       for(const e of this.entities)if(!this.valid(e.x,e.z,e.floor,e))throw new Error('Overlapping or obstructed spawn');
     }
@@ -206,6 +220,7 @@
       path.reverse();if(clear(world(goal),to))path.push({x:to.x,z:to.z});return path;
     }
     botInput(body){
+      if(!body.alive)return {};
       const targets=this.entities.filter(e=>e.id!==body.id&&e.alive);
       targets.sort((a,b)=>(Math.abs(a.floor-body.floor)*100+Math.hypot(a.x-body.x,a.z-body.z))-(Math.abs(b.floor-body.floor)*100+Math.hypot(b.x-body.x,b.z-body.z))||a.id.localeCompare(b.id));
       const target=targets[0];if(!target)return {};
@@ -220,8 +235,11 @@
         const dir=Math.sign(target.floor-body.floor),portal=this.rampOptions(body).find(p=>Math.sign(p.to.floor-body.floor)===dir);
         if(portal){goal=portal.from;if(Math.abs(body.x-goal.x)<1.2&&(body.z-goal.z)*Math.sign(portal.to.z-goal.z)>-1&&(body.z-goal.z)*Math.sign(portal.to.z-goal.z)<5){goal=portal.to;direct=true;}}
       }else if(!los||range>31)goal=target;
+      const supply=this.pickups.filter(p=>p.floor===body.floor&&p.readyAt<=this.tick&&(p.kind==='repair'?body.hp<body.maxHp*.65:body.boostUntil<=this.tick)).sort((a,b)=>Math.hypot(body.x-a.x,body.z-a.z)-Math.hypot(body.x-b.x,body.z-b.z))[0];
+      if(!body.rampId&&supply&&Math.hypot(body.x-supply.x,body.z-supply.z)<28){goal=supply;direct=false;}
+      const goalKey=goal?.id||target.id;
       if(goal){
-        if(!direct&&(this.tick>=body.brain.pathTick||body.brain.target!==target.id)){body.brain.path=this.route(body,goal);body.brain.pathTick=this.tick+240;body.brain.target=target.id;}
+        if(!direct&&(this.tick>=body.brain.pathTick||body.brain.target!==goalKey)){body.brain.path=this.route(body,goal);body.brain.pathTick=this.tick+240;body.brain.target=goalKey;}
         while(body.brain.path.length&&Math.hypot(body.brain.path[0].x-body.x,body.brain.path[0].z-body.z)<.75)body.brain.path.shift();
         const next=direct?goal:body.brain.path[0]||goal,desired=Math.atan2(next.z-body.z,-(next.x-body.x)),diff=wrap(desired-body.heading);
         input.left=diff>.10;input.right=diff<-.10;input.forward=Math.abs(diff)<.18;input.brake=!input.forward;
@@ -231,9 +249,10 @@
       return input;
     }
     damage(target,amount,owner,point){
-      if(!target.alive)return false;
-      target.hp=Math.max(0,target.hp-amount);this.emit('damage',{id:target.id,owner,hp:target.hp,...point});
-      if(!target.hp){target.alive=false;target.speed=0;target.charge=0;const killer=this.getEntity(owner);if(killer)killer.kills++;this.emit('destroy',{id:target.id,owner,x:target.x,y:target.y+1.5,z:target.z});}
+      if(!target.alive||target.protectedUntil>this.tick)return false;
+      const dealt=Math.min(target.hp,amount);
+      target.hp=Math.max(0,target.hp-amount);this.emit('damage',{id:target.id,owner,hp:target.hp,amount:dealt,...point});
+      if(!target.hp){target.alive=false;target.deaths++;target.respawnAt=this.tick+RULES.respawn;target.boostUntil=0;target.speed=0;target.charge=0;const killer=this.getEntity(owner);if(killer&&killer!==target)killer.kills++;this.emit('destroy',{id:target.id,owner,x:target.x,y:target.y+1.5,z:target.z});}
       return true;
     }
     resolveHit(hit,shot){
@@ -242,6 +261,7 @@
     }
     shoot(body,power=1){
       if(this.status!=='playing'||!body.alive||body.cooldown)return false;
+      body.protectedUntil=0;
       const spec=WEAPONS[body.weaponType],c=Math.cos(body.pitch),dir={x:-Math.cos(body.aim)*c,y:Math.sin(body.pitch),z:Math.sin(body.aim)*c};
       const start={x:body.x,y:body.y+2.2,z:body.z},length=spec.muzzle*TANKS[body.tankType].scale;
       const muzzle={x:start.x+dir.x*length,y:start.y+dir.y*length,z:start.z+dir.z*length};
@@ -267,7 +287,7 @@
       if(body.cooldown)body.cooldown--;
       if(!input.fire)body.needsRelease=false;
       body.heading=wrap(body.heading+((input.left?1:0)-(input.right?1:0))*spec.turn*DT);
-      const throttle=(input.forward?1:0)-(input.reverse?1:0),desired=input.brake?0:throttle>0?spec.speed:throttle<0?-spec.reverse:0;
+      const throttle=(input.forward?1:0)-(input.reverse?1:0),desired=input.brake?0:throttle>0?spec.speed*(body.boostUntil>this.tick?1.35:1):throttle<0?-spec.reverse:0;
       body.speed+=clamp(desired-body.speed,-spec.accel*DT,spec.accel*DT);if(input.brake)body.speed=0;
       const nx=body.x-Math.cos(body.heading)*body.speed*DT,nz=body.z+Math.sin(body.heading)*body.speed*DT;
       const surface=this.surface(body,nx,nz);
@@ -298,6 +318,18 @@
         const raw=body.controller==='bot'?this.botInput(body):(inputs[body.id]||{});
         this.tickEntity(body,normalizeInput(raw));
       }
+      for(const body of this.entities){
+        if(!body.alive&&!body.forfeited&&body.respawnAt&&this.tick>=body.respawnAt){
+          const candidates=this.map.spawns.filter(s=>this.valid(s.x,s.z,s.floor,body)).map(s=>({s,safety:Math.min(...this.entities.filter(e=>e.alive&&e.id!==body.id).map(e=>Math.hypot(e.x-s.x,e.z-s.z)+Math.abs(e.floor-s.floor)*30),200)})).sort((a,b)=>b.safety-a.safety);
+          if(candidates.length){const s=candidates[0].s;Object.assign(body,{x:s.x,z:s.z,y:this.map.levels[s.floor].y,floor:s.floor,alive:true,hp:body.maxHp,speed:0,rampId:null,rampDir:0,cooldown:0,charge:0,fireHeld:false,needsRelease:true,respawnAt:0,protectedUntil:this.tick+RULES.protection});body.brain={target:null,path:[],pathTick:0,blocked:0};this.emit('respawn',{id:body.id});}
+        }
+        if(!body.alive||body.rampId)continue;
+        for(const pickup of this.pickups){
+          if(pickup.readyAt>this.tick||pickup.floor!==body.floor||Math.hypot(body.x-pickup.x,body.z-pickup.z)>3)continue;
+          if(pickup.kind==='repair'){if(body.hp===body.maxHp)continue;body.hp=Math.min(body.maxHp,body.hp+45);}else body.boostUntil=this.tick+RULES.boost;
+          pickup.readyAt=this.tick+RULES.pickupCooldown;this.emit('pickup',{id:body.id,pickupId:pickup.id,kind:pickup.kind});
+        }
+      }
       const alive=[];
       for(const shot of this.bullets){
         const speed=WEAPONS[shot.weaponType].speed,end={x:shot.x+shot.dx*speed*DT,y:shot.y+shot.dy*speed*DT,z:shot.z+shot.dz*speed*DT};
@@ -306,18 +338,20 @@
         Object.assign(shot,end);if(shot.life>0&&Math.abs(shot.x)<80&&Math.abs(shot.z)<80&&shot.y>-2&&shot.y<50)alive.push(shot);
       }
       this.bullets=alive;
-      const survivors=this.entities.filter(e=>e.alive);
-      if(survivors.length<=1){this.status='finished';this.winnerId=survivors[0]?.id??null;this.emit('end',{winnerId:this.winnerId});}
+      const contenders=this.entities.filter(e=>!e.forfeited),ranked=contenders.slice().sort((a,b)=>b.kills-a.kills||a.deaths-b.deaths||a.id.localeCompare(b.id));
+      if(this.tick>=RULES.duration||ranked[0]?.kills>=RULES.killLimit||contenders.length<=1){
+        this.status='finished';const first=ranked[0],second=ranked[1];this.winnerId=first&&(!second||first.kills!==second.kills||first.deaths!==second.deaths)?first.id:null;this.emit('end',{winnerId:this.winnerId});
+      }
       return clone(this.events);
     }
     snapshot(){
-      return {version:VERSION,pluginManifest:PLUGIN_MANIFEST,mapId:this.map.id,matchId:this.matchId,epoch:this.epoch,tick:this.tick,status:this.status,winnerId:this.winnerId,nextBullet:this.nextBullet,nextEvent:this.nextEvent,entities:clone(this.entities),bullets:clone(this.bullets)};
+      return {version:VERSION,pluginManifest:PLUGIN_MANIFEST,mapId:this.map.id,matchId:this.matchId,epoch:this.epoch,tick:this.tick,status:this.status,winnerId:this.winnerId,nextBullet:this.nextBullet,nextEvent:this.nextEvent,pickups:clone(this.pickups),entities:clone(this.entities),bullets:clone(this.bullets)};
     }
     restore(snapshot){
       if(snapshot.pluginManifest!==PLUGIN_MANIFEST||snapshot.version!==VERSION||snapshot.mapId!==this.map.id)throw new Error('Incompatible snapshot');
       for(const k of ['matchId','epoch','tick','status','winnerId','nextBullet','nextEvent'])this[k]=snapshot[k];
-      this.entities=clone(snapshot.entities);this.bullets=clone(snapshot.bullets);this.events=[];
+      this.pickups=clone(snapshot.pickups);this.entities=clone(snapshot.entities);this.bullets=clone(snapshot.bullets);this.events=[];
     }
   }
-  return {VERSION,PLUGIN_MANIFEST,TICK_RATE,DT,MAX_PLAYERS,TANKS,WEAPONS,MAP,Battle,normalizeInput,defaultParticipants,wrap,turn,boxHit,slabHit,clone,deckRects,rampHeight};
+  return {RULES,VERSION,PLUGIN_MANIFEST,TICK_RATE,DT,MAX_PLAYERS,TANKS,WEAPONS,MAP,Battle,normalizeInput,defaultParticipants,wrap,turn,boxHit,slabHit,clone,deckRects,rampHeight};
 });

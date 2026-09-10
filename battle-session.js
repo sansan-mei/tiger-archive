@@ -18,13 +18,14 @@
     for(const e of s.entities){
       if(!plain(e)||!id(e.id)||!['human','bot'].includes(e.controller)||!Object.hasOwn(C.TANKS,e.tankType)||!Object.hasOwn(C.WEAPONS,e.weaponType))throw new Error('Invalid entity identity');
       const tank=C.TANKS[e.tankType],weapon=C.WEAPONS[e.weaponType];
-      if(!number(e.x,-80,80)||!number(e.z,-80,80)||!number(e.y,0,20)||!integer(e.floor,0,2)||!number(e.hp,0,tank.hp)||e.maxHp!==tank.hp||typeof e.alive!=='boolean'||e.alive!==(e.hp>0)||!number(e.speed,-tank.reverse,tank.speed)||!number(e.heading,-Math.PI,Math.PI)||!number(e.aim,-Math.PI,Math.PI)||!number(e.pitch,-.55,.55)||!integer(e.cooldown,0,weapon.cooldown)||!integer(e.charge,0,weapon.charge)||!integer(e.kills,0,7))throw new Error('Invalid entity state');
+      if(!number(e.x,-80,80)||!number(e.z,-80,80)||!number(e.y,0,20)||!integer(e.floor,0,2)||!number(e.hp,0,tank.hp)||e.maxHp!==tank.hp||typeof e.alive!=='boolean'||e.alive!==(e.hp>0)||!number(e.speed,-tank.reverse,tank.speed*1.35)||!number(e.heading,-Math.PI,Math.PI)||!number(e.aim,-Math.PI,Math.PI)||!number(e.pitch,-.55,.55)||!integer(e.cooldown,0,weapon.cooldown)||!integer(e.charge,0,weapon.charge)||!integer(e.kills,0,1000)||!integer(e.deaths,0,1000)||![e.respawnAt,e.protectedUntil,e.boostUntil].every(v=>integer(v))||typeof e.forfeited!=='boolean')throw new Error('Invalid entity state');
       if(e.rampId!==null){
         const r=C.MAP.ramps.find(r=>r.id===e.rampId);
         if(!r||e.floor!==r.a.floor||![1,-1].includes(e.rampDir)||Math.abs(e.x-r.a.x)>r.width/2-tank.radius+.001||e.z<=Math.min(r.a.z,r.b.z)||e.z>=Math.max(r.a.z,r.b.z)||Math.abs(e.y-C.rampHeight(C.MAP,r,e.z))>.00001)throw new Error('Invalid ramp state');
       }else if(e.y!==C.MAP.levels[e.floor].y||e.rampDir!==0)throw new Error('Invalid floor height');
       if(!plain(e.brain)||!Array.isArray(e.brain.path)||e.brain.path.length>1100||!e.brain.path.every(p=>plain(p)&&number(p.x,-64,64)&&number(p.z,-64,64)))throw new Error('Invalid path');
     }
+    if(!Array.isArray(s.pickups)||s.pickups.length!==C.MAP.pickups.length||s.pickups.some((p,i)=>!plain(p)||!integer(p.readyAt)||['id','kind','floor','x','z'].some(k=>p[k]!==C.MAP.pickups[i][k])))throw new Error('Invalid pickups');
     const owners=new Set(s.entities.map(e=>e.id));
     if(s.winnerId!==null&&!owners.has(s.winnerId))throw new Error('Invalid winner');
     if(!Array.isArray(s.bullets)||s.bullets.length>512||new Set(s.bullets.map(b=>b.id)).size!==s.bullets.length)throw new Error('Invalid projectiles');
@@ -87,7 +88,7 @@
         if(s.matchId!==this.matchId||s.epoch!==this.epoch)throw new Error('Snapshot mismatch');
         if(this.current&&s.tick<this.current.tick)throw new Error('Old snapshot');
         if(!Array.isArray(m.events)||m.events.length>256)throw new Error('Invalid events');
-        const types=['shot','beam','impact','damage','destroy','rampEnter','rampExit','end'];
+        const types=['shot','beam','impact','damage','destroy','rampEnter','rampExit','respawn','pickup','end'];
         let last=0;
         for(const e of m.events){
           if(!plain(e)||!integer(e.eventId,1)||e.eventId<=last||e.epoch!==this.epoch||!integer(e.tick,0,s.tick)||!types.includes(e.type))throw new Error('Invalid event');

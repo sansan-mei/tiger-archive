@@ -61,6 +61,6 @@
 
 ## 联机一致性
 
-协议已升级为 v4。welcome 和完整 snapshot 携带 pluginManifest，内容为按稳定顺序序列化的插件 ID、版本、API 版本及配置。Replica 握手、快照接收以及核心恢复均拒绝不一致清单。
+协议已升级为 v5。welcome 和完整 snapshot 携带 pluginManifest，内容为按稳定顺序序列化的插件 ID、版本、API 版本及配置。Replica 握手、快照接收以及核心恢复均拒绝不一致清单。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升插件版本；权威服务器始终只运行自身部署的可信插件。房间服务已在 create / join / resume 请求中核对清单后绑定席位。新增插件时还要更新 server.js 的静态资源允许列表（以及浏览器和 Node 加载列表），以便 Docker 服务能够提供该脚本。

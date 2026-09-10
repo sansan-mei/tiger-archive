@@ -38,8 +38,8 @@ test('standard cannon has a server-enforced cooldown and four hits defeat medium
   const b=make(),p=b.entities[0],enemy=b.entities[1];put(p,0,30);put(enemy,0,-20);
   assert.equal(b.shoot(p),true);assert.equal(b.shoot(p),false);
   const events=ticks(b,300,{p1:{fire:true}});
-  assert.equal(enemy.hp,0);assert.equal(p.kills,1);assert.equal(b.status,'finished');assert.equal(b.winnerId,'p1');
-  assert.equal(events.filter(e=>e.type==='end').length,1);
+  assert.equal(enemy.hp,0);assert.equal(p.kills,1);assert.equal(b.status,'playing');assert.equal(enemy.deaths,1);
+  assert.equal(events.filter(e=>e.type==='end').length,0);
 });
 test('rapid cannon fires more often with lower damage',()=>{
   const b=make({weapon:'rapid'}),p=b.entities[0];put(p,0,40);p.aim=0;
@@ -131,7 +131,7 @@ test('fixed-tick checkpoint restore produces an identical continuation',()=>{
 test('pause and finished match freeze all authority state',()=>{
   const b=make();ticks(b,20,{p1:{fire:true}});b.pause();
   const saved=b.snapshot();ticks(b,100,{p1:{forward:true,fire:true}});assert.deepEqual(b.snapshot(),saved);
-  b.start();b.damage(b.entities[1],999,'p1',{x:0,y:0,z:0});b.step();const final=b.snapshot();ticks(b,30);assert.deepEqual(b.snapshot(),final);
+  b.start();b.entities[0].kills=14;b.damage(b.entities[1],999,'p1',{x:0,y:0,z:0});b.step();const final=b.snapshot();ticks(b,30);assert.deepEqual(b.snapshot(),final);
 });
 test('input schema rejects direct health, loadout changes, NaN and invalid flags',()=>{
   for(const input of [{hp:999},{weaponType:'laser'},{forward:1},{aimYaw:NaN},{aimPitch:4},{fire:'yes'}])assert.throws(()=>C.normalizeInput(input));
@@ -150,13 +150,13 @@ test('AI actually drives along a ramp to chase an upper-floor target',()=>{
   assert.ok(entered);assert.equal(body.floor,1);
 });
 
-test('default eight-vehicle three-floor match reaches a single winner without stuck AI',()=>{
+test('default eight-vehicle match completes within five minutes with repeated AI kills',()=>{
   const b=new C.Battle();b.start();let transitions=0,destroyed=0;
-  for(let i=0;i<7200&&b.status==='playing';i++){
+  for(let i=0;i<C.RULES.duration&&b.status==='playing';i++){
     for(const e of b.step({})){if(e.type==='rampExit')transitions++;if(e.type==='destroy')destroyed++;}
   }
-  assert.equal(b.status,'finished');assert.equal(destroyed,7);
-  assert.equal(b.entities.filter(e=>e.alive).length,1);
+  assert.equal(b.status,'finished');assert.ok(destroyed>7);
+  assert.ok(b.tick<=C.RULES.duration);
 });
 test('A* escapes a valid wall-adjacent position whose nearest cell is blocked',()=>{
   const b=new C.Battle(),body=b.entities[2];put(body,22.73,3.45,1);

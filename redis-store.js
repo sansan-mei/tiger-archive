@@ -4,7 +4,7 @@ const {randomBytes}=require('node:crypto');
 const SAVE_SCRIPT="if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end redis.call('PEXPIRE',KEYS[1],15000) redis.call('SET',KEYS[2],ARGV[2],'EX',86400) return 1";
 const RELEASE_SCRIPT="if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end return 0";
 class RedisStore{
-  constructor(client,{prefix='tiger:rooms:v4',timeoutMs=3000}={}){
+  constructor(client,{prefix='tiger:rooms:v5',timeoutMs=3000}={}){
     if(!/^[a-zA-Z0-9:_-]{1,80}$/.test(prefix))throw new Error('Invalid REDIS_PREFIX');
     this.client=client;this.prefix=prefix;this.token=randomBytes(24).toString('hex');this.timeoutMs=timeoutMs;
   }

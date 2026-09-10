@@ -51,3 +51,8 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 @media(max-width:700px){.menu{padding:22px}.ramp-status{bottom:106px;font-size:9px}.telemetry,.map-box{background:#fff8e7d9}}
 @media(pointer:coarse){.touch-controls button{background:#fff5dce8;color:#547157;border-color:#9dae89}#fire-button{background:#c58264ed;color:#fff4d9}.ramp-status{bottom:246px}}
 @media(min-width:701px) and (pointer:fine){.weapon{left:auto;right:30px;bottom:25px;transform:none;width:210px}.ramp-status{bottom:58px}.controls-hint{left:220px;right:250px;line-height:1.8}}
+
+/* Match feedback stays clear of the center aiming area. */
+.score-panel{position:absolute;left:30px;top:300px;color:#354c3e;background:#fff7e6df;padding:12px 16px;border-radius:8px;font-size:12px;line-height:1.8;pointer-events:none}.score-panel strong{font-size:11px;color:#9c603c}#respawn-status{position:absolute;top:25%;left:50%;transform:translateX(-50%);padding:14px 20px;background:#fff7e6ee;color:#354c3e;border-radius:8px;text-align:center;pointer-events:none}#boost-status{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);color:#fff4ba;text-shadow:0 1px 4px #24382d;pointer-events:none}#damage-direction{position:absolute;left:50%;top:50%;width:200px;height:200px;text-align:center;color:#d85338;font-size:28px;opacity:0;pointer-events:none}.overlay .menu-description{line-height:1.6}@media(max-width:700px){.score-panel{left:12px;top:235px;padding:6px;font-size:10px;max-width:155px}#respawn-status{width:75%;top:18%}}
+
+#match-results{padding:10px 14px;border:1px solid #8caa9255;border-radius:8px;color:#354c3e;font-size:12px}#match-results p{margin:5px 0}@media(max-height:600px){.score-panel{top:245px;max-height:115px;overflow:hidden}}

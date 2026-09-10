@@ -7,7 +7,7 @@
   const T=window.THREE,C=window.TankBattle,canvas=$('battle-canvas');
   let renderer;
   try{renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}catch{failure('无法创建 WebGL 画面，请检查浏览器硬件加速。');return;}
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.shadowMap.type=T.PCFSoftShadowMap;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
   renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
   const scene=new T.Scene();scene.background=new T.Color(0x8cbedf);scene.fog=new T.Fog(0xcad9ce,115,260);
   const camera=new T.PerspectiveCamera(65,1,.1,300);
@@ -110,13 +110,20 @@
     });
   }
   createViews();
-  let hitTime=0,damageTime=0,noticeTime=0,audio=null,deathShown=false,observing=false;
+  let hitTime=0,damageTime=0,noticeTime=0,audio=null,deathShown=false,observing=false,attackerId=null,engine=null,engineGain=null;
+  const pickupViews=C.MAP.pickups.map(p=>{
+    const group=new T.Group(),material=mat(p.kind==='repair'?0x73cfa2:0xefbe62);
+    block(1.5,1.5,1.5,0,0,0,material,group);
+    if(p.kind==='repair'){block(.25,1,.04,0,0,.77,stripe,group);block(1,.25,.04,0,0,.78,stripe,group);}
+    else{block(.25,1,.04,-.25,0,.77,stripe,group);block(.25,1,.04,.25,0,.77,stripe,group);}
+    group.position.set(p.x,C.MAP.levels[p.floor].y+1.3,p.z);floorGroups[p.floor].add(group);return group;
+  });
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function sound(laser=false){
+  function sound(laser=false,volume=1){
     if(!audio||audio.state!=='running')return;
     const at=audio.currentTime,o=audio.createOscillator(),g=audio.createGain();o.type=laser?'sine':'triangle';
     o.frequency.setValueAtTime(laser?550:140,at);o.frequency.exponentialRampToValueAtTime(laser?100:28,at+.2);
-    g.gain.setValueAtTime(.055,at);g.gain.exponentialRampToValueAtTime(.001,at+.23);o.connect(g);g.connect(audio.destination);o.start(at);o.stop(at+.24);
+    g.gain.setValueAtTime(.055*volume,at);g.gain.exponentialRampToValueAtTime(.001,at+.23);o.connect(g);g.connect(audio.destination);o.start(at);o.stop(at+.24);
   }
   function puff(point,size=1,count=6){
     for(let i=0;i<count;i++){
@@ -134,11 +141,14 @@
   function notify(message){$('event-notice').textContent=message;noticeTime=3;}
   function eventsReceived(events){
     for(const e of events){
-      if(e.type==='shot'){const view=views.get(e.id);if(view)view.recoil=1;puff(e,.5,3);if(e.id===playerId)sound(C.WEAPONS[e.weaponType].sound==='energy');}
+      if(e.type==='shot'){const view=views.get(e.id);if(view)view.recoil=1;puff(e,.5,3);const me=session.current().entities.find(p=>p.id===playerId);sound(C.WEAPONS[e.weaponType].sound==='energy',e.id===playerId?1:Math.max(.05,1-Math.hypot(e.x-me.x,e.z-me.z)/70)*.5);}
       if(e.type==='beam')beam(e);
       if(e.type==='impact'){puff(e,.7,5);if(e.owner===playerId&&e.targetId){hitTime=.22;notify('命中 '+e.targetId);}}
-      if(e.type==='damage'&&e.id===playerId){damageTime=.6;notify('受到攻击 · 寻找掩体');}
-      if(e.type==='destroy'){puff(e,2.3,12);notify(e.id===playerId?'你已被击毁':e.id+' 已出局');}
+      if(e.type==='damage'&&e.id===playerId){damageTime=.6;attackerId=e.owner;notify('受到攻击 −'+e.amount+' · 寻找掩体');sound(false,.5);}
+      if(e.type==='damage'&&e.owner===playerId){hitTime=.4;notify('命中 '+e.id+' · −'+e.amount);}
+      if(e.type==='respawn'&&e.id===playerId){clearInput();deathShown=false;observing=false;updateChaseCamera(session.current().entities.find(p=>p.id===playerId),0,true);notify('已复活 · 保护 2 秒，开炮解除');}
+      if(e.type==='pickup'&&e.id===playerId){notify(e.kind==='repair'?'维修补给 · 恢复 45 装甲':'加速补给 · 6 秒内极速 +35%');sound(true,.4);}
+      if(e.type==='destroy'){puff(e,2.3,12);notify(e.id===playerId?'你已被击毁':e.owner+' 击毁 '+e.id);}
       if(e.type==='rampEnter'&&e.id===playerId)notify('驶入斜坡 · 可停车、倒车和交战');
       if(e.type==='rampExit'&&e.id===playerId)notify('已驶出斜坡 · '+(e.floor+1)+' 楼');
     }
@@ -217,6 +227,7 @@
   for(const id of ['tank-select','weapon-select'])$(id).addEventListener('change',updateLoadout);
   updateLoadout();
   function clearEffects(){
+    $('match-results').hidden=true;
     for(const m of bullets.values())scene.remove(m);bullets.clear();
     for(const e of effects){scene.remove(e.m);e.m.material.dispose();if(e.beam)e.m.geometry.dispose();}effects.length=0;
   }
@@ -226,19 +237,21 @@
     deathShown=false;observing=false;mouseKnown=false;activeAim=null;hitTime=damageTime=noticeTime=0;$('event-notice').textContent='';
     const p=snapshot.entities.find(e=>e.id===playerId);updateChaseCamera(p,0,true);
   }
-  function pause(){session.pause();clearInput();showMenu('paused');}
+  function pause(){if(engineGain)engineGain.gain.value=0;session.pause();clearInput();showMenu('paused');}
   function resume(){
     if(session.start()===false)return;clearInput();$('game-overlay').hidden=true;canvas.focus({preventScroll:true});
-    try{if(!audio){const Audio=window.AudioContext||window.webkitAudioContext;if(Audio)audio=new Audio();}audio?.resume().catch(()=>{});}catch{}
+    try{if(!audio){const Audio=window.AudioContext||window.webkitAudioContext;if(Audio){audio=new Audio();engine=audio.createOscillator();engineGain=audio.createGain();engine.type='sawtooth';engine.frequency.value=35;engineGain.gain.value=0;engine.connect(engineGain);engineGain.connect(audio.destination);engine.start();}}audio?.resume().catch(()=>{});}catch{}
   }
   function showMenu(kind){
     clearInput();$('game-overlay').hidden=false;if(document.pointerLockElement===canvas)document.exitPointerLock?.();$('aim-reticle').style.display='none';
     $('garage').hidden=kind==='paused'||!!session.online;$('menu-guide').hidden=true;$('restart-button').hidden=false;startButton.hidden=kind==='finished';
-    if(kind==='paused'){$('menu-title').textContent='本地暂停';$('menu-description').textContent='当前是本地对局，全部模拟已暂停。未来联机时只清空本机输入。';startButton.textContent='继续战斗 →';$('restart-button').textContent='重新开局 / 当前配置';}
+    if(kind!=='finished')$('match-results').hidden=true;
+    if(kind==='paused'){$('menu-title').textContent='本地暂停';$('menu-description').textContent='本地比赛已暂停，点击继续返回战场。';startButton.textContent='继续战斗 →';$('restart-button').textContent='重新开局 / 当前配置';}
     if(kind==='eliminated'){$('menu-title').textContent='你已出局';$('menu-description').textContent='自由混战仍在继续。可观战剩余坦克，或选择新配置重新开局。';startButton.textContent='继续观战 →';$('restart-button').textContent='用所选配置重新出击 →';}
     if(kind==='finished'){
-      const s=session.current(),p=s.entities.find(e=>e.id===playerId);$('menu-title').textContent=s.winnerId===playerId?'最后的胜者':'对局结束';
-      $('menu-description').textContent='获胜者：'+(s.winnerId||'无人')+' · 用时 '+Math.floor(s.tick/60)+' 秒 · 你的击毁数 '+p.kills;
+      const s=session.current(),p=s.entities.find(e=>e.id===playerId);$('menu-title').textContent=s.winnerId===playerId?'本局冠军':'对局结束';
+      $('match-results').hidden=false;$('match-results').replaceChildren(...s.entities.slice().sort((a,b)=>b.kills-a.kills||a.deaths-b.deaths||a.id.localeCompare(b.id)).map((e,i)=>{const row=document.createElement('p');row.textContent=(i+1)+'. '+e.id+' · '+e.kills+' 击毁 / '+e.deaths+' 死亡';return row;}));
+      $('menu-description').textContent='获胜者：'+(s.winnerId||'平局')+' · 用时 '+Math.floor(s.tick/60)+' 秒 · 你的击毁数 '+p.kills;
       $('restart-button').textContent='用所选配置再战一局 →';
     }
     if(session.online){$('restart-button').hidden=true;$('network-panel').hidden=false;if(kind==='paused'){$('menu-title').textContent='操作已暂停';$('menu-description').textContent='战斗仍在继续，你仍可能被命中。点击继续返回战场。';}if(kind==='eliminated')$('menu-description').textContent='战斗仍在继续，可继续观战，或离开房间。';}
@@ -252,6 +265,7 @@
     const b=C.MAP.levels[floor].bound;mc.strokeStyle='#718974';mc.lineWidth=1;mc.strokeRect(-b,-b,b*2,b*2);
     mc.fillStyle='#a88e73';for(const o of C.MAP.obstacles)if(o.floor===floor)mc.fillRect(o.x-o.w/2,o.z-o.d/2,o.w,o.d);
     mc.fillStyle='#8ef5d2';for(const s of C.MAP.ramps)for(const p of [s.a,s.b])if(p.floor===floor)mc.fillRect(p.x-2,p.z-2,4,4);
+    for(const p of state.pickups)if(p.floor===floor&&p.readyAt<=state.tick){mc.fillStyle=p.kind==='repair'?'#238454':'#c28a27';mc.fillRect(p.x-1.5,p.z-1.5,3,3);}
     for(const e of state.entities){
       if(e.floor!==floor)continue;mc.save();mc.translate(e.x,e.z);mc.rotate(Math.PI-e.heading);mc.fillStyle=e.rampId?'#9bffff':!e.alive?'#484d41':e.id===playerId?'#d7e8ae':'#f68d69';
       mc.beginPath();mc.moveTo(4,0);mc.lineTo(-3,-2.6);mc.lineTo(-2,0);mc.lineTo(-3,2.6);mc.closePath();mc.fill();mc.restore();
@@ -305,10 +319,10 @@
     const events=session.advance(seconds,command(localBefore));eventsReceived(events);
     const state=session.state(),truth=session.current(),p=truth.entities.find(e=>e.id===playerId);
     snapshot=state;
-    if(!p.alive&&!deathShown&&truth.status==='playing'){deathShown=true;showMenu('eliminated');}
+    if(!p.alive&&!deathShown&&truth.status==='playing'){deathShown=true;observing=true;clearInput();}
     if(events.some(e=>e.type==='end'))showMenu('finished');
     const renderPlayer=state.entities.find(e=>e.id===playerId);
-    const target=!p.alive&&observing?(state.entities.find(e=>e.alive)||renderPlayer):renderPlayer;
+    const target=!p.alive&&observing?(state.entities.find(e=>e.id===attackerId&&e.alive)||state.entities.find(e=>e.alive)||renderPlayer):renderPlayer;
     const cameraFloor=target.rampId?C.MAP.ramps.find(r=>r.id===target.rampId).b.floor:target.floor;
     floorGroups.forEach((g,i)=>{g.visible=i<=cameraFloor;});
     if(truth.status==='playing'){
@@ -337,7 +351,8 @@
       view.turret.quaternion.copy(view.tank.quaternion).invert().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),e.aim));view.gun.rotation.z=-e.pitch;
       view.recoil=Math.max(0,view.recoil-(truth.status==='playing'?dt*5:0));view.gun.position.x=-1.12+view.recoil*.28;
       if(!e.alive&&!view.dead){view.dead=true;view.tank.traverse(o=>{if(o.isMesh&&o!==view.shield)o.material=view.wreck;});}
-      view.shield.visible=false;
+      if(e.alive&&view.dead){view.dead=false;for(const [mesh,material] of view.originals)mesh.material=material;}
+      view.shield.visible=e.alive&&e.protectedUntil>truth.tick;
       view.glow.emissiveIntensity=1+(e.charge/(C.WEAPONS[e.weaponType].charge||1))*5;
       if(truth.status==='playing')for(const w of view.wheels)w.rotateY(e.speed*dt/.43);
       if(view.label){
@@ -362,6 +377,14 @@
     $('hit-marker').style.opacity=hitTime>0?'1':'0';$('damage-vignette').style.opacity=reduced?'0':String(damageTime*.65);
     $('aim-reticle').style.display=!session.suspended&&mouseKnown&&truth.status==='playing'&&p.alive?'block':'none';
     if(!noticeTime)$('event-notice').textContent='';
+    $('respawn-status').hidden=p.alive||truth.status!=='playing';
+    $('respawn-status').textContent='已被击毁 · '+Math.max(0,Math.ceil((p.respawnAt-truth.tick)/60))+' 秒后复活 · 跟随击毁者观战';
+    $('boost-status').textContent=p.boostUntil>truth.tick?'极速 +35% · '+Math.ceil((p.boostUntil-truth.tick)/60)+'s':p.protectedUntil>truth.tick?'复活保护 · 开炮解除':'';
+    const attacker=truth.entities.find(e=>e.id===attackerId);
+    $('damage-direction').style.opacity=damageTime>0&&attacker?'1':'0';
+    if(attacker)$('damage-direction').style.transform='translate(-50%,-50%) rotate('+C.wrap(cameraHeading-Math.atan2(attacker.z-p.z,-(attacker.x-p.x)))+'rad)';
+    if(engineGain){engineGain.gain.setTargetAtTime(truth.status==='playing'&&!session.suspended&&p.alive ? .009 : 0,audio.currentTime,.1);engine.frequency.setTargetAtTime(32+Math.abs(p.speed)*3,audio.currentTime,.12);}
+    truth.pickups.forEach((pickup,i)=>{const view=pickupViews[i];view.visible=pickup.readyAt<=truth.tick;if(!reduced){view.rotation.y=time*.001;view.position.y=C.MAP.levels[pickup.floor].y+1.3+Math.sin(time*.002+i)*.2;}});
     hudTime+=dt;
     if(hudTime>.08){
       hudTime=0;const weapon=C.WEAPONS[p.weaponType],tank=C.TANKS[p.tankType];
@@ -372,7 +395,8 @@
       $('reload-label').textContent=p.cooldown?'装填 '+(p.cooldown/60).toFixed(1)+'s':p.charge?'蓄力 '+Math.round(p.charge/weapon.charge*100)+'%':weapon.charge?'按住蓄力':'主炮就绪';
       $('reload-bar').value=p.charge?p.charge/weapon.charge:1-p.cooldown/weapon.cooldown;
       $('weapon-description').textContent=weapon.charge?'蓄满自动发射；也可松开提前发射':'按住连续开火 · 弹药无限';
-      $('battle-clock').textContent=String(Math.floor(truth.tick/3600)).padStart(2,'0')+':'+String(Math.floor(truth.tick/60)%60).padStart(2,'0');
+      const remaining=Math.max(0,Math.ceil((C.RULES.duration-truth.tick)/60));$('battle-clock').textContent=String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0');
+      $('scoreboard').replaceChildren(...truth.entities.slice().sort((a,b)=>b.kills-a.kills||a.deaths-b.deaths||a.id.localeCompare(b.id)).map(e=>{const row=document.createElement('div');row.textContent=(e.id===playerId?'▶ ':'')+e.id+' · '+e.kills+' 击毁 / '+e.deaths+' 死亡'+(e.forfeited?' · 离场':'');return row;}));
       $('ramp-status').textContent=p.rampId?'斜坡行驶 · 可停车 / 倒车 / 交战':'直接驾驶上坡 · 无需按键';
       drawMap(state,target);
     }

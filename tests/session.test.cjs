@@ -94,7 +94,7 @@ test('ramp height is validated and interpolated through authority snapshots',()=
 
 test('live authority/replica delivery remains valid through a complete eight-vehicle match',()=>{
   const s=new S.LocalSession();s.start();let transitions=0,ends=0,maxBytes=0;
-  for(let i=0;i<3600&&s.current().status==='playing';i++){
+  for(let i=0;i<C.RULES.duration/2&&s.current().status==='playing';i++){
     for(const e of s.advance(1/30,{})){if(e.type==='rampExit')transitions++;if(e.type==='end')ends++;}
     if(i%90===0)maxBytes=Math.max(maxBytes,JSON.stringify(s.authority.statePacket()).length);
   }

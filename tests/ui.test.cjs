@@ -18,7 +18,15 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
     constructor(){this.readyState=1;this.bufferedAmount=0;this.listeners={};sockets.push(this);this.id=rooms.connect({bufferedAmount:0,send:data=>this.emit('message',{data}),close:()=>this.close()});}
     addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}emit(k,e={}){for(const fn of this.listeners[k]||[])fn(e);}send(data){rooms.receive(this.id,data);}close(){this.readyState=3;rooms.disconnect(this.id);this.emit('close');}
   }
-  const context=vm.createContext({document,TextEncoder,console,performance:{now:()=>now},setTimeout,clearTimeout,WebSocket:WS,sessionStorage:{setItem(){},removeItem(){},getItem(){return null;}},location:{protocol:'http:',host:'game.test'},requestAnimationFrame:fn=>{frame=fn;},innerWidth:1280,innerHeight:800,devicePixelRatio:1,matchMedia:()=>({matches:true}),addEventListener:(k,fn)=>{(windowEvents[k]??=[]).push(fn);},THREE:{...require('three'),WebGLRenderer:Renderer}});context.window=context;
+  const audioValues=[];
+  class AudioContext{
+    constructor(){this.state='running';this.currentTime=0;this.destination={};}
+    resume(){return Promise.resolve();}
+    createGain(){return {gain:this.param(),connect(){}};}
+    createOscillator(){return {frequency:this.param(),connect(){},start(){},stop(){}};}
+    param(){return {value:0,setValueAtTime(v){assert.ok(Number.isFinite(v));audioValues.push(v);},exponentialRampToValueAtTime(v){assert.ok(Number.isFinite(v));},setTargetAtTime(v){assert.ok(Number.isFinite(v));audioValues.push(v);}};}
+  }
+  const context=vm.createContext({document,TextEncoder,console,AudioContext,performance:{now:()=>now},setTimeout,clearTimeout,WebSocket:WS,sessionStorage:{setItem(){},removeItem(){},getItem(){return null;}},location:{protocol:'http:',host:'game.test'},requestAnimationFrame:fn=>{frame=fn;},innerWidth:1280,innerHeight:800,devicePixelRatio:1,matchMedia:()=>({matches:true}),addEventListener:(k,fn)=>{(windowEvents[k]??=[]).push(fn);},THREE:{...require('three'),WebGLRenderer:Renderer}});context.window=context;
   for(const [,src] of html.matchAll(/<script src="([^"]+)"/g)){if(src==='vendor/three.min.js')continue;vm.runInContext(fs.readFileSync(path.join(ROOT,src),'utf8'),context,{filename:src});}
   nodes.get('create-room').emit('click');sockets[0].emit('open');const room=[...rooms.rooms.values()][0];assert.equal(nodes.get('menu-title').textContent,'准备大厅');
   const second=rooms.connect({bufferedAmount:0,send(){},close(){}});
@@ -67,5 +75,14 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
   const direction=renderedCamera.getWorldDirection(new (require('three').Vector3)());
   assert.ok(direction.dot(pivot.clone().sub(renderedCamera.position).normalize())>.99999,'pitch keeps the same look-at pivot');
   document.exitPointerLock();assert.equal(nodes.get('game-overlay').hidden,false);assert.equal(nodes.get('menu-title').textContent,'操作已暂停');
-  nodes.get('pause-btn').emit('click');nodes.get('leave-room').emit('click');assert.equal(nodes.get('room-lobby').hidden,true);assert.equal(nodes.get('start-button').hidden,false);
+  nodes.get('start-button').emit('click');
+  room.authority.battle.damage(e,999,room.authority.battle.entities[1].id,e);
+  room.authority.history.push(...room.authority.battle.events);advance(6);
+  assert.equal(nodes.get('game-overlay').hidden,true,'death does not open blocking menu');
+  assert.equal(nodes.get('respawn-status').hidden,false);advance(240);
+  assert.equal(e.alive,true);assert.equal(nodes.get('respawn-status').hidden,true);
+  assert.equal(nodes.get('scoreboard').children.length,2);assert.ok(audioValues.length>0);
+  e.kills=15;advance(6);assert.equal(nodes.get('menu-title').textContent,'本局冠军');
+  assert.equal(nodes.get('match-results').hidden,false);assert.equal(nodes.get('match-results').children.length,2);
+  nodes.get('leave-room').emit('click');assert.equal(nodes.get('room-lobby').hidden,true);assert.equal(nodes.get('start-button').hidden,false);
 });

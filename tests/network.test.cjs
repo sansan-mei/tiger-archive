@@ -39,7 +39,7 @@ test('disconnect clears control, token resumes seat, expired seat is eliminated 
   const late=t.peer();t.send(late,'resume',{code,token:joined.token});assert.ok(late.last('error'));
 });
 test('rematch uses a new epoch and requires everyone to prepare again',()=>{
-  const t=setup(),{peers,room}=t.match();room.authority.battle.entities[1].hp=0;room.authority.battle.entities[1].alive=false;t.tick();
+  const t=setup(),{peers,room}=t.match();room.authority.battle.entities[0].kills=15;t.tick();
   assert.equal(room.phase,'finished');t.send(peers[0],'rematch');assert.equal(room.phase,'lobby');assert.ok(room.seats.every(s=>!s.ready));
   for(const p of peers)t.send(p,'ready',{ready:true});t.send(peers[0],'start');assert.equal(room.epoch,2);
 });

@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v4）
+# 多人接入边界（协议 v5）
 
 ## 已实现
 
@@ -102,3 +102,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 - 账号、战绩与多实例房间路由。
 
 具体 Docker、Redis 和反向代理步骤见 [DEPLOY.md](DEPLOY.md)。配置检查不能代替部署实测。
+
+## 计分赛与补给（v5）
+
+权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、45 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
