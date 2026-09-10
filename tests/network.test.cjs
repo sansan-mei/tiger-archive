@@ -484,3 +484,70 @@ test("normal snapshots keep manual pause; lobby and finished matches never trigg
   assert.equal(t.sockets[0].readyState, 1);
   t.n.close();
 });
+
+test("browser timers retain the Window receiver during connect, reconnect and close", () => {
+  const vm = require("node:vm"),
+    fs = require("node:fs"),
+    path = require("node:path");
+  const context = vm.createContext({ TankBattle: C, TankSession: S });
+  vm.runInContext(
+    `
+    window = globalThis;
+    pending = []; cleared = [];
+    setTimeout = function (callback, delay) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      pending.push({ callback, delay }); return pending.length;
+    };
+    clearTimeout = function (id) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      cleared.push(id);
+    };
+  `,
+    context,
+  );
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, "../network-session.js"), "utf8"),
+    context,
+  );
+  const sockets = [];
+  class Socket {
+    constructor() {
+      this.readyState = 1;
+      this.bufferedAmount = 0;
+      this.events = {};
+      this.sent = [];
+      sockets.push(this);
+    }
+    addEventListener(name, handler) {
+      this.events[name] = handler;
+    }
+    send(raw) {
+      this.sent.push(JSON.parse(raw));
+    }
+    close() {
+      this.events.close();
+    }
+  }
+  const client = new context.TankNetwork.NetworkSession({
+    url: "ws://test",
+    WebSocketImpl: Socket,
+    storage: null,
+  });
+  client.connect({
+    type: "create",
+    name: "Host",
+    loadout: { tankType: "medium", weaponType: "standard" },
+  });
+  sockets[0].events.open();
+  assert.equal(sockets[0].sent[0].type, "create");
+  client.credentials = { code: "ABCDEF", token: "test-token" };
+  sockets[0].events.close();
+  assert.equal(context.pending.length, 1);
+  assert.equal(context.pending[0].delay, 500);
+  context.pending[0].callback();
+  sockets[1].events.open();
+  assert.equal(sockets[1].sent[0].type, "resume");
+  client.close();
+  assert.equal(context.pending.length, 1);
+  assert.ok(context.cleared.includes(1));
+});

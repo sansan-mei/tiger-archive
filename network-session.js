@@ -22,8 +22,9 @@
       onError = () => {},
       onLeft = () => {},
       storage = globalThis.sessionStorage,
-      schedule = setTimeout,
-      cancel = clearTimeout,
+      // Browser timer functions require Window as their receiver.
+      schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
+      cancel = (timer) => globalThis.clearTimeout(timer),
     } = {}) {
       Object.assign(this, {
         url,
