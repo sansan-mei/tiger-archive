@@ -44,12 +44,14 @@ test("upgrade accepts only matching origin or configured public origin", () => {
 test("HTTP adapter serves health and bundled Three.js without opening a listener", async () => {
   const app = createApp();
   async function request(url) {
+    const chunks = [];
     let data = "",
       status,
       headers = {};
     const res = new Writable({
       write(chunk, encoding, done) {
         data += chunk.toString();
+        chunks.push(Buffer.from(chunk));
         done();
       },
     });
@@ -63,7 +65,7 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
     const end = new Promise((resolve) => res.on("finish", resolve));
     app.server.emit("request", { url, method: "GET" }, res);
     await end;
-    return { data, status, headers };
+    return { data, status, headers, bytes: Buffer.concat(chunks) };
   }
   assert.equal((await request("/healthz")).status, 200);
   app.rooms.rooms.set("ABCDEF", {
@@ -93,6 +95,18 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
   assert.equal(asset.status, 200);
   assert.ok(asset.data.length > 100000);
   assert.equal((await request("/.env")).status, 404);
+  const recording = await request("/client/audio/tank-drive.mp3");
+  assert.equal(recording.status, 200);
+  assert.equal(recording.headers["Content-Type"], "audio/mpeg");
+  assert.deepEqual(
+    recording.bytes,
+    require("node:fs").readFileSync(assetPath("/client/audio/tank-drive.mp3")),
+  );
+  assert.ok(
+    require("../scripts/client-release.cjs").files.includes(
+      "client/audio/tank-drive.mp3",
+    ),
+  );
   app.close();
 });
 test("WebSocket adapter routes text and disconnect; binary frames are rejected", () => {

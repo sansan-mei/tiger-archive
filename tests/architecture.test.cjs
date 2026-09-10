@@ -37,6 +37,7 @@ test("one inventory covers browser dependencies, public allowlist and Docker sou
     "app-manifest.js",
     "client/bootstrap.js",
     ...manifest.scripts,
+    ...manifest.assets,
   ]) {
     assert.ok(fs.existsSync(assetPath("/" + file)), file);
     if (file.startsWith("vendor/")) continue;

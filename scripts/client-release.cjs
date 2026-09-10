@@ -12,6 +12,7 @@ const files = Object.freeze([
     "app-manifest.js",
     "client/bootstrap.js",
     ...manifest.scripts,
+    ...manifest.assets,
   ]),
 ]);
 function optionsFor(file) {
@@ -70,8 +71,9 @@ function release({ obfuscate = true } = {}) {
         file === "vendor/three.min.js"
           ? "node_modules/three/build/three.min.js"
           : file;
-      let source = fs.readFileSync(path.join(ROOT, input), "utf8");
-      if (obfuscate && shouldObfuscate(file)) source = transform(source, file);
+      let source = fs.readFileSync(path.join(ROOT, input));
+      if (obfuscate && shouldObfuscate(file))
+        source = transform(source.toString("utf8"), file);
       const destination = path.join(staging, file);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.writeFileSync(destination, source);

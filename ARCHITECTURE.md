@@ -101,3 +101,9 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 `client/art/blasters.js` 是从 Kenney OBJ 导入的只读用途几何数据，由共用浏览器清单管理，自动进入静态白名单和发布目录。`scripts/import-blasters.py` 是手动美术导入工具：验证原始 ZIP SHA-256，读取固定四个模型，转换坐标和顶点色；运行游戏与 Docker 构建均不需要 Python/Pillow。
 
 `tank-model.js` 负责材质、倒角基本体、导入武器的尺寸适配、静态装甲合并和释放；车体/武器钩子保留样式选择。既有 `client/units.js` 继续驱动移动、后坐、摆腿、护盾和红色标记。模型数据不进入房间快照，不增加战斗消息字段。素材许可与视觉限制见 ART.md。
+
+## 实录行驶音频
+
+`client/engine-audio.js` 独立管理一个循环 AudioBufferSource 和音量节点，在用户开始/继续战斗后加载与解码本地录音。单次请求去重，下载 8 秒超时，失败通过通知提示并允许下一次继续时重试；延迟加载完成也保留当前静音状态。`battle.js` 传入玩家和对局状态，不改权威模拟。
+
+`app-manifest.js.assets` 管理非脚本资源，与 scripts 一起进入 HTTP 白名单、发布完整性检查和发布文件列表；启动器只执行 scripts。`scripts/client-release.cjs` 用 Buffer 读取/复制，只有需混淆的 JS 才转为 UTF-8，避免音频二进制损坏。录音位于 client/，沿用 Docker COPY。

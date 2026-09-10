@@ -40,10 +40,12 @@
     "client/input.js",
     "client/aim-assist.js",
     "client/effects.js",
+    "client/engine-audio.js",
     "client/hud.js",
     "client/units.js",
     "client/rooms.js",
     "battle.js",
   ]);
-  return Object.freeze({ plugins, scripts });
+  const assets = Object.freeze(["client/audio/tank-drive.mp3"]);
+  return Object.freeze({ plugins, scripts, assets });
 });

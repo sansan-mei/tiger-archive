@@ -6,7 +6,7 @@ const { test } = require("node:test"),
 const { RoomServer } = require("../room-server.js"),
   C = require("../battle-core.js");
 const ROOT = path.resolve(__dirname, "..");
-test("page event wiring creates a room, starts, renders snapshots, pauses locally and leaves", () => {
+test("page event wiring creates a room, starts, renders snapshots, pauses locally and leaves", async () => {
   const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8"),
     nodes = new Map(),
     windowEvents = {},
@@ -137,12 +137,19 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     createGain() {
       return { gain: this.param(), connect() {} };
     }
+    decodeAudioData() {
+      return Promise.resolve({ duration: 5.59 });
+    }
+    createBufferSource() {
+      return { playbackRate: this.param(), connect() {}, start() {} };
+    }
     createOscillator() {
       return { frequency: this.param(), connect() {}, start() {}, stop() {} };
     }
     param() {
       return {
         value: 0,
+        cancelScheduledValues() {},
         setValueAtTime(v) {
           assert.ok(Number.isFinite(v));
           audioValues.push(v);
@@ -164,6 +171,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     fetch: async () => ({
       ok: true,
       json: async () => ({ version: C.VERSION, rooms: [] }),
+      arrayBuffer: async () => new ArrayBuffer(8),
     }),
     console,
     AudioContext,

@@ -60,8 +60,7 @@
     deathShown = false,
     observing = false,
     attackerId = null,
-    engine = null,
-    engineGain = null;
+    engine = null;
   const pickupViews = C.MAP.pickups.map((p) => {
     const group = new T.Group(),
       material = mat(p.kind === "repair" ? 0x73cfa2 : 0xefbe62);
@@ -284,7 +283,7 @@
     cameraRig.update(p, 0, true);
   }
   function pause() {
-    if (engineGain) engineGain.gain.value = 0;
+    engine?.mute();
     session.pause();
     clearInput();
     showMenu("paused");
@@ -299,17 +298,15 @@
         const Audio = window.AudioContext || window.webkitAudioContext;
         if (Audio) {
           audio = new Audio();
-          engine = audio.createOscillator();
-          engineGain = audio.createGain();
-          engine.type = "sawtooth";
-          engine.frequency.value = 35;
-          engineGain.gain.value = 0;
-          engine.connect(engineGain);
-          engineGain.connect(audio.destination);
-          engine.start();
+          engine = window.TankClient.createEngineAudio({
+            audio,
+            C,
+            onError: () => notify("行驶音效暂时不可用，可暂停后继续重试"),
+          });
         }
       }
       audio?.resume().catch(() => {});
+      engine?.load();
     } catch {}
   }
   function showMenu(kind) {
@@ -612,23 +609,7 @@
             Math.atan2(attacker.z - p.z, -(attacker.x - p.x)),
         ) +
         "rad)";
-    if (engineGain) {
-      engineGain.gain.setTargetAtTime(
-        truth.status === "playing" &&
-          !session.suspended &&
-          p.alive &&
-          C.TANKS[p.tankType].movement !== "strafe"
-          ? 0.009
-          : 0,
-        audio.currentTime,
-        0.1,
-      );
-      engine.frequency.setTargetAtTime(
-        32 + Math.abs(p.speed) * 3,
-        audio.currentTime,
-        0.12,
-      );
-    }
+    engine?.update(p, truth.status === "playing" && !session.suspended);
     truth.pickups.forEach((pickup, i) => {
       const view = pickupViews[i];
       view.visible = pickup.readyAt <= truth.tick;

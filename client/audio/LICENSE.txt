@@ -1,0 +1,9 @@
+Driving Tank Engine.flac — qubodup
+Source: https://freesound.org/people/qubodup/sounds/187676/
+License: Creative Commons Zero 1.0 Universal (CC0)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The creator describes a tank driving in sand, extracted from US Government video.
+This project uses the publicly available HQ MP3 preview, converted to mono,
+filtered, peak-normalized and crossfaded into a driving loop.
+No endorsement by the creator is implied.

@@ -23,7 +23,10 @@ function assetPath(url, { mode = "source" } = {}) {
     "/battle.css",
     "/app-manifest.js",
     "/client/bootstrap.js",
-    ...require("./app-manifest.js").scripts.map((file) => "/" + file),
+    ...[
+      ...require("./app-manifest.js").scripts,
+      ...require("./app-manifest.js").assets,
+    ].map((file) => "/" + file),
   ]);
   if (!allowed.has(pathname)) return null;
   if (mode === "release") return path.join(ROOT, "public-dist", pathname);
@@ -57,6 +60,7 @@ function createApp({
       "app-manifest.js",
       "client/bootstrap.js",
       ...require("./app-manifest.js").scripts,
+      ...require("./app-manifest.js").assets,
     ]) {
       if (!fs.existsSync(assetPath("/" + file, { mode: assetMode })))
         throw new Error(
@@ -115,6 +119,7 @@ function createApp({
         ".html": "text/html; charset=utf-8",
         ".js": "text/javascript; charset=utf-8",
         ".css": "text/css; charset=utf-8",
+        ".mp3": "audio/mpeg",
       };
       res.writeHead(200, {
         "Content-Type": types[path.extname(file)],
