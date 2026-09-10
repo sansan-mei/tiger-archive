@@ -418,6 +418,7 @@
       dt = Math.min(seconds, 0.05);
     last = time;
     if (document.hidden) return;
+    roomBrowser.update(time, !$("game-overlay").hidden && !network?.room);
     const before = session.current(),
       localBefore = before.entities.find((e) => e.id === playerId);
     input.state.activeAim = null;
@@ -578,6 +579,7 @@
     failure("3D 画面已中断，请刷新重新进入。");
   });
   function resetLocal() {
+    roomBrowser.setBusy(false);
     network?.close();
     network = null;
     session = new window.TankSession.LocalSession({ loadout: config() });
@@ -650,12 +652,26 @@
       }
     }
   }
+  const roomBrowser = window.TankClient.createRoomBrowser({
+    $,
+    C,
+    onJoin: (code) => {
+      $("room-code").value = code;
+      connectRoom({
+        type: "join",
+        code,
+        name: $("player-name").value,
+        loadout: config(),
+      });
+    },
+  });
   function connectRoom(action) {
     if (!/^https?:$/.test(location.protocol)) {
       $("network-status").textContent =
         "请通过 Docker 服务的网址打开页面后再联机。";
       return;
     }
+    roomBrowser.setBusy(true);
     network?.close();
     session.pause();
     clearInput();
@@ -677,6 +693,7 @@
         }
       },
       onError: (message) => {
+        roomBrowser.setBusy(false);
         $("network-status").textContent = message;
         $("create-room").disabled = false;
         $("join-room").disabled = false;

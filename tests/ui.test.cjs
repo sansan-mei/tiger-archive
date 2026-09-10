@@ -160,6 +160,11 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   const context = vm.createContext({
     document,
     TextEncoder,
+    AbortController,
+    fetch: async () => ({
+      ok: true,
+      json: async () => ({ version: C.VERSION, rooms: [] }),
+    }),
     console,
     AudioContext,
     performance: { now: () => now },

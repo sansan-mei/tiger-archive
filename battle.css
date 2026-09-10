@@ -58,3 +58,23 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 #match-results{padding:10px 14px;border:1px solid #8caa9255;border-radius:8px;color:#354c3e;font-size:12px}#match-results p{margin:5px 0}@media(max-height:600px){.score-panel{top:245px;max-height:115px;overflow:hidden}}
 
 .shield-readout{font-size:10px;margin:9px 0 5px;color:#398297}#shield-bar::-webkit-progress-value{background:#64c6e5}#shield-bar::-moz-progress-bar{background:#64c6e5}.score-panel{top:345px}#ability-status{position:absolute;bottom:136px;left:50%;transform:translateX(-50%);background:#eef9f1e8;color:#375b59;padding:8px 14px;border-radius:8px;font-size:12px;pointer-events:none;white-space:nowrap}#ability-button{display:none}@media(pointer:coarse){#ability-button{display:block;position:absolute;right:24px;bottom:222px;border:1px solid #86b9b2;border-radius:50%;background:#eaf5eee8;color:#355b52;width:58px;height:58px;touch-action:none}}@media(max-width:700px){.score-panel{top:270px;max-height:140px;overflow:hidden}#ability-status{bottom:97px;font-size:10px}#boost-status{bottom:130px}}
+
+/* Dark translucent multiplayer room browser. */
+.network-panel{background:rgba(8,12,14,.86);border:1px solid #ffffff26;border-radius:14px;padding:22px;color:#eef2ee;box-shadow:0 16px 36px #0002}
+.network-panel>strong{font-size:11px;letter-spacing:.16em;color:#9bb6a6}
+.network-panel label,#room-players{color:#c5cec8}
+.network-panel input{background:#ffffff0c;border-color:#ffffff29;color:#fff}
+#network-status,#room-list-status{color:#aebcb4}
+.room-browser-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px}
+.room-browser-kicker{font-size:10px;letter-spacing:.15em;color:#9aa99f}
+.room-browser-head h2{font-size:25px;margin:5px 0 0;color:#fff;font-weight:600}
+.room-browser-head button,.room-card button{width:auto;margin:0;padding:10px 14px;font-size:12px;border:1px solid #ffffff30;border-radius:7px;background:#ffffff0c;color:#eff7ef;cursor:pointer}
+.room-browser-head button:hover,.room-card button:hover{background:#ffffff20}
+.room-list{display:grid;gap:8px;max-height:260px;overflow-y:auto;margin:14px 0 20px;overscroll-behavior:contain}
+.room-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;background:#ffffff07;border:1px solid #ffffff15;border-radius:9px}
+.room-card>div{min-width:0;display:grid;gap:7px}.room-card strong{font-size:14px;color:#f0f4ef;overflow-wrap:anywhere}.room-card span{font-size:11px;color:#a2b4a8;line-height:1.5}.room-card button{flex-shrink:0;color:#c4efb8;border-color:#b0dfa437}
+.network-panel button:disabled{opacity:.45;cursor:not-allowed}
+.network-panel .network-actions button{background:#ffffff0e;border-color:#ffffff26;color:#edf3eb}
+.network-panel #create-room{background:#c3e4a6;border-color:#c3e4a6;color:#18221b;font-weight:700}
+.network-panel #create-room:hover{background:#d2edba}
+@media(max-width:540px){.network-panel{padding:15px}.room-card{padding:11px;gap:8px}.room-card button{padding:9px}.room-browser-head h2{font-size:22px}}

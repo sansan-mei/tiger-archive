@@ -66,6 +66,29 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
     return { data, status, headers };
   }
   assert.equal((await request("/healthz")).status, 200);
+  app.rooms.rooms.set("ABCDEF", {
+    code: "ABCDEF",
+    phase: "lobby",
+    host: "p1",
+    seats: [{ id: "p1", name: "车长", token: "secret", clientId: "private" }],
+  });
+  const directory = await request("/api/rooms");
+  assert.equal(directory.status, 200);
+  assert.equal(directory.headers["Cache-Control"], "no-store");
+  assert.deepEqual(JSON.parse(directory.data), {
+    version: require("../battle-core.js").VERSION,
+    rooms: [
+      {
+        code: "ABCDEF",
+        hostName: "车长",
+        players: 1,
+        capacity: 8,
+        phase: "lobby",
+        joinable: true,
+      },
+    ],
+  });
+  app.rooms.rooms.clear();
   const asset = await request("/vendor/three.min.js");
   assert.equal(asset.status, 200);
   assert.ok(asset.data.length > 100000);

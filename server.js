@@ -5,6 +5,7 @@ const http = require("node:http"),
 const { performance } = require("node:perf_hooks");
 const { WebSocketServer } = require("ws");
 const { RoomServer } = require("./room-server.js");
+const C = require("./battle-core.js");
 const ROOT = __dirname;
 function assetPath(url) {
   let pathname;
@@ -57,6 +58,21 @@ function createApp({
         req.method === "HEAD"
           ? undefined
           : JSON.stringify({ ok: true, rooms: rooms.rooms.size }),
+      );
+      return;
+    }
+    if (req.url === "/api/rooms") {
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      res.end(
+        req.method === "HEAD"
+          ? undefined
+          : JSON.stringify({
+              version: C.VERSION,
+              rooms: rooms.publicRooms(),
+            }),
       );
       return;
     }

@@ -64,6 +64,23 @@ class RoomServer {
     if (!room || !seat) throw new Error("请先加入房间");
     return { room, seat };
   }
+  publicRooms() {
+    return [...this.rooms.values()]
+      .map((room) => ({
+        code: room.code,
+        hostName:
+          room.seats.find((seat) => seat.id === room.host)?.name || "等待房主",
+        players: room.seats.length,
+        capacity: C.MAX_PLAYERS,
+        phase: room.phase,
+        joinable: room.phase === "lobby" && room.seats.length < C.MAX_PLAYERS,
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.joinable) - Number(a.joinable) ||
+          a.code.localeCompare(b.code),
+      );
+  }
   loadout(raw) {
     if (
       !raw ||

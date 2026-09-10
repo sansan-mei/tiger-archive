@@ -38,6 +38,7 @@
 | battle.js | 页面初始化、会话切换、大厅、事件协调及帧循环 |
 | client/scene.js / units.js | 静态世界和动态单位表现 |
 | client/camera.js / input.js | 追尾镜头、鼠标俯仰和操作采集 |
+| client/rooms.js | 公开房间列表、可见时刷新及加入入口，不建立对局连接 |
 | client/hud.js / effects.js | HUD / 小地图；音效及特效构造 |
 | plugins/ / tank-model.js | 单位和武器配置、可信外观钩子及模型组装 |
 

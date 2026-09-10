@@ -39,6 +39,7 @@
     "client/effects.js",
     "client/hud.js",
     "client/units.js",
+    "client/rooms.js",
     "battle.js",
   ]);
   return Object.freeze({ plugins, scripts });
