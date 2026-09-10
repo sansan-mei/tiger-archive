@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v8）
+# 机甲与武器插件（API v1，协议 v9）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种单位 × 4 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -8,18 +8,18 @@
 - plugins/tanks/light.js、medium.js、heavy.js：各自的车体参数、炮塔安装位置及外观钩子。
 - plugins/tanks/common.js：三种履带车体共用的几何零件。
 - plugins/weapons/standard.js、rapid.js、laser.js：各自的参数、触发方式、攻击类型及外观钩子。
-- plugins/catalog.js：Node 端可信插件加载清单；浏览器使用 index.html 中同一组脚本。
+- app-manifest.js：唯一的可信插件和浏览器脚本清单；plugins/catalog.js、client/bootstrap.js 和 HTTP 静态白名单均读取它。
 - tank-model.js：组装车体、公共炮塔与武器，统一管理轮子、后坐力、保护轮廓与资源释放。
 
 车库从注册目录生成选项，武器音效也读取插件属性。战斗核心不按某个武器 ID 分支。
 
 ## 插件契约
 
-每个插件声明 kind（tank / weapon）、唯一 id、version（三段数字）、apiVersion: 1、spec 和 buildVisual(ctx)。加载顺序必须是注册器 → 共用零件 → 各插件 → battle-core.js → 会话与画面。核心加载时 seal() 锁定目录，开局之后无法注册。
+每个插件声明 kind（tank / weapon）、唯一 id、version（三段数字）、apiVersion: 1、spec 和 buildVisual(ctx)。加载顺序由 app-manifest.js 维护：技能定义 → 注册器 → 共用零件 → 各插件 → 核心 → 会话与画面。core/content.js 加载时 seal() 锁定目录，开局之后无法注册。
 
-车体 spec 包含 name、hp、shield、ability、abilityCooldown、abilityDuration、speed、reverse、accel、turn、radius、scale、mount。mount 是模型坐标中的炮塔安装位置；碰撞仍采用核心的简化车体包围盒，不直接使用网格几何。当前地图对车体半径限制为 0.6–3.1 米，新增超大车体需同时修改地图、碰撞和验证边界。
+车体 spec 包含 name、hp、shield、ability、speed、reverse、accel、turn、radius、scale、mount。mount 是模型坐标中的炮塔安装位置；碰撞仍采用核心的简化车体包围盒，不直接使用网格几何。当前地图对车体半径限制为 0.6–3.1 米，新增超大车体需同时修改地图、碰撞和验证边界。
 
-shield 为基础护盾上限；ability 支持 dash、barrier、deploy、dodge，abilityCooldown 和 abilityDuration 以 60 Hz tick 计。当前临时屏障量、冲刺速度和部署减伤由 battle-core.js 中的受控技能实现决定，新增技能机制需要同步扩展注册校验、权威核心、快照校验、显示及测试，不能只加一个插件文件。
+shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barrier、deploy、dodge 定义。注册器从该表派生 abilityCooldown 和 abilityDuration（60 Hz tick），插件不再单独声明技能时间。冲刺速度、临时屏障、部署减伤、UI 文案及快照验证上限共用该表。新增技能机制需要扩展对应模拟系统、显示和测试，不能只加一个插件文件。
 
 武器 spec 包含 name、damage、cooldown、speed、life、charge、minCharge、muzzle、range、minPower、trigger、delivery、sound。
 
@@ -30,7 +30,7 @@ shield 为基础护盾上限；ability 支持 dash、barrier、deploy、dodge，
 - minPower 为最低有效蓄力时伤害公式的基底：minPower + (1 - minPower) × charge / 最大 charge。
 - sound: cannon / energy，选择渲染端音效。
 
-插件声明攻击行为，由核心统一处理冷却、蓄力、射线/弹丸、伤害、死亡归属和坡面碰撞。外观钩子只接收几何构造工具和场景对象，不接收权威 Battle。新的自动炮、蓄力弹丸炮、即时射线炮都可用已有行为组合；追踪导弹、范围爆炸等新机制需要先为核心增加受控行为及测试。
+插件声明攻击行为，由核心统一处理冷却、蓄力、射线/弹丸、伤害、死亡归属和坡面碰撞。外观钩子只接收几何构造工具和场景对象，不接收权威 Battle。新的自动炮、蓄力弹丸炮、即时射线炮都可用已有行为组合；追踪导弹等新机制需要先为核心增加受控行为及测试。
 
 这些模块是可信项目代码，buildVisual 不是安全沙箱。
 
@@ -59,16 +59,16 @@ shield 为基础护盾上限；ability 支持 dash、barrier、deploy、dodge，
 })(typeof window === 'undefined' ? globalThis : window);
 ```
 
-该示例复用快速炮外观，也可以覆盖 buildVisual(ctx) 自建模型。然后在 plugins/catalog.js 的 seal() 之前添加 require，并在 index.html 的 battle-core.js 之前添加对应 script。车库会自动出现新选项。现有默认玩家与 AI 预设仍使用八个内置插件；删除或重命名它们时需同步调整默认配置。
+该示例复用快速炮外观，也可以覆盖 buildVisual(ctx) 自建模型。然后在 app-manifest.js 的 plugins 数组添加路径；Node、浏览器和静态白名单自动同步。车库会自动出现新选项。现有默认玩家与 AI 预设仍使用八个内置插件；删除或重命名它们时需同步调整默认配置。
 
 ## 联机一致性
 
-协议已升级为 v8。welcome 和完整 snapshot 携带 pluginManifest，内容为按稳定顺序序列化的插件 ID、版本、API 版本及配置。Replica 握手、快照接收以及核心恢复均拒绝不一致清单。
+协议已升级为 v9。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
-这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升插件版本；权威服务器始终只运行自身部署的可信插件。房间服务已在 create / join / resume 请求中核对清单后绑定席位。新增插件时还要更新 server.js 的静态资源允许列表（以及浏览器和 Node 加载列表），以便 Docker 服务能够提供该脚本。
+这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
 ## 新增模块
 
 - plugins/tanks/human.js：人类，版本 1.0.0；movement: strafe、muzzleScale: 0.55、height: 2.8。移动参考由 moveYaw 输入提供，伤害碰撞体采用更小半径及指定高度。
 - plugins/weapons/rocket.js：火箭筒，版本 1.0.0；damage: 20、splashDamage: 80、splashRadius: 6。爆炸参数需同时提供，且只能用于 projectile 类型；权威核心统一处理二次伤害和遮挡。
-- Node catalog、浏览器脚本顺序及 server.js 静态允许列表已同步加入两者。原六个内容插件版本保持 2.1.0。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
+- 共用清单已包含两者。原六个内容插件版本保持 2.1.0。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。

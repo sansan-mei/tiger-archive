@@ -1,12 +1,5 @@
-// Trusted allowlist for Node; keep index.html's browser list in sync.
-const registry=require('./registry.js');
-require('./tanks/light.js');
-require('./tanks/medium.js');
-require('./tanks/heavy.js');
-require('./tanks/human.js');
-require('./weapons/standard.js');
-require('./weapons/rapid.js');
-require('./weapons/laser.js');
-require('./weapons/rocket.js');
+// Node and browser share the same trusted plugin inventory.
+const registry = require("./registry.js");
+for (const file of require("../app-manifest.js").plugins) require("../" + file);
 registry.seal();
-module.exports=registry;
+module.exports = registry;

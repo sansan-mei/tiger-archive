@@ -18,7 +18,7 @@ BIND_ADDRESS=0.0.0.0
 MAX_ROOMS=16
 PUBLIC_ORIGIN=https://tank.example.com
 REDIS_URL='redis://default:URL_ENCODED_PASSWORD@host.docker.internal:6379/0'
-REDIS_PREFIX=tiger:rooms:v8
+REDIS_PREFIX=tiger:rooms:v9
 ```
 
 - 直接通过 IP:8080 访问时，PUBLIC_ORIGIN 可留空；服务会要求 WebSocket Origin 与请求 Host 相同。
@@ -121,9 +121,9 @@ location / {
 
 已完成自动化模拟及适配层测试，没有启动真实 TCP 监听、连接你的 Redis、运行 Docker 镜像或执行浏览器 WebGL 验收。部署后需用两台设备测试加入、移动/射击、驾驶上下坡、离开重连，以及容器重启恢复。非运行状态的 Docker 配置检查也不能替代这些测试。
 
-## 更新到当前 v8 版本
+## 更新到当前 v9 版本
 
-本版协议 v8、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v8，使用新的房间数据命名空间，不要恢复旧楼梯对局。
+本版协议 v9、地图 summer-crossfire-v3 与旧对局不兼容。更新代码后重启 Node 服务，并刷新所有客户端；Docker 部署需重新构建更新镜像（此轮未执行）。如已设置 .env 的 REDIS_PREFIX，请改为 tiger:rooms:v9，使用新的房间数据命名空间，不要恢复旧楼梯对局。
 
 ## 联机验收顺序
 
@@ -134,4 +134,4 @@ location / {
 5. 启用实际 Redis，验证容器重启、检查点恢复和独占租约失败时的停止行为。
 6. 最后扩到 8 人与不同网络，观察操控延迟、消息流量和服务负载。
 
-以上为待执行验收步骤。当前自动化测试共 85 项通过；尚未进行真实弱网和异机联机验收。配置解析和模拟测试不替代上述步骤。
+以上为待执行验收步骤。当前自动化测试共 90 项通过；尚未进行真实弱网和异机联机验收。配置解析和模拟测试不替代上述步骤。

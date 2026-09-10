@@ -1,0 +1,862 @@
+{
+  "mapId": "summer-crossfire-v3",
+  "matchId": "local",
+  "epoch": 1,
+  "tick": 900,
+  "status": "playing",
+  "winnerId": null,
+  "nextBullet": 61,
+  "nextEvent": 180,
+  "pickups": [
+    {
+      "id": "repair-0",
+      "kind": "repair",
+      "floor": 0,
+      "x": 0,
+      "z": 0,
+      "readyAt": 0
+    },
+    {
+      "id": "boost-0",
+      "kind": "boost",
+      "floor": 0,
+      "x": 0,
+      "z": -38,
+      "readyAt": 0
+    },
+    {
+      "id": "repair-1",
+      "kind": "repair",
+      "floor": 1,
+      "x": 0,
+      "z": 0,
+      "readyAt": 0
+    },
+    {
+      "id": "boost-1",
+      "kind": "boost",
+      "floor": 1,
+      "x": 0,
+      "z": 38,
+      "readyAt": 1537
+    },
+    {
+      "id": "repair-2",
+      "kind": "repair",
+      "floor": 2,
+      "x": 0,
+      "z": 26,
+      "readyAt": 0
+    },
+    {
+      "id": "boost-2",
+      "kind": "boost",
+      "floor": 2,
+      "x": 0,
+      "z": -26,
+      "readyAt": 1486
+    }
+  ],
+  "entities": [
+    {
+      "id": "p1",
+      "controller": "human",
+      "tankType": "medium",
+      "weaponType": "standard",
+      "x": -1.347111479062087e-15,
+      "y": 0,
+      "z": 30.000000000000224,
+      "floor": 0,
+      "heading": -1.5707963267948966,
+      "aim": -1.5707963267948966,
+      "pitch": 0,
+      "hp": 210,
+      "maxHp": 210,
+      "shield": 90,
+      "barrier": 0,
+      "lastDamageTick": 793,
+      "abilityCooldown": 0,
+      "abilityUntil": 271,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 0,
+      "cooldown": 0,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 0,
+      "deaths": 0,
+      "respawnAt": 0,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": null,
+        "path": [],
+        "pathTick": 0,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot1",
+      "controller": "bot",
+      "tankType": "medium",
+      "weaponType": "standard",
+      "x": -27.30347505645145,
+      "y": 0,
+      "z": -47.97559893814867,
+      "floor": 0,
+      "heading": 0.11670367320513364,
+      "aim": 3.1415181935304126,
+      "pitch": 0,
+      "hp": 60,
+      "maxHp": 210,
+      "shield": 0,
+      "barrier": 0,
+      "lastDamageTick": 862,
+      "abilityCooldown": 203,
+      "abilityUntil": 623,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 0,
+      "cooldown": 34,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 0,
+      "deaths": 0,
+      "respawnAt": 0,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot2",
+        "path": [
+          {
+            "x": -24,
+            "z": -48
+          },
+          {
+            "x": -20,
+            "z": -48
+          },
+          {
+            "x": -16,
+            "z": -48
+          },
+          {
+            "x": -12,
+            "z": -48
+          },
+          {
+            "x": -8,
+            "z": -48
+          },
+          {
+            "x": -4,
+            "z": -48
+          },
+          {
+            "x": 0,
+            "z": -48
+          },
+          {
+            "x": 4,
+            "z": -48
+          },
+          {
+            "x": 8,
+            "z": -48
+          },
+          {
+            "x": 12,
+            "z": -48
+          },
+          {
+            "x": 16,
+            "z": -48
+          },
+          {
+            "x": 20,
+            "z": -48
+          },
+          {
+            "x": 24,
+            "z": -48
+          },
+          {
+            "x": 28,
+            "z": -48
+          },
+          {
+            "x": 26.35217242508838,
+            "z": -47.97160373544373
+          }
+        ],
+        "pathTick": 1119,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot2",
+      "controller": "bot",
+      "tankType": "heavy",
+      "weaponType": "laser",
+      "x": 26.35217242508838,
+      "y": 0,
+      "z": -47.97160373544373,
+      "floor": 0,
+      "heading": 2.7965556470513793,
+      "aim": -0.00007446005938049893,
+      "pitch": 0,
+      "hp": 205,
+      "maxHp": 280,
+      "shield": 0,
+      "barrier": 0,
+      "lastDamageTick": 892,
+      "abilityCooldown": 322,
+      "abilityUntil": 682,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 0,
+      "cooldown": 75,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 0,
+      "deaths": 0,
+      "respawnAt": 0,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot1",
+        "path": [
+          {
+            "x": 28,
+            "z": -48
+          },
+          {
+            "x": 24,
+            "z": -48
+          },
+          {
+            "x": 20,
+            "z": -48
+          },
+          {
+            "x": 16,
+            "z": -48
+          },
+          {
+            "x": 12,
+            "z": -48
+          },
+          {
+            "x": 8,
+            "z": -48
+          },
+          {
+            "x": 4,
+            "z": -48
+          },
+          {
+            "x": 0,
+            "z": -48
+          },
+          {
+            "x": -4,
+            "z": -48
+          },
+          {
+            "x": -8,
+            "z": -48
+          },
+          {
+            "x": -12,
+            "z": -48
+          },
+          {
+            "x": -16,
+            "z": -48
+          },
+          {
+            "x": -20,
+            "z": -48
+          },
+          {
+            "x": -24,
+            "z": -48
+          },
+          {
+            "x": -28,
+            "z": -48
+          },
+          {
+            "x": -26.044739590301724,
+            "z": -48.12059463325911
+          }
+        ],
+        "pathTick": 970,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot3",
+      "controller": "bot",
+      "tankType": "human",
+      "weaponType": "rocket",
+      "x": 13.2788913240766,
+      "y": 16,
+      "z": -26.041319907770866,
+      "floor": 2,
+      "heading": 1.0455742875641967,
+      "aim": 0.8965466902332118,
+      "pitch": 0,
+      "hp": 80,
+      "maxHp": 80,
+      "shield": 0,
+      "barrier": 0,
+      "lastDamageTick": 531,
+      "abilityCooldown": 0,
+      "abilityUntil": 0,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 0,
+      "cooldown": 0,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 0,
+      "deaths": 1,
+      "respawnAt": 0,
+      "protectedUntil": 651,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot6",
+        "path": [
+          {
+            "x": 10,
+            "z": -26
+          },
+          {
+            "x": 6,
+            "z": -26
+          },
+          {
+            "x": 2,
+            "z": -26
+          },
+          {
+            "x": -2,
+            "z": -26
+          },
+          {
+            "x": -6,
+            "z": -26
+          },
+          {
+            "x": -10,
+            "z": -26
+          },
+          {
+            "x": -14,
+            "z": -26
+          },
+          {
+            "x": -14,
+            "z": -22
+          },
+          {
+            "x": -14,
+            "z": -18
+          },
+          {
+            "x": -14,
+            "z": -14
+          },
+          {
+            "x": -14,
+            "z": -10
+          },
+          {
+            "x": -14,
+            "z": -6
+          },
+          {
+            "x": -14,
+            "z": -2
+          },
+          {
+            "x": -14,
+            "z": 2
+          },
+          {
+            "x": -14,
+            "z": 6
+          },
+          {
+            "x": -14,
+            "z": 10
+          },
+          {
+            "x": -15.373950490262592,
+            "z": 9.979387504055369
+          }
+        ],
+        "pathTick": 1026,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot4",
+      "controller": "bot",
+      "tankType": "light",
+      "weaponType": "rapid",
+      "x": -9.913891960139647,
+      "y": 8,
+      "z": 33.30131167772674,
+      "floor": 1,
+      "heading": 0.009888980384713975,
+      "aim": -1.674502825408256,
+      "pitch": 0,
+      "hp": 0,
+      "maxHp": 140,
+      "shield": 0,
+      "barrier": 0,
+      "lastDamageTick": 738,
+      "abilityCooldown": 224,
+      "abilityUntil": 0,
+      "abilityHeld": false,
+      "alive": false,
+      "speed": 0,
+      "cooldown": 5,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 1,
+      "deaths": 1,
+      "respawnAt": 978,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot5",
+        "path": [
+          {
+            "x": -10,
+            "z": 30
+          },
+          {
+            "x": -10,
+            "z": 26
+          },
+          {
+            "x": -10,
+            "z": 22
+          },
+          {
+            "x": -10,
+            "z": 18
+          },
+          {
+            "x": -10,
+            "z": 14
+          },
+          {
+            "x": -6,
+            "z": 14
+          },
+          {
+            "x": -6,
+            "z": 10
+          },
+          {
+            "x": -6,
+            "z": 6
+          },
+          {
+            "x": -6,
+            "z": 2
+          },
+          {
+            "x": -6,
+            "z": -2
+          },
+          {
+            "x": -6,
+            "z": -6
+          },
+          {
+            "x": -6,
+            "z": -10
+          },
+          {
+            "x": -6,
+            "z": -14
+          },
+          {
+            "x": -6,
+            "z": -18
+          },
+          {
+            "x": -6,
+            "z": -22
+          },
+          {
+            "x": -5.731616772005241,
+            "z": -21.39596713895622
+          }
+        ],
+        "pathTick": 818,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot5",
+      "controller": "bot",
+      "tankType": "medium",
+      "weaponType": "standard",
+      "x": 5.388852929128765,
+      "y": 8,
+      "z": -2.09273201679065,
+      "floor": 1,
+      "heading": 2.837388980384654,
+      "aim": 2.1163336084289313,
+      "pitch": 0,
+      "hp": 210,
+      "maxHp": 210,
+      "shield": 33,
+      "barrier": 0,
+      "lastDamageTick": 741,
+      "abilityCooldown": 389,
+      "abilityUntil": 809,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 0,
+      "cooldown": 0,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 1,
+      "deaths": 0,
+      "respawnAt": 0,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot7",
+        "path": [
+          {
+            "x": 6,
+            "z": 2
+          },
+          {
+            "x": 6,
+            "z": 6
+          },
+          {
+            "x": 6,
+            "z": 10
+          },
+          {
+            "x": 6,
+            "z": 14
+          },
+          {
+            "x": 10,
+            "z": 14
+          },
+          {
+            "x": 14,
+            "z": 14
+          },
+          {
+            "x": 18,
+            "z": 14
+          },
+          {
+            "x": 18,
+            "z": 18
+          },
+          {
+            "x": 18,
+            "z": 22
+          },
+          {
+            "x": 18,
+            "z": 26
+          },
+          {
+            "x": 18,
+            "z": 30
+          },
+          {
+            "x": 18,
+            "z": 34
+          },
+          {
+            "x": 18,
+            "z": 38
+          },
+          {
+            "x": 22,
+            "z": 38
+          },
+          {
+            "x": 26,
+            "z": 38
+          },
+          {
+            "x": 30,
+            "z": 38
+          },
+          {
+            "x": 30,
+            "z": 34
+          },
+          {
+            "x": 29,
+            "z": 34
+          }
+        ],
+        "pathTick": 1026,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot6",
+      "controller": "bot",
+      "tankType": "heavy",
+      "weaponType": "laser",
+      "x": -14.319321594648029,
+      "y": 16,
+      "z": 8.429924818701657,
+      "floor": 2,
+      "heading": -1.7924629934615606,
+      "aim": -2.2450459633565814,
+      "pitch": 0,
+      "hp": 280,
+      "maxHp": 280,
+      "shield": 108.6666666666664,
+      "barrier": 0,
+      "lastDamageTick": 545,
+      "abilityCooldown": 335,
+      "abilityUntil": 695,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 5.250000000000002,
+      "cooldown": 0,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 1,
+      "deaths": 0,
+      "respawnAt": 0,
+      "protectedUntil": 0,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot3",
+        "path": [
+          {
+            "x": -14,
+            "z": 6
+          },
+          {
+            "x": -14,
+            "z": 2
+          },
+          {
+            "x": -14,
+            "z": -2
+          },
+          {
+            "x": -14,
+            "z": -6
+          },
+          {
+            "x": -14,
+            "z": -10
+          },
+          {
+            "x": -14,
+            "z": -14
+          },
+          {
+            "x": -14,
+            "z": -18
+          },
+          {
+            "x": -14,
+            "z": -22
+          },
+          {
+            "x": -14,
+            "z": -26
+          },
+          {
+            "x": -10,
+            "z": -26
+          },
+          {
+            "x": -6,
+            "z": -26
+          },
+          {
+            "x": -2,
+            "z": -26
+          },
+          {
+            "x": 2,
+            "z": -26
+          },
+          {
+            "x": 6,
+            "z": -26
+          },
+          {
+            "x": 10,
+            "z": -26
+          }
+        ],
+        "pathTick": 1026,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "bot7",
+      "controller": "bot",
+      "tankType": "human",
+      "weaponType": "rocket",
+      "x": 27.20728153949633,
+      "y": 8,
+      "z": 34.09699744781516,
+      "floor": 1,
+      "heading": -0.020796326794876308,
+      "aim": -1.0252590451608619,
+      "pitch": 0,
+      "hp": 80,
+      "maxHp": 80,
+      "shield": 0,
+      "barrier": 0,
+      "lastDamageTick": 785,
+      "abilityCooldown": 0,
+      "abilityUntil": 0,
+      "abilityHeld": false,
+      "alive": true,
+      "speed": 9,
+      "cooldown": 0,
+      "charge": 0,
+      "fireHeld": false,
+      "needsRelease": false,
+      "rampId": null,
+      "rampDir": 0,
+      "kills": 0,
+      "deaths": 1,
+      "respawnAt": 0,
+      "protectedUntil": 905,
+      "boostUntil": 0,
+      "forfeited": false,
+      "brain": {
+        "target": "bot5",
+        "path": [
+          {
+            "x": 26,
+            "z": 34
+          },
+          {
+            "x": 26,
+            "z": 30
+          },
+          {
+            "x": 26,
+            "z": 26
+          },
+          {
+            "x": 26,
+            "z": 22
+          },
+          {
+            "x": 26,
+            "z": 18
+          },
+          {
+            "x": 26,
+            "z": 14
+          },
+          {
+            "x": 26,
+            "z": 10
+          },
+          {
+            "x": 22,
+            "z": 10
+          },
+          {
+            "x": 18,
+            "z": 10
+          },
+          {
+            "x": 14,
+            "z": 10
+          },
+          {
+            "x": 10,
+            "z": 10
+          },
+          {
+            "x": 6,
+            "z": 10
+          },
+          {
+            "x": 6,
+            "z": 6
+          },
+          {
+            "x": 6,
+            "z": 2
+          },
+          {
+            "x": 6,
+            "z": -2
+          },
+          {
+            "x": 2,
+            "z": -2
+          },
+          {
+            "x": -2,
+            "z": -2
+          },
+          {
+            "x": -6,
+            "z": -2
+          },
+          {
+            "x": -6.093265489647092,
+            "z": -2.70391006086828
+          }
+        ],
+        "pathTick": 1026,
+        "blocked": 0
+      }
+    }
+  ],
+  "bullets": []
+}

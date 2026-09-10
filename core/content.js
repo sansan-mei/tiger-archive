@@ -1,0 +1,143 @@
+(function (root, factory) {
+  const node = typeof module === "object" && module.exports;
+  const api = factory(
+    node ? require("../plugins/catalog.js") : root.TankPlugins,
+    node ? require("./abilities.js") : root.TankAbilities,
+    node ? require("./network-state.js") : root.TankNetworkState,
+    node ? require("./map.js") : root.TankMap,
+    node ? require("./math.js") : root.TankMath,
+  );
+  if (node) module.exports = api;
+  else root.TankContent = api;
+})(
+  typeof window === "undefined" ? globalThis : window,
+  function (Plugins, Abilities, NetworkState, MAP, Maths) {
+    const {
+      clone,
+      clamp,
+      wrap,
+      turn,
+      finite,
+      deckRects,
+      rampHeight,
+      slabHit,
+      boxHit,
+    } = Maths;
+    ("use strict");
+    const ABILITIES = Abilities.definitions;
+    const VERSION = 9,
+      TICK_RATE = 60,
+      DT = 1 / TICK_RATE,
+      MAX_PLAYERS = 8;
+    const RULES = Object.freeze({
+      duration: 18000,
+      killLimit: 15,
+      respawn: 240,
+      protection: 120,
+      boost: 360,
+      pickupCooldown: 1200,
+      shieldDelay: 300,
+      repair: 40,
+    });
+    const PLUGIN_MANIFEST = JSON.stringify({
+      plugins: Plugins.seal(),
+      abilities: ABILITIES,
+      rules: RULES,
+    });
+    const TANKS = Object.freeze(
+      Object.fromEntries(
+        Object.entries(Plugins.tanks).map(([id, p]) => [id, p.spec]),
+      ),
+    );
+    const WEAPONS = Object.freeze(
+      Object.fromEntries(
+        Object.entries(Plugins.weapons).map(([id, p]) => [id, p.spec]),
+      ),
+    );
+    function normalizeInput(raw = {}) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw))
+        throw new Error("Invalid input");
+      const allowed = [
+        "forward",
+        "reverse",
+        "left",
+        "right",
+        "brake",
+        "fire",
+        "interact",
+        "aimLeft",
+        "aimRight",
+        "cancelFire",
+        "aimYaw",
+        "aimPitch",
+        "ability",
+        "moveYaw",
+      ];
+      if (Object.keys(raw).some((k) => !allowed.includes(k)))
+        throw new Error("Unknown input field");
+      const input = {};
+      for (const key of allowed.filter(
+        (k) => !["aimYaw", "aimPitch", "moveYaw"].includes(k),
+      )) {
+        if (raw[key] !== undefined && typeof raw[key] !== "boolean")
+          throw new Error("Invalid input flag");
+        input[key] = raw[key] === true;
+      }
+      if (raw.aimYaw !== undefined) {
+        if (!finite(raw.aimYaw) || Math.abs(raw.aimYaw) > Math.PI * 8)
+          throw new Error("Invalid aim yaw");
+        input.aimYaw = wrap(raw.aimYaw);
+      }
+      if (raw.aimPitch !== undefined) {
+        if (!finite(raw.aimPitch) || Math.abs(raw.aimPitch) > 0.65)
+          throw new Error("Invalid aim pitch");
+        input.aimPitch = clamp(raw.aimPitch, -0.55, 0.55);
+      }
+      if (raw.moveYaw !== undefined) {
+        if (!finite(raw.moveYaw) || Math.abs(raw.moveYaw) > Math.PI * 8)
+          throw new Error("Invalid move yaw");
+        input.moveYaw = wrap(raw.moveYaw);
+      }
+      return input;
+    }
+    function defaultParticipants(
+      loadout = { tankType: "medium", weaponType: "standard" },
+    ) {
+      return MAP.spawns.map((spawn, i) => ({
+        id: i ? "bot" + i : "p1",
+        controller: i ? "bot" : "human",
+        tankType: i
+          ? ["light", "medium", "heavy", "human"][i % 4]
+          : loadout.tankType,
+        weaponType: i
+          ? ["rapid", "standard", "laser", "rocket"][i % 4]
+          : loadout.weaponType,
+        spawn: i,
+      }));
+    }
+    return {
+      projectNetworkState: NetworkState.project,
+      ABILITIES,
+      describeAbility: Abilities.describe,
+      RULES,
+      VERSION,
+      PLUGIN_MANIFEST,
+      TICK_RATE,
+      DT,
+      MAX_PLAYERS,
+      TANKS,
+      WEAPONS,
+      MAP,
+      normalizeInput,
+      defaultParticipants,
+      wrap,
+      turn,
+      boxHit,
+      slabHit,
+      clone,
+      deckRects,
+      rampHeight,
+      clamp,
+    };
+  },
+);
