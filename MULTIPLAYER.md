@@ -18,7 +18,7 @@
 
 ## 三个接口
 
-### Authority（服务器或明确选定的权威房主）
+### Authority（联机时运行在独立服务器）
 
 通过 require('./battle-session.js') 可在 Node.js 中加载。
 
@@ -27,8 +27,8 @@
 3. receive(peerId, packet) 校验输入并保留最新有效命令。
 4. authority.battle.start() 开始模拟。
 5. step() 推进一个固定 tick。外部驱动负责按真实累计时间保持 60 Hz；不要按收到网络包的次数推进。
-6. statePacket() 返回新的快照包。可先采用 20 Hz 广播；需要可靠重连恢复时直接发送完整快照。
-7. detach(peerId) 释放该连接的输入。当前实体留在场中，后续房间规则可决定重连期限和托管。
+6. statePacket() 返回新的快照包。房间层采用 20 Hz 广播；需要可靠重连恢复时直接发送完整快照。
+7. detach(peerId) 释放该连接的输入。当前实体留在场中，房间层保留 30 秒重连窗口，超时后离场且不再复活。
 
 peerId 必须来自传输连接与认证映射，不能相信客户端自行声明的身份。attach 是权威方接口，不是开放给任意客户端执行的 RPC。
 
@@ -45,7 +45,7 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 - WebRTC DataChannel：采用相同协议；单独实现信令、ICE、STUN/TURN 与权威端选举/固定。
 - 不能把客户端传来的 state 包当作 Authority 的恢复指令。
 
-### LocalSession（当前页面使用）
+### LocalSession（本地训练使用）
 
 - start / pause / restart 管理本地演示。
 - advance(seconds, input) 用累加器推进固定 tick，通过 Authority 校验，再交付 Replica。
@@ -57,28 +57,28 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 4, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 7, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 4, type: "input", matchId, epoch, connection,
+      version: 7, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
-        aimLeft, aimRight, cancelFire,
+        aimLeft, aimRight, cancelFire, ability,
         aimYaw, aimPitch
       }
     }
 
-布尔字段可省略，默认 false；角度为弧度。clientTick 只作容差验证，不允许客户端要求过去重演或未来加速。断线/失焦使用 cancelFire，普通松开 fire 仍表示主动释放激光蓄力。
+ability 表示技能按键状态，由服务器检测按下边沿并执行冷却。interact 为兼容保留字段，不再负责上下楼；页面使用鼠标瞄准，不绑定 aimLeft / aimRight 按键。布尔字段可省略，默认 false；角度为弧度。clientTick 只作容差验证，不允许客户端要求过去重演或未来加速。断线/失焦使用 cancelFire，普通松开 fire 仍表示主动释放激光蓄力。
 
 state：
 
     {
-      version: 4, type: "state", matchId, epoch, snapshotSeq,
+      version: 7, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { version, pluginManifest, mapId, matchId, epoch, tick, status, winnerId,
-                  nextBullet, nextEvent, entities, bullets },
+                  nextBullet, nextEvent, entities, bullets, pickups },
       events: [ { eventId, tick, epoch, type, ... } ],
       ack: [ { entityId, seq } ]
     }
@@ -107,4 +107,17 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v7 新增 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。六个内置插件升级至 2.1.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
+当前协议 v7 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。六个内置插件升级至 2.1.0，握手拒绝旧清单。维修包随装甲数值调整为 40。
+
+## 联机输入与同步超时修复
+
+- 服务端输入队列保留 ability 的按下/松开变化，与 fire 一样按顺序消费。同状态的瞄准更新仍可合并；cancelFire 清空待执行操作，队列上限仍为 8。
+- 前台游戏更新时检查权威 tick 是否推进。1.5 秒没有推进则暂停本机输入、尝试发送一次取消操作并显示提示；随后不再用旧 tick 持续发送输入。相同 tick 的快照不能重置超时。
+- 5 秒未推进则关闭旧连接，通过现有重连凭证流程重新连接。短暂卡顿后收到更新快照会提示“已恢复”，保留操作暂停直到点击继续；重连首帧走原有 onMatch 流程并清空本机按键。
+- 手动暂停不会被普通快照自动解除；大厅与已结算对局不触发战斗同步超时。该修复没有改变协议或 Redis 前缀，仍使用 v7。
+
+## 当前反作弊与实测边界
+
+已实现单连接限流、序号/连接/对局校验、服务器权威结算、Origin 检查和静态文件允许列表。Origin 检查与插件清单核对不等于用户身份认证或反作弊证明。当前完整快照下发所有敌人位置，缺少可见性过滤、按 IP 的连接/建房限制和自动瞄准异常检测。没有账号或持久化战绩系统。
+
+先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。78 项自动化测试是模拟验证，不能证明这些部署场景已通过。

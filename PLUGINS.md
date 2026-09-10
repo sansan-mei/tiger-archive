@@ -1,6 +1,6 @@
-# 车体与武器插件 v1
+# 机甲与武器插件（API v1，内置版本 2.1.0）
 
-当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。保留 3 种车体 × 3 种武器的原有数值与玩法。
+当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 3 种机甲 × 3 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
 ## 结构
 
@@ -17,7 +17,9 @@
 
 每个插件声明 kind（tank / weapon）、唯一 id、version（三段数字）、apiVersion: 1、spec 和 buildVisual(ctx)。加载顺序必须是注册器 → 共用零件 → 各插件 → battle-core.js → 会话与画面。核心加载时 seal() 锁定目录，开局之后无法注册。
 
-车体 spec 包含 name、hp、speed、reverse、accel、turn、radius、scale、mount。mount 是模型坐标中的炮塔安装位置；碰撞仍采用核心的简化车体包围盒，不直接使用网格几何。当前地图对车体半径限制为 1–3.1 米，新增超大车体需同时修改地图、碰撞和验证边界。
+车体 spec 包含 name、hp、shield、ability、abilityCooldown、abilityDuration、speed、reverse、accel、turn、radius、scale、mount。mount 是模型坐标中的炮塔安装位置；碰撞仍采用核心的简化车体包围盒，不直接使用网格几何。当前地图对车体半径限制为 1–3.1 米，新增超大车体需同时修改地图、碰撞和验证边界。
+
+shield 为基础护盾上限；ability 支持 dash、barrier、deploy，abilityCooldown 和 abilityDuration 以 60 Hz tick 计。当前临时屏障量、冲刺速度和部署减伤由 battle-core.js 中的受控技能实现决定，新增技能机制需要同步扩展注册校验、权威核心、快照校验、显示及测试，不能只加一个插件文件。
 
 武器 spec 包含 name、damage、cooldown、speed、life、charge、minCharge、muzzle、range、minPower、trigger、delivery、sound。
 

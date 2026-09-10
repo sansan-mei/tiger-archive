@@ -71,3 +71,55 @@ test('real browser transport class connects to room logic, drives, pauses only i
   const saved=a.n.current();a.n.message(JSON.stringify({...a.n.room,type:'welcome',version:C.VERSION,pluginManifest:C.PLUGIN_MANIFEST,matchId:a.n.replica.matchId,epoch:a.n.replica.epoch,entityId:a.n.playerId,connection:9,tickRate:60}));
   assert.deepEqual(a.n.current(),saved);assert.deepEqual(a.errors,[]);assert.deepEqual(b.errors,[]);a.n.close();b.n.close();
 });
+
+test('skill tap and simultaneous fire edges survive coalescing; cancel clears queued actions',()=>{
+ for(const cancel of [false,true]){
+  const t=setup(),{peers,room}=t.match(),p=peers[0],w=p.last('welcome');
+  const inputs=[{ability:true,fire:true},{ability:true,fire:true,aimYaw:0},{ability:false,fire:false}];
+  if(cancel)inputs.push({cancelFire:true});
+  inputs.forEach((input,seq)=>t.rooms.receive(p.id,JSON.stringify({version:C.VERSION,type:'input',matchId:w.matchId,epoch:w.epoch,connection:w.connection,seq,clientTick:0,input})));
+  t.tick(3);
+  assert.equal(room.authority.history.filter(e=>e.type==='ability').length,cancel?0:1);
+  assert.equal(room.authority.history.filter(e=>e.type==='shot').length,cancel?0:1);
+  assert.equal(room.authority.battle.getEntity(w.entityId).abilityHeld,false);
+ }
+});
+
+function stalledClient(){
+ let now=0;const sent=[],statuses=[],scheduled=[],sockets=[];
+ class Socket{
+  constructor(){this.readyState=1;this.bufferedAmount=0;this.listeners={};sockets.push(this);}
+  addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}emit(k,e={}){for(const fn of this.listeners[k]||[])fn(e);}
+  send(data){sent.push(JSON.parse(data));}close(){this.readyState=3;this.emit('close');}
+ }
+ const n=new NetworkSession({url:'ws://test/ws',WebSocketImpl:Socket,now:()=>now,storage:null,onStatus:s=>statuses.push(s),schedule:fn=>(scheduled.push(fn),scheduled.length),cancel(){}});
+ n.connect({type:'create'});sockets[0].emit('open');
+ const authority=new S.Authority({participants:C.defaultParticipants().map(p=>({...p,controller:'human'}))});authority.battle.start();
+ n.message(JSON.stringify({type:'joined',code:'ABCDEF',entityId:'p1',token:'test-token'}));
+ n.message(JSON.stringify(authority.attach('peer','p1')));
+ const deliver=()=>n.message(JSON.stringify(authority.statePacket()));deliver();
+ return {n,sent,statuses,scheduled,sockets,authority,deliver,time:v=>{now=v;}};
+}
+test('stale snapshots pause held inputs once, block resume and recover only on newer state',()=>{
+ const t=stalledClient();t.n.advance(0,{fire:true,ability:true,forward:true});
+ t.time(1500);t.n.advance(0,{fire:true,ability:true});assert.equal(t.n.suspended,true);assert.equal(t.n.stale,true);
+ assert.deepEqual(t.sent.at(-1).input,{cancelFire:true});assert.equal(t.n.start(),false);
+ const count=t.sent.length;t.time(1600);t.n.advance(0,{fire:true});assert.equal(t.sent.length,count);assert.equal(t.statuses.filter(s=>s.includes('同步超时')).length,1);
+ t.deliver();assert.equal(t.n.stale,true,'same tick packets cannot disguise a stalled simulation');
+ t.authority.step();t.deliver();assert.equal(t.n.stale,false);assert.equal(t.n.suspended,true,'recovery requires explicit resume');assert.match(t.statuses.at(-1),/已恢复/);
+ t.n.advance(0,{fire:true,ability:true});assert.deepEqual(t.sent.at(-1).input,{cancelFire:true});assert.equal(t.n.start(),true);
+ t.n.close();
+});
+test('five second stall reconnects once with token and a new welcome restores usable state',()=>{
+ const t=stalledClient();t.time(5000);t.n.advance(0,{});assert.equal(t.sockets[0].readyState,3);assert.equal(t.scheduled.length,1);
+ t.n.advance(0,{});assert.equal(t.scheduled.length,1);
+ t.scheduled[0]();t.sockets[1].emit('open');assert.equal(t.sent.at(-1).type,'resume');assert.equal(t.sent.at(-1).token,'test-token');
+ t.n.message(JSON.stringify({type:'joined',code:'ABCDEF',entityId:'p1',token:'test-token'}));
+ t.n.message(JSON.stringify(t.authority.attach('peer','p1')));t.deliver();assert.equal(t.n.stale,false);assert.equal(t.n.start(),true);t.n.close();
+});
+test('normal snapshots keep manual pause; lobby and finished matches never trigger timeout',()=>{
+ const t=stalledClient();t.n.pause();
+ for(let i=1;i<=8;i++){t.time(i*1000);t.authority.step();t.deliver();t.n.advance(0,{});assert.equal(t.n.stale,false);assert.equal(t.n.suspended,true);}
+ t.n.room={phase:'lobby'};t.time(20000);t.n.advance(0,{});assert.equal(t.sockets[0].readyState,1);
+ t.n.room={phase:'finished'};t.authority.battle.status='finished';t.deliver();t.time(40000);t.n.advance(0,{});assert.equal(t.sockets[0].readyState,1);t.n.close();
+});

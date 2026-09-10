@@ -33,7 +33,7 @@ class RoomServer{
         const result=room.authority.receive(id,m);if(!result.ok)throw new Error(result.reason);
         const value=room.authority.commands.get(client.seat),queue=client.inputQueue||(client.inputQueue=[]),last=queue.at(-1);
         if(value.cancelFire)queue.length=0;
-        if(last&&last.fire===value.fire&&last.interact===value.interact&&!value.cancelFire)queue[queue.length-1]=value;else queue.push(value);
+        if(last&&last.fire===value.fire&&last.interact===value.interact&&last.ability===value.ability&&!value.cancelFire)queue[queue.length-1]=value;else queue.push(value);
         if(queue.length>8){client.transport.close(1008,'Too many input edges');this.disconnect(id);}return;
       }
       if(m.type==='ping'){this.send(client,{type:'pong',sentAt:m.sentAt});return;}

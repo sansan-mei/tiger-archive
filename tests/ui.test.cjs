@@ -76,6 +76,13 @@ test('page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(direction.dot(pivot.clone().sub(renderedCamera.position).normalize())>.99999,'pitch keeps the same look-at pivot');
   document.exitPointerLock();assert.equal(nodes.get('game-overlay').hidden,false);assert.equal(nodes.get('menu-title').textContent,'操作已暂停');
   nodes.get('start-button').emit('click');
+  now+=1600;frame(now);
+  assert.equal(nodes.get('game-overlay').hidden,false,'stale state opens pause UI');
+  assert.ok(nodes.get('network-status').textContent.includes('同步超时'));
+  nodes.get('start-button').emit('click');assert.equal(nodes.get('game-overlay').hidden,false,'resume is blocked while stale');
+  advance(3);assert.ok(nodes.get('network-status').textContent.includes('已恢复'));
+  assert.equal(nodes.get('game-overlay').hidden,false,'recovery waits for a click');
+  nodes.get('start-button').emit('click');assert.equal(nodes.get('game-overlay').hidden,true);
   for(const fn of windowEvents.keydown)fn({code:'ShiftLeft',preventDefault(){},repeat:false});advance(3);
   assert.equal(e.barrier,60);assert.ok(nodes.get('ability-status').textContent.includes('Shift'));
   for(const fn of windowEvents.keyup)fn({code:'ShiftLeft',preventDefault(){}});
