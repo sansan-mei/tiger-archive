@@ -168,7 +168,7 @@
     ArrowLeft: "left",
     KeyD: "right",
     ArrowRight: "right",
-    Space: "brake",
+    Space: "fire",
     KeyF: "fire",
     ShiftLeft: "ability",
     ShiftRight: "ability",
