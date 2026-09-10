@@ -1,0 +1,8 @@
+# Optional local image build; production compose.yaml only references the image.
+services:
+  tank:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OBFUSCATE_CLIENT: "${OBFUSCATE_CLIENT:-true}"

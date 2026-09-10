@@ -1,80 +1,103 @@
-# Docker 部署：WebSocket + 可选 Redis
+# Docker 发布：已有 Redis + WebSocket
 
-一个 Node.js 容器提供网页、Three.js 静态资源、/ws WebSocket 和 /healthz 健康检查。客户端使用当前网页域名建立 ws/wss 连接，无需单独开放 WebSocket 端口。无需数据库；可以连接你已有的 Redis 保存房间检查点。
+一个 Node.js 容器提供网页、模型、`/ws` 和 `/healthz`，容器内端口 8080。参考现有 file-server 的方式，使用镜像启动、`restart: always`，每 60 秒健康检查一次。无需 static 卷，网页和模型随镜像发布；房间检查点存入已有 Redis。
 
-## 部署
+## 配置文件
 
-将整个项目目录上传到服务器，在该目录执行以下命令。下面是供你部署时执行的命令，本次开发没有执行镜像构建或启动服务。
+| 文件 | 用途 |
+|---|---|
+| compose.yaml | 发布服务器拉取镜像启动；不包含 build，也不创建 Redis |
+| compose.build.yaml | 可选：叠加到主配置，为镜像制作者提供本地构建配置 |
+| compose.redis-network.yaml | 可选：游戏与 Redis 分属不同 Compose 项目时，加入已有 Redis 网络 |
+| .env.example | 镜像名、宿主端口、游戏域名与 Redis 参数 |
+
+默认镜像名 `1596944197/tiger-archive:latest` 是本次拟定的发布目标，尚未构建、推送或验证仓库存在。可以在 `.env` 的 TANK_IMAGE 中改成实际发布名；建议正式发布用固定版本标签，方便回滚。
+
+## 服务器配置
 
 ```sh
 cp .env.example .env
 ```
 
-编辑 .env，至少核对端口与 Redis 地址。例如：
+编辑 `.env`：
 
 ```dotenv
+TANK_IMAGE=1596944197/tiger-archive:latest
 HTTP_PORT=8080
 BIND_ADDRESS=0.0.0.0
 MAX_ROOMS=16
-PUBLIC_ORIGIN=https://tank.example.com
-REDIS_URL='redis://default:URL_ENCODED_PASSWORD@host.docker.internal:6379/0'
+PUBLIC_ORIGIN=https://你的游戏域名
+REDIS_URL=redis://redis:6379/0
 REDIS_PREFIX=tiger:rooms:v14
 ```
 
-- 直接通过 IP:8080 访问时，PUBLIC_ORIGIN 可留空；服务会要求 WebSocket Origin 与请求 Host 相同。
-- 用域名反代时，PUBLIC_ORIGIN 填实际完整源地址（协议 + 域名 + 可选端口，不带路径）。部署于网站根路径；当前不支持 /tank/ 之类子路径。
-- Redis 无密码时使用 redis://地址:6379/0；ACL 用户可填对应用户名。密码中的 @、:、/、#、% 等字符必须做 URL 编码。单引号用于防止 Compose 将密码里的美元符号当变量。
-- REDIS_URL 留空则启用纯内存模式。不要将 .env 放进 Git 或镜像。
+- 当前应用参数为 **PUBLIC_ORIGIN 和 REDIS_URL**，不是 file-server 的 ALLOW_ORIGIN 和 REDIS_HOST。PUBLIC_ORIGIN 填游戏实际网址的协议、域名和可选端口，不带路径；不要直接照抄另一个服务的域名。
+- 直接通过 IP:8080 访问时，PUBLIC_ORIGIN 可留空，WebSocket Origin 必须与 Host 一致。域名反代时建议明确填写实际源地址；代理要转发 WebSocket Upgrade，示例见下文。游戏部署在域名根路径，不支持 /tank/ 子路径。
+- Redis 有认证时可用 `redis://default:URL_ENCODED_PASSWORD@redis:6379/0`；密码中的特殊字符需 URL 编码。不要将 .env 提交到 Git 或加入镜像。
+- 默认使用已有的 `redis:6379`。显式写 `REDIS_URL=` 可切换纯内存模式；重启将丢失房间。
+- 宿主端口 HTTP_PORT 可改，容器端口和健康检查仍为 8080。container_name 为 tiger-archive，不占用 file-server 的容器名和 3003 端口。
 
-完成配置后：
+### 直接加入已有 Compose 文件
 
-```sh
-docker compose up -d --build
-```
+将 compose.yaml 中的 `tank` 服务块放到已有文件的 `services:` 下，与 redis 使用同一网络。若 redis 显式加入某个自定义网络，也给 tank 配上同一个 networks。将以上变量补充到该 Compose 项目的 .env。
 
-默认访问 http://服务器IP:8080。两人分别打开同一网址：选择车体和武器 → 创建/加入房间 → 所有人准备 → 房主开局。支持 2–8 人；本地训练仍为玩家 + 7 AI。
-
-常用运维命令：
+镜像已发布后，只拉取和启动新增的 tank 服务：
 
 ```sh
-docker compose ps
-docker compose logs --tail=100 tank
-docker compose down
+docker compose pull tank
+docker compose up -d --no-build --no-deps tank
 ```
 
-应用日志不输出 Redis URL、密码或玩家重连凭证。WebSocket 与 HTTP 同走 8080。镜像使用非 root 用户、只读文件系统及健康检查。
+### 单独部署，与 Redis 分属不同 Compose 项目
 
-## 连接已有 Redis
+在 `.env` 中另填 `REDIS_NETWORK=已有Redis的Docker网络名`。不知道网络名时，可在服务器查看现有 Redis 容器的网络（替换实际容器名）：
+
+```sh
+docker inspect redis --format '{{json .NetworkSettings.Networks}}'
+```
+
+然后使用网络叠加配置：
+
+```sh
+docker compose -f compose.yaml -f compose.redis-network.yaml pull tank
+docker compose -f compose.yaml -f compose.redis-network.yaml up -d --no-build --no-deps tank
+```
+
+该网络必须已存在，Redis 在其中有 `redis` 别名，或将 REDIS_URL 的主机名改成实际网络别名。external 网络不会由游戏创建或删除。
 
 ### Redis 在宿主机上
 
-compose.yaml 已配置 host.docker.internal:host-gateway，REDIS_URL 的主机填 host.docker.internal。容器内的 127.0.0.1 指向容器自身。
+使用主 compose.yaml，REDIS_URL 主机填 host.docker.internal；已配置 host-gateway。Redis 必须监听容器可达的接口，并允许 Docker 网段访问。容器里的 127.0.0.1 指向容器自身。无需向公网开放 Redis。
 
-宿主机 Redis 必须监听容器可访问的接口，并允许 Docker 网段访问；如果只监听宿主机 127.0.0.1，host-gateway 不能直接连接。将访问限制在内部网络并使用现有认证配置即可，不需要向公网开放 Redis。
+## 镜像制作与发布
 
-### Redis 是另一个 Docker 容器
-
-让游戏容器加入 Redis 已使用的网络，然后使用 Redis 的服务名或网络别名。例如另建 compose.redis-network.yaml：
-
-```yaml
-services:
-  tank:
-    networks:
-      - default
-      - existing-redis
-networks:
-  existing-redis:
-    external: true
-    name: YOUR_EXISTING_REDIS_NETWORK
-```
-
-REDIS_URL 可填 redis://default:密码@redis服务名:6379/0。用两个 Compose 文件部署：
+以下命令供部署者手动执行，本次没有运行构建、推送或服务启动。先在制作镜像的机器配置 TANK_IMAGE，再执行：
 
 ```sh
-docker compose -f compose.yaml -f compose.redis-network.yaml up -d --build
+docker compose --env-file .env -f compose.yaml -f compose.build.yaml build tank
+docker compose --env-file .env -f compose.yaml -f compose.build.yaml push tank
 ```
 
-网络名和 Redis 服务名需替换为你已有的配置。若 Redis 使用 TLS，连接字符串改为 rediss://；私有 CA 需额外配置 Node 信任证书。
+Dockerfile 的多阶段构建保留，默认 OBFUSCATE_CLIENT=true，生成混淆的发布页面资产；服务端逻辑和依赖留在运行镜像中。Blender 原件和预览图不加入构建上下文。镜像采用非 root 用户，Compose 保留只读文件系统、日志轮转和资源清理设置。
+
+构建平台必须匹配服务器架构。如果在 Apple Silicon Mac 上构建而服务器是 amd64 Linux，需要明确选择目标平台，不能直接把仅 arm64 的镜像发布给它。此次未判断服务器架构，也未自动选择或构建多平台镜像。
+
+## 检查与运维
+
+仅解析配置，不启动服务：
+
+```sh
+docker compose --env-file .env config --quiet
+```
+
+使用外部 Redis 网络时，给检查和运维命令加上同样的两个 `-f` 参数。
+
+```sh
+docker compose ps tank
+docker compose logs --tail=100 tank
+```
+
+默认访问 http://服务器IP:8080。日志应显示 Redis 模式，若显示 memory mode 则检查 REDIS_URL。`/healthz` 检查应用就绪状态；Redis 连接/租约故障会停止进程，由 restart 策略重启。健康检查使用镜像已有 Node，不依赖 wget。
 
 ## Redis 保存什么
 
