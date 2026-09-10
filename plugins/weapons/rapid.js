@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "rapid",
-    version: "2.1.0",
+    version: "2.1.1",
     apiVersion: 1,
     spec: {
       name: "快速炮",
@@ -23,10 +23,8 @@
       minPower: 1,
       sound: "cannon",
     },
-    buildVisual({ T, block, cylinder, paint, edge, glow, gun }) {
-      for (const z of [-0.23, 0, 0.23])
-        cylinder(0.075, 2.3, -1.52, 0, z, paint, gun, "x");
-      block(0.25, 0.22, 0.78, -2.61, 0, 0, edge, gun);
+    buildVisual({ blaster, block, glow, gun }) {
+      blaster("j");
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

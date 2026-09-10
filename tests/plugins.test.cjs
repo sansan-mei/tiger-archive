@@ -93,68 +93,25 @@ test("plugin mismatch is rejected at welcome, snapshot and restore boundaries", 
   assert.throws(() => a.battle.restore(state.snapshot));
 });
 test("all sixteen combinations assemble and dispose geometry via plugin visual hooks", () => {
-  // A scene-graph double checks factory contracts, not WebGL appearance.
-  class Vector {
-    set(...args) {
-      this.values = args;
-    }
-    setScalar(n) {
-      this.values = [n, n, n];
-    }
-  }
-  class Group {
-    constructor() {
-      this.children = [];
-      this.position = new Vector();
-      this.scale = new Vector();
-      this.rotation = {};
-    }
-    add(o) {
-      this.children.push(o);
-    }
-    traverse(fn) {
-      fn(this);
-      this.children.forEach((c) => c.traverse(fn));
-    }
-  }
-  class Mesh extends Group {
-    constructor(g, m) {
-      super();
-      this.geometry = g;
-      this.material = m;
-      this.isMesh = true;
-    }
-  }
-  class Resource {
-    constructor(options) {
-      Object.assign(this, options);
-    }
-    dispose() {
-      this.disposed = true;
-    }
-  }
-  const T = {
-    Group,
-    Mesh,
-    BoxGeometry: Resource,
-    CylinderGeometry: Resource,
-    TorusGeometry: Resource,
-    SphereGeometry: Resource,
-    MeshToonMaterial: Resource,
-    MeshStandardMaterial: Resource,
-    MeshBasicMaterial: Resource,
-  };
+  const T = require("three");
   const ctx = browser();
   for (const tankType of Object.keys(C.TANKS))
     for (const weaponType of Object.keys(C.WEAPONS)) {
       const view = ctx.createTankModel(T, { tankType, weaponType });
-      assert.equal(view.wheels.length, tankType === "human" ? 0 : 14);
+      assert.equal(
+        view.wheels.length,
+        tankType === "human" ? 0 : tankType === "light" ? 6 : 10,
+      );
       assert.ok(view.gun.children.length > 1);
       const resources = new Set();
       view.tank.traverse((o) => {
         if (o.geometry) resources.add(o.geometry);
         if (o.material) resources.add(o.material);
       });
+      for (const resource of resources)
+        resource.addEventListener("dispose", () => {
+          resource.disposed = true;
+        });
       view.dispose();
       assert.ok([...resources].every((r) => r.disposed));
     }

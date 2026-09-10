@@ -5,7 +5,7 @@
   registry.register({
     kind: "tank",
     id: "heavy",
-    version: "2.1.0",
+    version: "2.1.1",
     apiVersion: 1,
     spec: {
       name: "堡垒 · 重型机甲",
@@ -22,8 +22,6 @@
     },
     buildVisual(ctx) {
       hull(ctx);
-      for (const side of [-1, 1])
-        ctx.block(4.8, 0.64, 0.15, 0, 1.13, side * 1.45, ctx.paint);
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

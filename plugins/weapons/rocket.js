@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "rocket",
-    version: "1.0.0",
+    version: "1.0.1",
     apiVersion: 1,
     spec: {
       name: "火箭筒",
@@ -25,11 +25,8 @@
       minPower: 1,
       sound: "cannon",
     },
-    buildVisual({ block, cylinder, edge, paint, glow, gun }) {
-      cylinder(0.3, 2.7, -1.45, 0, 0, paint, gun, "x");
-      cylinder(0.4, 0.25, -2.9, 0, 0, edge, gun, "x");
-      cylinder(0.4, 0.22, 0, 0, 0, edge, gun, "x");
-      block(0.5, 0.18, 0.16, -1, 0.37, 0, glow, gun);
+    buildVisual({ blaster, block, glow, gun }) {
+      blaster("h");
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

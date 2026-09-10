@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "laser",
-    version: "2.2.0",
+    version: "2.2.1",
     apiVersion: 1,
     spec: {
       name: "蓄力激光炮",
@@ -24,16 +24,10 @@
       minPower: 0.35,
       sound: "energy",
     },
-    buildVisual({ T, block, cylinder, paint, edge, glow, gun }) {
-      block(2.7, 0.28, 0.38, -1.8, 0, 0, edge, gun);
-      for (const z of [-0.35, 0.35])
-        block(3.0, 0.16, 0.13, -1.84, 0, z, glow, gun);
-      for (let i = 0; i < 5; i++) {
-        const coil = new T.Mesh(new T.TorusGeometry(0.25, 0.04, 6, 16), glow);
-        coil.rotation.y = Math.PI / 2;
-        coil.position.x = -0.7 - i * 0.5;
-        gun.add(coil);
-      }
+    buildVisual({ blaster, block, glow, gun }) {
+      blaster("r");
+      for (const side of [-1, 1])
+        block(1.8, 0.09, 0.09, -1.65, 0.22, side * 0.34, glow, gun);
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

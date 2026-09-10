@@ -17,8 +17,8 @@
   const views = new Map(),
     bullets = new Map(),
     palette = [
-      0xa8b58a, 0xc78772, 0x87a9bf, 0xd1b775, 0xa393b2, 0x73a89a, 0xd49e75,
-      0x91a5ae,
+      0x62cbb1, 0xf18473, 0x70b7e6, 0xf1c566, 0xb49be0, 0x79c6cf, 0xf1a66d,
+      0x92afd9,
     ];
   function createViews() {
     for (const view of views.values()) {

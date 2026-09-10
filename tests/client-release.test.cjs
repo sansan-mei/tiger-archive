@@ -19,7 +19,10 @@ test("release inventory protects all first-party browser scripts, preserves vend
   ];
   for (const file of scripts) {
     assert.ok(files.includes(file));
-    assert.equal(shouldObfuscate(file), !file.startsWith("vendor/"));
+    assert.equal(
+      shouldObfuscate(file),
+      !file.startsWith("vendor/") && !file.startsWith("client/art/"),
+    );
   }
   for (const file of [
     "server.js",

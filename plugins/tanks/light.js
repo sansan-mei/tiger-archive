@@ -5,7 +5,7 @@
   registry.register({
     kind: "tank",
     id: "light",
-    version: "2.1.0",
+    version: "2.1.1",
     apiVersion: 1,
     spec: {
       name: "游隼 · 轻型机甲",
@@ -22,8 +22,6 @@
     },
     buildVisual(ctx) {
       hull(ctx);
-      const nose = ctx.block(1.1, 0.55, 2.6, -2.4, 1.23, 0);
-      nose.rotation.z = -0.22;
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

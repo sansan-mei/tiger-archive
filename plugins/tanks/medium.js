@@ -5,7 +5,7 @@
   registry.register({
     kind: "tank",
     id: "medium",
-    version: "2.1.0",
+    version: "2.1.1",
     apiVersion: 1,
     spec: {
       name: "先锋 · 中型机甲",

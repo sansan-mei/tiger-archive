@@ -46,7 +46,11 @@ function optionsFor(file) {
   };
 }
 function shouldObfuscate(file) {
-  return file.endsWith(".js") && !file.startsWith("vendor/");
+  return (
+    file.endsWith(".js") &&
+    !file.startsWith("vendor/") &&
+    !file.startsWith("client/art/")
+  );
 }
 function transform(source, file) {
   return require("javascript-obfuscator")

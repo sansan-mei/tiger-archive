@@ -33,6 +33,7 @@
     "battle-core.js",
     "battle-session.js",
     "network-session.js",
+    "client/art/blasters.js",
     "tank-model.js",
     "client/scene.js",
     "client/camera.js",

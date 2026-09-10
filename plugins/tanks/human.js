@@ -6,7 +6,7 @@
   registry.register({
     kind: "tank",
     id: "human",
-    version: "1.0.0",
+    version: "1.0.1",
     apiVersion: 1,
     spec: {
       name: "人类 · 火箭兵",
@@ -31,24 +31,38 @@
       paint,
       edge,
       rubber,
+      glow,
+      accent,
+      ink,
       tank,
       turret,
       limbs,
     }) {
       for (const side of [-1, 1]) {
         const leg = new T.Group();
-        leg.position.set(0, 1.2, side * 0.3);
+        leg.position.set(0, 1.13, side * 0.29);
         tank.add(leg);
-        block(0.34, 0.95, 0.35, 0, -0.48, 0, paint, leg);
-        block(0.62, 0.22, 0.38, -0.12, -1, 0, rubber, leg);
+        block(0.35, 0.85, 0.36, 0, -0.42, 0, rubber, leg);
+        block(0.42, 0.34, 0.42, -0.03, -0.49, 0, edge, leg);
+        block(0.59, 0.28, 0.44, -0.12, -0.96, 0, ink, leg);
+        block(0.12, 0.2, 0.3, -0.25, -0.46, 0, accent, leg);
         limbs.push(leg);
       }
-      block(0.72, 0.82, 1, 0, 0.04, 0, paint, turret);
-      block(0.25, 0.65, 0.75, 0.48, 0, 0, edge, turret);
-      cylinder(0.34, 0.5, 0, 0.73, 0, edge, turret);
-      block(0.05, 0.17, 0.47, -0.34, 0.76, 0, rubber, turret);
-      for (const side of [-1, 1])
-        block(0.55, 0.24, 0.25, -0.4, 0.12, side * 0.65, paint, turret);
+      block(0.7, 0.75, 0.96, 0, -0.09, 0, paint, turret);
+      block(0.16, 0.47, 0.72, -0.39, -0.07, 0, edge, turret);
+      block(0.17, 0.12, 0.34, -0.48, 0.08, 0, glow, turret);
+      block(0.35, 0.66, 0.69, 0.46, -0.05, 0, ink, turret);
+      block(0.38, 0.14, 0.44, 0.49, 0.24, 0, accent, turret);
+      // Oversized helmet and one clear visor instead of tiny facial details.
+      block(0.78, 0.7, 0.88, -0.02, 0.67, 0, edge, turret);
+      block(0.16, 0.35, 0.7, -0.44, 0.66, 0, ink, turret);
+      block(0.18, 0.13, 0.52, -0.49, 0.7, 0, glow, turret);
+      block(0.35, 0.12, 0.2, -0.02, 1.04, 0, accent, turret);
+      for (const side of [-1, 1]) {
+        cylinder(0.23, 0.16, 0, 0.67, side * 0.48, paint, turret, "z");
+        block(0.55, 0.38, 0.32, -0.08, 0.12, side * 0.57, paint, turret);
+        block(0.55, 0.23, 0.27, -0.37, -0.1, side * 0.57, rubber, turret);
+      }
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

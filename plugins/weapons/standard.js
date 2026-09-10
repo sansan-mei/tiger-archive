@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "standard",
-    version: "2.1.0",
+    version: "2.1.1",
     apiVersion: 1,
     spec: {
       name: "标准炮",
@@ -23,9 +23,8 @@
       minPower: 1,
       sound: "cannon",
     },
-    buildVisual({ T, block, cylinder, paint, edge, glow, gun }) {
-      cylinder(0.115, 3.05, -1.87, 0, 0, paint, gun, "x");
-      block(0.42, 0.25, 0.3, -3.44, 0, 0, edge, gun);
+    buildVisual({ blaster, block, glow, gun }) {
+      blaster("b");
     },
   });
 })(typeof window === "undefined" ? globalThis : window);

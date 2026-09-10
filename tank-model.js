@@ -1,7 +1,7 @@
 /* Lightweight vehicle visuals. Gameplay dimensions come from the shared catalogue. */
 window.createTankModel = function (
   T,
-  { tankType, weaponType, color = 0x9d956f },
+  { tankType, weaponType, color = 0x61c6b1 },
 ) {
   const spec = window.TankBattle.TANKS[tankType],
     weapon = window.TankBattle.WEAPONS[weaponType];
@@ -9,15 +9,29 @@ window.createTankModel = function (
     turret = new T.Group(),
     gun = new T.Group();
   const paint = new T.MeshToonMaterial({ color });
-  const edge = new T.MeshToonMaterial({ color: 0x71836c });
-  const rubber = new T.MeshToonMaterial({ color: 0x4a5a56 });
+  const edge = new T.MeshToonMaterial({ color: 0xf2ecd9 });
+  const rubber = new T.MeshToonMaterial({ color: 0x293d51 });
   const glow = new T.MeshToonMaterial({
     color: 0x67d8e0,
     emissive: 0x176b7e,
     emissiveIntensity: 1.0,
   });
-  const geometry = new T.BoxGeometry(1, 1, 1),
-    wheels = [],
+  // Shared beveled cube: a small silhouette upgrade without textures or extra draws.
+  const geometry = new T.BoxGeometry(1, 1, 1, 2, 2, 2);
+  const positions = geometry.attributes.position;
+  const point = new T.Vector3(),
+    core = new T.Vector3();
+  for (let i = 0; i < positions.count; i++) {
+    point.fromBufferAttribute(positions, i);
+    core.copy(point).clampScalar(-0.38, 0.38);
+    point.sub(core).normalize().multiplyScalar(0.12).add(core);
+    positions.setXYZ(i, point.x, point.y, point.z);
+  }
+  geometry.computeVertexNormals();
+  const accent = new T.MeshToonMaterial({ color: 0xffbd61 });
+  const ink = new T.MeshToonMaterial({ color: 0x152b40 });
+  const weaponPaint = new T.MeshToonMaterial({ vertexColors: true });
+  const wheels = [],
     limbs = [];
   function block(w, h, d, x, y, z, material = paint, parent = tank) {
     const m = new T.Mesh(geometry, material);
@@ -38,8 +52,46 @@ window.createTankModel = function (
     parent.add(m);
     return m;
   }
+  function blaster(key) {
+    const data = window.TankBlasterMeshes[key];
+    const meshGeometry = new T.BufferGeometry();
+    meshGeometry.setAttribute(
+      "position",
+      new T.Float32BufferAttribute(data.positions, 3),
+    );
+    meshGeometry.setAttribute(
+      "normal",
+      new T.Float32BufferAttribute(data.normals, 3),
+    );
+    const colors = [],
+      colorValue = new T.Color();
+    for (let i = 0; i < data.colors.length; i += 3) {
+      colorValue
+        .setRGB(
+          data.colors[i] / 255,
+          data.colors[i + 1] / 255,
+          data.colors[i + 2] / 255,
+        )
+        .convertSRGBToLinear();
+      colors.push(colorValue.r, colorValue.g, colorValue.b);
+    }
+    meshGeometry.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
+    meshGeometry.setIndex(data.indices);
+    const mesh = new T.Mesh(meshGeometry, weaponPaint);
+    const length =
+      weapon.muzzle - (spec.movement === "strafe" ? 0.35 / 0.55 : 1.54);
+    mesh.scale.set(length, length, length);
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.name = "kenney-blaster-" + key;
+    gun.add(mesh);
+    return mesh;
+  }
   const ctx = {
     T,
+    tankType,
+    blaster,
+    accent,
+    ink,
     block,
     cylinder,
     paint,
@@ -56,10 +108,26 @@ window.createTankModel = function (
   turret.position.set(...spec.mount);
   tank.add(turret);
   if (spec.movement !== "strafe") {
-    block(2.18, 0.82, 2.02, 0, 0.48, 0, paint, turret);
-    block(0.4, 0.5, 1.68, 1.25, 0.55, 0, edge, turret);
-    cylinder(0.33, 0.2, 0.34, 1.0, -0.47, edge, turret);
-    block(0.42, 0.06, 0.5, -0.38, 0.94, 0.46, edge, turret);
+    const width = tankType === "heavy" ? 2.35 : tankType === "light" ? 1.65 : 2;
+    block(2.0, 0.78, width, 0.05, 0.4, 0, paint, turret);
+    block(0.12, 0.3, width * 0.65, -0.97, 0.51, 0, ink, turret);
+    block(0.14, 0.1, width * 0.5, -1.04, 0.55, 0, glow, turret);
+    block(0.8, 0.13, 0.78, 0.2, 0.86, 0, edge, turret);
+    for (const side of [-1, 1]) {
+      block(1.25, 0.42, 0.25, 0.12, 0.35, (side * width) / 2, edge, turret);
+      block(
+        0.28,
+        0.45,
+        0.28,
+        -0.17,
+        0.36,
+        side * (width / 2 + 0.02),
+        accent,
+        turret,
+      );
+    }
+    cylinder(0.07, 0.4, 0.65, 0.89, -0.58, rubber, turret);
+    block(0.19, 0.13, 0.19, 0.65, 1.1, -0.58, glow, turret);
   }
   gun.position.set(-1.12, 0.51, 0);
   turret.add(gun);
@@ -70,6 +138,43 @@ window.createTankModel = function (
     gun.position.set(-0.35, 0.51, 0.6);
   }
   tank.scale.setScalar(spec.scale);
+  // Merge stationary armor by material, preserving turret/gun/limb/wheel pivots.
+  const animated = new Set(wheels);
+  const retired = new Set();
+  for (const parent of [tank, turret, gun, ...limbs]) {
+    const groups = new Map();
+    for (const mesh of [...parent.children]) {
+      if (!mesh.isMesh || animated.has(mesh) || mesh.geometry.attributes.color)
+        continue;
+      mesh.updateMatrix();
+      const copy = mesh.geometry
+        .clone()
+        .applyMatrix4(mesh.matrix)
+        .toNonIndexed();
+      if (!groups.has(mesh.material)) groups.set(mesh.material, []);
+      groups.get(mesh.material).push(copy);
+      retired.add(mesh.geometry);
+      parent.remove(mesh);
+    }
+    for (const [material, parts] of groups) {
+      const merged = new T.BufferGeometry();
+      for (const attribute of ["position", "normal"]) {
+        const values = parts.flatMap((g) =>
+          Array.from(g.attributes[attribute].array),
+        );
+        merged.setAttribute(attribute, new T.Float32BufferAttribute(values, 3));
+      }
+      parts.forEach((g) => g.dispose());
+      const mesh = new T.Mesh(merged, material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      parent.add(mesh);
+    }
+  }
+  const retained = new Set();
+  tank.traverse((o) => {
+    if (o.geometry) retained.add(o.geometry);
+  });
+  for (const g of retired) if (!retained.has(g)) g.dispose();
   const wreck = new T.MeshToonMaterial({ color: 0x6c7166 });
   const originals = new Map();
   tank.traverse((o) => {
@@ -99,6 +204,7 @@ window.createTankModel = function (
       depthWrite: false,
     }),
   );
+  frontShield.visible = false;
   frontShield.scale.set(0.07, 0.6, 0.85);
   frontShield.position.set(-3.8, 1, 0);
   turret.add(frontShield);
@@ -126,7 +232,17 @@ window.createTankModel = function (
         if (o.material) materials.add(o.material);
       });
       for (const m of originals.values()) materials.add(m);
-      materials.add(wreck);
+      for (const material of [
+        paint,
+        edge,
+        rubber,
+        glow,
+        accent,
+        ink,
+        weaponPaint,
+        wreck,
+      ])
+        materials.add(material);
       for (const g of geometries) g.dispose();
       for (const m of materials) m.dispose();
     },

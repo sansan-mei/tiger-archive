@@ -95,3 +95,9 @@ core/map.js 的 dropExits 声明出口，core/math.js 的 dropExit 统一判断�
 ## 辅助锁定
 
 client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和解除。client/input.js 在真实鼠标位移或清空操作时增加 aimRevision，并立即清除旧 activeAim；battle.js 提供投影、可见性、武器射程和当前实体，取返回的目标中心作为既有瞄准输入，并将准星画到目标投影位置。模块不产生开火输入，也不绕过服务端炮塔转速。
+
+## 卡通美术资源
+
+`client/art/blasters.js` 是从 Kenney OBJ 导入的只读用途几何数据，由共用浏览器清单管理，自动进入静态白名单和发布目录。`scripts/import-blasters.py` 是手动美术导入工具：验证原始 ZIP SHA-256，读取固定四个模型，转换坐标和顶点色；运行游戏与 Docker 构建均不需要 Python/Pillow。
+
+`tank-model.js` 负责材质、倒角基本体、导入武器的尺寸适配、静态装甲合并和释放；车体/武器钩子保留样式选择。既有 `client/units.js` 继续驱动移动、后坐、摆腿、护盾和红色标记。模型数据不进入房间快照，不增加战斗消息字段。素材许可与视觉限制见 ART.md。
