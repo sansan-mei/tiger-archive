@@ -10,6 +10,7 @@ services:
       NODE_ENV: production
       PORT: "8080"
       MAX_ROOMS: "${MAX_ROOMS:-16}"
+      WS_COMPRESSION: "${WS_COMPRESSION:-true}"
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-}"
       REDIS_URL: "${REDIS_URL-redis://redis:6379/0}"
       REDIS_PREFIX: "${REDIS_PREFIX:-tiger:rooms:v14}"

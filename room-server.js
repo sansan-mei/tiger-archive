@@ -37,6 +37,17 @@ class RoomServer {
     return id;
   }
   send(client, message) {
+    let data;
+    try {
+      data = JSON.stringify(message);
+    } catch {
+      client?.transport.close(1011, "Connection error");
+      if (client) this.disconnect(client.id);
+      return false;
+    }
+    return this.sendEncoded(client, data);
+  }
+  sendEncoded(client, data, byteLength = Buffer.byteLength(data)) {
     if (!client) return false;
     try {
       if (client.transport.bufferedAmount > 262144) {
@@ -44,9 +55,7 @@ class RoomServer {
         this.disconnect(client.id);
         return false;
       }
-      const data = JSON.stringify(message);
-      if (Buffer.byteLength(data) > 65536)
-        throw new Error("State packet exceeds limit");
+      if (byteLength > 65536) throw new Error("State packet exceeds limit");
       client.transport.send(data);
       return true;
     } catch {
@@ -287,9 +296,10 @@ class RoomServer {
     return packet;
   }
   broadcastState(room) {
-    const packet = this.packet(room);
+    const data = JSON.stringify(this.packet(room)),
+      byteLength = Buffer.byteLength(data);
     for (const seat of [...room.seats])
-      this.send(this.clients.get(seat.clientId), packet);
+      this.sendEncoded(this.clients.get(seat.clientId), data, byteLength);
   }
   broadcastRoom(room) {
     const message = {

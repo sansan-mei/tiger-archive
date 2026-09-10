@@ -50,6 +50,7 @@
       this.sequence = 0;
       this.lastSent = 0;
       this.receivedAt = 0;
+      this.snapshotGap = 50;
       this.progressAt = 0;
       this.stale = false;
       this.lastInput = "";
@@ -135,20 +136,37 @@
           this.sequence = 0;
           this.events = [];
           this.lastInput = "";
+          this.receivedAt = 0;
+          this.progressAt = 0;
+          this.snapshotGap = 50;
           return;
         }
         if (m.type === "state") {
           const first = !this.replica.current,
-            previousTick = this.replica.current?.tick;
+            previousTick = this.replica.current?.tick,
+            arrivedAt = this.now(),
+            previousArrival = this.receivedAt;
           const result = this.replica.receive(m);
           if (!result.ok) throw new Error(result.reason);
           this.stableState = this.replica.current;
-          this.receivedAt = this.now();
+          this.receivedAt = arrivedAt;
           if (
             first ||
             this.replica.current.tick > previousTick ||
             this.replica.current.status !== "playing"
           ) {
+            if (!first && this.replica.current.tick > previousTick) {
+              const tickGap =
+                  ((this.replica.current.tick - previousTick) / 60) * 1000,
+                arrivalGap = Math.max(1, arrivedAt - previousArrival),
+                observed = Math.max(
+                  tickGap,
+                  Math.min(tickGap * 2, arrivalGap),
+                );
+              // Follow real packet cadence gradually, so a late packet is not
+              // rushed through the whole snapshot in the next 50 ms.
+              this.snapshotGap = this.snapshotGap * 0.75 + observed * 0.25;
+            }
             this.progressAt = this.receivedAt;
             const recovered = this.stale;
             this.stale = false;
@@ -247,10 +265,14 @@
     state() {
       if (!this.replica.current) return this.stableState;
       const gap = this.replica.previous
-        ? ((this.replica.current.tick - this.replica.previous.tick) / 60) * 1000
+        ? Math.max(
+            ((this.replica.current.tick - this.replica.previous.tick) / 60) *
+              1000,
+            this.snapshotGap,
+          )
         : 50;
       return this.replica.renderState(
-        Math.min(1, (this.now() - this.receivedAt) / Math.max(1, gap)),
+        Math.min(1.5, (this.now() - this.receivedAt) / Math.max(1, gap)),
       );
     }
     current() {

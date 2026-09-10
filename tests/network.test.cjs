@@ -89,6 +89,24 @@ test("8-player ready room starts one authority and rejects a ninth player", () =
   states.forEach((s) => assert.deepEqual(s, states[0]));
   assert.ok(states[0].entities.every((e) => e.controller === "human"));
 });
+test("state broadcast serializes one packet once for every room member", () => {
+  const t = setup(),
+    peers = [t.peer(), t.peer()];
+  t.send(peers[0], "create");
+  const code = peers[0].last("joined").code;
+  t.send(peers[1], "join", { code });
+  let serialized = 0;
+  t.rooms.packet = () => ({
+    toJSON() {
+      serialized++;
+      return { type: "state", snapshot: {} };
+    },
+  });
+  t.rooms.broadcastState(t.rooms.rooms.get(code));
+  assert.equal(serialized, 1);
+  assert.equal(peers[0].last("state").type, "state");
+  assert.equal(peers[1].last("state").type, "state");
+});
 test("loadout invalidates ready; versions and unknown rooms cannot enter", () => {
   const t = setup(),
     p = t.peer();
@@ -405,6 +423,25 @@ function stalledClient() {
     },
   };
 }
+test("network rendering adapts to delayed snapshot cadence and caps extrapolation", () => {
+  const t = stalledClient();
+  for (let i = 0; i < 3; i++) t.authority.step();
+  t.time(100);
+  t.deliver();
+  assert.equal(t.n.snapshotGap, 62.5);
+  let alpha = 0;
+  t.n.replica.renderState = (value) => {
+    alpha = value;
+    return t.n.replica.current;
+  };
+  t.time(162.5);
+  t.n.state();
+  assert.equal(alpha, 1);
+  t.time(1000);
+  t.n.state();
+  assert.equal(alpha, 1.5);
+  t.n.close();
+});
 test("stale snapshots pause held inputs once, block resume and recover only on newer state", () => {
   const t = stalledClient();
   t.n.advance(0, { fire: true, ability: true, forward: true });

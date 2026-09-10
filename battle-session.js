@@ -472,7 +472,9 @@
       if (!this.current) return null;
       const state = C.clone(this.current);
       if (!this.previous) return state;
-      const t = Math.max(0, Math.min(1, alpha));
+      // A short, visual-only extrapolation keeps rendering fluid when a 20 Hz
+      // packet arrives a little late. Authoritative state remains untouched.
+      const t = Math.max(0, Math.min(1.5, alpha));
       for (const e of state.entities) {
         const before = this.previous.entities.find((p) => p.id === e.id);
         if (!before || before.alive !== e.alive) continue;
@@ -485,6 +487,12 @@
             e[axis],
             Math.abs(C.wrap(e[axis] - before[axis])) * t,
           );
+      }
+      for (const b of state.bullets) {
+        const before = this.previous.bullets.find((p) => p.id === b.id);
+        if (!before || before.owner !== b.owner) continue;
+        for (const axis of ["x", "y", "z"])
+          b[axis] = before[axis] + (b[axis] - before[axis]) * t;
       }
       return state;
     }
