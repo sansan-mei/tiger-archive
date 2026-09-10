@@ -241,10 +241,12 @@
           " 爆炸 / 半径 " +
           weapon.splashRadius +
           " 米"
-        : " 最大伤害") +
-      (weapon.charge
-        ? " / 按住蓄力，松开发射"
-        : " / " + (weapon.cooldown / 60).toFixed(2) + " 秒装填");
+        : " 基础伤害") +
+      (weapon.trigger === "delayed"
+        ? " / 点击后 " + (weapon.charge / 60).toFixed(1) + " 秒自动发射"
+        : weapon.charge
+          ? " / 按住蓄力，松开发射"
+          : " / " + (weapon.cooldown / 60).toFixed(2) + " 秒装填");
 
     $("loadout-summary").textContent +=
       "。Shift：" +

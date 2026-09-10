@@ -114,30 +114,33 @@ test("rapid cannon fires more often with lower damage", () => {
   p.aim = 0;
   const events = ticks(b, 60, { p1: { fire: true } });
   assert.equal(events.filter((e) => e.type === "shot").length, 4);
-  assert.equal(C.WEAPONS.rapid.damage, 9);
+  assert.equal(C.WEAPONS.rapid.damage, 13);
   assert.ok(C.WEAPONS.rapid.damage < C.WEAPONS.standard.damage);
 });
-test("laser minimum charge, partial release, and maximum auto discharge", () => {
-  let b = make({ weapon: "laser" }),
-    p = b.entities[0];
-  p.aim = 0;
-  let events = ticks(b, 10, { p1: { fire: true } });
-  events.push(...b.step({ p1: { fire: false } }));
-  assert.equal(events.filter((e) => e.type === "beam").length, 0);
-  assert.equal(p.charge, 0);
-  events = ticks(b, 40, { p1: { fire: true } });
-  events.push(...b.step({ p1: { fire: false } }));
-  assert.equal(events.filter((e) => e.type === "beam").length, 1);
-  assert.ok(events.find((e) => e.type === "beam").power < 1);
-  b = make({ weapon: "laser" });
-  p = b.entities[0];
-  p.aim = 0;
-  events = ticks(b, 300, { p1: { fire: true } });
-  assert.equal(events.filter((e) => e.type === "beam").length, 1);
-  assert.equal(p.needsRelease, true);
+test("laser click waits a fixed warm-up, releases at full power and holding never repeats", () => {
+  for (const heldTicks of [1, 10, 40, 90]) {
+    const b = make({ weapon: "laser" });
+    let events = [];
+    for (let i = 0; i < 89; i++)
+      events.push(...b.step({ p1: { fire: i < heldTicks } }));
+    assert.equal(events.filter((e) => e.type === "beam").length, 0);
+    events = b.step({ p1: { fire: 89 < heldTicks } });
+    assert.equal(events.filter((e) => e.type === "beam").length, 1);
+    assert.equal(events.find((e) => e.type === "beam").power, 1);
+    assert.equal(b.entities[0].cooldown, C.WEAPONS.laser.cooldown);
+  }
+  const b = make({ weapon: "laser" });
+  assert.equal(
+    ticks(b, 400, { p1: { fire: true } }).filter((e) => e.type === "beam")
+      .length,
+    1,
+  );
   b.step({});
-  events = ticks(b, 90, { p1: { fire: true } });
-  assert.equal(events.filter((e) => e.type === "beam").length, 1);
+  assert.equal(
+    ticks(b, 90, { p1: { fire: true } }).filter((e) => e.type === "beam")
+      .length,
+    1,
+  );
 });
 test("continuous projectile collision and laser both respect cover", () => {
   const cover = { id: "wall", floor: 0, x: 0, z: 0, w: 10, d: 0.1, h: 4 };
@@ -390,4 +393,16 @@ test("A* escapes a valid wall-adjacent position whose nearest cell is blocked", 
   assert.ok(
     route.every((p) => b.valid(p.x, p.z, 1, body, { ignoreEntities: true })),
   );
+});
+
+test("laser warm-up survives snapshot restore without restarting or early release", () => {
+  const b = make({ weapon: "laser" });
+  b.step({ p1: { fire: true } });
+  ticks(b, 44);
+  const restored = new C.Battle({ map: b.map });
+  restored.restore(b.snapshot());
+  for (let i = 0; i < 45; i++) assert.deepEqual(restored.step({}), b.step({}));
+  assert.deepEqual(restored.snapshot(), b.snapshot());
+  assert.equal(b.entities[0].charge, 0);
+  assert.equal(b.entities[0].cooldown, 126);
 });

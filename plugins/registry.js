@@ -140,12 +140,14 @@
           if (!Number.isInteger(s[key]))
             throw new Error("Expected integer: " + key);
         if (
-          !["automatic", "charge"].includes(s.trigger) ||
+          !["automatic", "charge", "delayed"].includes(s.trigger) ||
           !["projectile", "ray"].includes(s.delivery) ||
           !["cannon", "energy"].includes(s.sound) ||
           s.minCharge > s.charge ||
           (s.trigger === "charge" && (!s.charge || !s.minCharge)) ||
           (s.trigger === "automatic" && (s.charge || s.minCharge)) ||
+          (s.trigger === "delayed" &&
+            (!s.charge || s.minCharge !== s.charge || s.minPower !== 1)) ||
           (s.delivery === "projectile" && (!s.speed || !s.life))
         )
           throw new Error("Invalid weapon behavior");

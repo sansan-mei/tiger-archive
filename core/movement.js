@@ -129,7 +129,19 @@
       );
     if (input.aimPitch !== undefined)
       body.pitch += clamp(input.aimPitch - body.pitch, -1.6 * DT, 1.6 * DT);
-    if (weapon.trigger === "charge") {
+    if (weapon.trigger === "delayed") {
+      // A rising edge commits one fixed warm-up. Releasing never changes damage or timing.
+      if (
+        body.charge ||
+        (input.fire && !body.fireHeld && !body.needsRelease && !body.cooldown)
+      ) {
+        body.charge++;
+        if (body.charge >= weapon.charge) {
+          battle.shoot(body);
+          body.needsRelease = true;
+        }
+      }
+    } else if (weapon.trigger === "charge") {
       if (input.fire && !body.needsRelease && !body.cooldown) {
         body.charge = Math.min(weapon.charge, body.charge + 1);
         if (body.charge === weapon.charge) {

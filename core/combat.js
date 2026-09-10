@@ -148,6 +148,7 @@
       y: start.y + dir.y * length,
       z: start.z + dir.z * length,
     };
+    if (spec.trigger === "delayed") power = 1;
     body.cooldown = spec.cooldown;
     body.charge = 0;
     const shot = {

@@ -6,11 +6,11 @@
   registry.register({
     kind: "weapon",
     id: "rapid",
-    version: "2.1.2",
+    version: "2.1.3",
     apiVersion: 1,
     spec: {
       name: "快速炮",
-      damage: 9,
+      damage: 13,
       cooldown: 18,
       speed: 112,
       life: 115,

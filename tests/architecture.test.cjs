@@ -8,7 +8,7 @@ const C = require("../battle-core.js"),
   manifest = require("../app-manifest.js"),
   { assetPath } = require("../server.js");
 const ROOT = path.resolve(__dirname, "..");
-test("the refactored simulation matches the pre-refactor 900 tick baseline", () => {
+test("the simulation matches the v13 delayed-laser 900 tick baseline", () => {
   const b = new C.Battle();
   b.start();
   for (let i = 0; i < 900; i++)

@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v12）
+# 机甲与武器插件（API v1，协议 v13）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种单位 × 4 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -23,11 +23,12 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 武器 spec 包含 name、damage、cooldown、speed、life、charge、minCharge、muzzle、range、minPower、trigger、delivery、sound。
 
-- trigger: automatic 表示按住持续发射，charge 表示按住蓄力、松开部分发射或满蓄力自动发射一次。
+- trigger: automatic 表示按住持续发射；charge 保留按住蓄力、松开部分发射的通用行为；delayed 表示点击后固定等待再发射，内置激光使用此模式。
+- delayed 要求 charge > 0、minCharge = charge、minPower = 1；按下边沿开始，松开不提前发射，发射 power 恒为 1。
 - delivery: projectile 表示飞行弹丸，ray 表示瞬时射线。这两个维度可独立组合。
 - cooldown / life / charge / minCharge 的单位为 60 Hz tick；速度为米/秒。
 - range 只用于射线；弹丸射程由 speed、life、地图范围共同决定。
-- minPower 为最低有效蓄力时伤害公式的基底：minPower + (1 - minPower) × charge / 最大 charge。
+- 对 charge 模式，minPower 为最低有效蓄力时伤害公式的基底：minPower + (1 - minPower) × charge / 最大 charge。
 - sound: cannon / energy，选择渲染端音效。
 
 插件声明攻击行为，由核心统一处理冷却、蓄力、射线/弹丸、伤害、死亡归属和坡面碰撞。外观钩子只接收几何构造工具和场景对象，不接收权威 Battle。新的自动炮、蓄力弹丸炮、即时射线炮都可用已有行为组合；追踪导弹等新机制需要先为核心增加受控行为及测试。
@@ -63,7 +64,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 联机一致性
 
-协议已升级为 v12。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议已升级为 v13。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -71,11 +72,11 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 - plugins/tanks/human.js：人类，版本 1.0.1；movement: strafe、muzzleScale: 0.55、height: 2.8。移动参考由 moveYaw 输入提供，伤害碰撞体采用更小半径及指定高度。
 - plugins/weapons/rocket.js：火箭筒，版本 1.0.2；damage: 20、splashDamage: 80、splashRadius: 6。爆炸参数需同时提供，且只能用于 projectile 类型；权威核心统一处理二次伤害和遮挡。
-- 共用清单已包含两者。车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard/rapid 2.1.2、laser 2.2.2、rocket 1.0.2。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
+- 共用清单已包含两者。车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.1.2、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。插件几何上下文新增 limbs，可由渲染器驱动步行摆腿。
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.2.2，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v12 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard/rapid 2.1.2、laser 2.2.2、rocket 1.0.2。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.3.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v13 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.1.2、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。
 
 ## 卡通几何上下文
 

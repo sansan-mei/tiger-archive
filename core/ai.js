@@ -141,7 +141,10 @@
       aimPitch = Math.atan2(target.y - body.y, Math.max(1, range));
     const input = { aimYaw, aimPitch: clamp(aimPitch, -0.55, 0.55) };
     if (body.falling) {
-      input.fire = los && range < 60;
+      input.fire =
+        los &&
+        range < 60 &&
+        (C.WEAPONS[body.weaponType].trigger !== "delayed" || !body.fireHeld);
       return input;
     }
     let goal = null,
@@ -228,7 +231,8 @@
       Math.abs(wrap(aimYaw - body.aim)) < 0.09 &&
       !body.cooldown
     )
-      input.fire = true;
+      input.fire =
+        C.WEAPONS[body.weaponType].trigger !== "delayed" || !body.fireHeld;
     input.ability =
       body.abilityCooldown === 0 &&
       !body.abilityHeld &&

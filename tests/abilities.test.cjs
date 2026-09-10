@@ -131,7 +131,7 @@ test("continuous full-power weapon hits meet the 2/3/4 laser baseline and balanc
   const expected = {
     laser: [2, 3, 4],
     standard: [6, 9, 12],
-    rapid: [23, 34, 45],
+    rapid: [16, 24, 31],
   };
   for (const [weaponType, counts] of Object.entries(expected))
     for (const [i, tankType] of ["light", "medium", "heavy"].entries()) {
@@ -163,7 +163,14 @@ test("continuous full-power weapon hits meet the 2/3/4 laser baseline and balanc
       Object.assign(target, { x: 0, z: -20 });
       let hits = 0;
       for (let tick = 0; tick < 1800 && target.alive; tick++) {
-        const events = b.step({ a: { fire: !a.needsRelease } });
+        const events = b.step({
+          a: {
+            fire:
+              !a.needsRelease &&
+              (C.WEAPONS[weaponType].trigger !== "delayed" ||
+                (!a.cooldown && !a.charge && !a.fireHeld)),
+          },
+        });
         for (const event of events)
           if (event.type === "damage" && event.id === "b") {
             hits++;

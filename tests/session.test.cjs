@@ -246,7 +246,7 @@ test("input timeout and disconnect cancel a charged laser without discharging", 
     assert.ok(a.battle.getEntity("p1").charge > 0);
     if (disconnect) a.detach(c.peer);
     const events = [];
-    for (let i = 0; i < 40; i++) events.push(...a.step());
+    for (let i = 0; i < 120; i++) events.push(...a.step());
     assert.equal(a.battle.getEntity("p1").charge, 0);
     assert.equal(
       events.some((e) => e.type === "beam" && e.id === "p1"),
@@ -267,4 +267,24 @@ test("local pause cancels a held laser so resume does not fire unexpectedly", ()
     s.advance(0.1, {}).some((e) => e.type === "shot" && e.id === "p1"),
     false,
   );
+});
+
+test("network click release still fires after the server warm-up with fixed full power", () => {
+  const participants = humans();
+  participants[0].weaponType = "laser";
+  const a = new S.Authority({ participants });
+  a.battle.start();
+  const welcome = a.attach("peer0", "p1"),
+    c = { peer: "peer0", welcome, seq: 0 };
+  const beams = [];
+  for (let i = 0; i < 90; i++) {
+    a.receive(c.peer, input(a, c, { fire: i === 0 }));
+    a.step();
+    const shots = a.history.filter((e) => e.type === "beam" && e.id === "p1");
+    if (i < 89) assert.equal(shots.length, 0);
+    else {
+      assert.equal(shots.length, 1);
+      assert.equal(shots[0].power, 1);
+    }
+  }
 });

@@ -13,7 +13,7 @@ function renderBalance() {
     ...rows,
   ].join("\n");
   const weapons = [
-    "| 武器 | 直击 | 爆炸上限 | 装填秒 | 满蓄力秒 | 轻型 / 中型 / 重型 / 人类击毁命中数 |",
+    "| 武器 | 直击 | 爆炸上限 | 装填秒 | 预热/蓄力秒 | 轻型 / 中型 / 重型 / 人类击毁命中数 |",
     "|---|---:|---:|---:|---:|---|",
     ...Object.values(C.WEAPONS).map((w) => {
       const hits = ["light", "medium", "heavy", "human"]

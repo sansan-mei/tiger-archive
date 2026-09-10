@@ -92,10 +92,14 @@
     $("reload-label").textContent = p.cooldown
       ? "装填 " + (p.cooldown / 60).toFixed(1) + "s"
       : p.charge
-        ? "蓄力 " + Math.round((p.charge / weapon.charge) * 100) + "%"
-        : weapon.charge
-          ? "按住蓄力"
-          : "主炮就绪";
+        ? (weapon.trigger === "delayed" ? "预热 " : "蓄力 ") +
+          Math.round((p.charge / weapon.charge) * 100) +
+          "%"
+        : weapon.trigger === "delayed"
+          ? "点击预热发射"
+          : weapon.charge
+            ? "按住蓄力"
+            : "主炮就绪";
     $("reload-bar").value = p.charge
       ? p.charge / weapon.charge
       : 1 - p.cooldown / weapon.cooldown;
@@ -105,9 +109,15 @@
         " + 爆炸最高 " +
         weapon.splashDamage +
         " · 近距离会自伤"
-      : weapon.charge
-        ? "蓄满自动发射；也可松开提前发射"
-        : "按住连续开火 · 弹药无限";
+      : weapon.trigger === "delayed"
+        ? "点击后 " +
+          (weapon.charge / 60).toFixed(1) +
+          " 秒发射 · 固定 " +
+          weapon.damage +
+          " 基础伤害"
+        : weapon.charge
+          ? "蓄满自动发射；也可松开提前发射"
+          : "按住连续开火 · 弹药无限";
     const remaining = Math.max(
       0,
       Math.ceil((C.RULES.duration - truth.tick) / 60),
