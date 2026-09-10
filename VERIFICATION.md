@@ -2,7 +2,7 @@
 
 ## 当前状态（2026-09-10）
 
-最近一次代码验证：**136/136 测试通过**，协议 v14，Redis 默认前缀 tiger:rooms:v14。当前插件版本：车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2，包含卡通模型、红色瞄准反馈和宽光束判定回归。
+最近一次代码验证：**141/141 测试通过**，协议 v14，Redis 默认前缀 tiger:rooms:production。当前插件版本：车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2，包含卡通模型、红色瞄准反馈和宽光束判定回归。
 
 真实异机联机、弱网、Redis 网络连接和 Docker 运行尚待验收。以下按开发阶段保存历史结果；旧数值、旧协议及旧测试数量不代表当前版本，当前玩法见 README.md，部署见 DEPLOY.md。
 
@@ -192,3 +192,15 @@ Blender 5.2.1 LTS 后台以 2 线程生成简单模型，源文件约 179 KiB、
 ## 2026-09-10：镜像发布 Compose 配置
 
 主配置改为拉取镜像、restart always、60 秒健康检查；Redis 默认地址 redis://redis:6379/0，修正过期默认前缀为 v14。增加可选构建与外部 Redis 网络叠加文件。使用 docker compose config 解析主配置、构建叠加、网络叠加并检查端口、健康检查、Redis 前缀与混淆开关；未运行构建、推送、拉取镜像或启动容器。镜像仓库、服务器网络/域名与架构需按实际部署设置。
+
+## 2026-09-10：固定前缀恢复与单文件 Compose
+
+新增 Redis 恢复专项：兼容房间保留席位/重连凭证；协议或插件不兼容时备份原始数据并重置空大厅，最近一份备份 TTL 24 小时；空库正常启动；JSON 损坏、非法当前数据、锁冲突、租约丢失、并发修改或 Redis 写入失败不清理原检查点。测试使用 Redis 客户端替身，实际 Lua/Redis 网络执行仍待部署验收。
+
+保留用户的 docker-compose.yaml 重命名，合并 build 与网络配置，服务名 tiger-archive；移除两个叠加文件。只用 docker compose config 检查默认及外部网络模式，没有构建或启动服务。
+
+本轮全量 `node --test tests/*.test.cjs`：141/141 通过，约 14 秒。
+
+## 2026-09-10：tank 命名与统一部署
+
+项目 Compose 的服务、容器、镜像命名统一为 tank。统一部署文件新增 tank 服务，复用其 Redis/默认网络，使用未与现有配置冲突的 3007:8080。两个 Compose 均通过 config 解析，检查了镜像、端口、依赖、网络和固定 Redis 前缀；没有执行构建或启动服务。

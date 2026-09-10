@@ -1,9 +1,0 @@
-# Use when this Compose project is separate from the existing Redis project.
-services:
-  tank:
-    networks:
-      - redis-network
-networks:
-  redis-network:
-    external: true
-    name: "${REDIS_NETWORK:?Set REDIS_NETWORK to the existing Redis Docker network name}"

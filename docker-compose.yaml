@@ -1,7 +1,12 @@
 services:
   tank:
-    container_name: "tiger-archive"
-    image: "${TANK_IMAGE:-1596944197/tiger-archive:latest}"
+    container_name: "tank"
+    image: "${TANK_IMAGE:-1596944197/tank:latest}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OBFUSCATE_CLIENT: "${OBFUSCATE_CLIENT:-true}"
     restart: always
     init: true
     ports:
@@ -12,7 +17,7 @@ services:
       MAX_ROOMS: "${MAX_ROOMS:-16}"
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-}"
       REDIS_URL: "${REDIS_URL-redis://redis:6379/0}"
-      REDIS_PREFIX: "${REDIS_PREFIX:-tiger:rooms:v14}"
+      REDIS_PREFIX: "${REDIS_PREFIX:-tiger:rooms:production}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 60s
@@ -34,3 +39,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  default:
+    name: "${REDIS_NETWORK:-tank_default}"
+    external: ${REDIS_NETWORK_EXTERNAL:-false}

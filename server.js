@@ -254,7 +254,7 @@ async function main() {
   try {
     if (process.env.REDIS_URL) {
       const { createClient } = require("redis"),
-        { RedisStore } = require("./redis-store.js");
+        { RedisStore, DEFAULT_PREFIX } = require("./redis-store.js");
       const client = createClient({
         url: process.env.REDIS_URL,
         disableOfflineQueue: true,
@@ -262,10 +262,15 @@ async function main() {
       });
       client.on("error", () => console.error("Redis connection error")); // Never log a URL or credential.
       store = new RedisStore(client, {
-        prefix: process.env.REDIS_PREFIX || "tiger:rooms:v14",
+        prefix: process.env.REDIS_PREFIX || DEFAULT_PREFIX,
       });
-      app.rooms.restore(await store.open());
-      await store.save(app.rooms.checkpoint());
+      const recovery = await store.recover(app.rooms);
+      if (recovery.status === "reset")
+        console.warn(
+          "Redis checkpoint incompatible; started empty lobby. Previous checkpoint retained for 24h at " +
+            recovery.backupKey,
+        );
+      else console.log("Redis recovery: " + recovery.status);
       timer = setInterval(() => {
         if (pending) return;
         pending = store.save(app.rooms.checkpoint());
@@ -297,7 +302,7 @@ async function main() {
   } catch {
     await stop(true);
     throw new Error(
-      "Startup failed: check port, Redis connectivity, plugin version and exclusive REDIS_PREFIX",
+      "Startup failed: check port, Redis connectivity, checkpoint integrity and exclusive REDIS_PREFIX",
     );
   }
 }

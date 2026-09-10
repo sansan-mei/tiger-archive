@@ -78,7 +78,7 @@ Replica 在 welcome 时核对配置清单，随后校验网络字段、版本、
 
 轻量回归：`node --test tests/*.test.cjs`。架构测试保留拆分前 900 tick 的完整模拟结果，排除版本和清单格式后逐字段比对；其余用例覆盖规则、传输、插件和页面替身。更新基准必须确认玩法变化，不能只为让测试通过而重录。
 
-本次协议升级为 v14，Redis 默认前缀 tiger:rooms:v14。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
+本次协议升级为 v14，Redis 默认前缀 tiger:rooms:production。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
 
 ## 发布副本
 
@@ -117,3 +117,5 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 ## 标准炮强化弹
 
 插件声明 criticalHits / criticalMultiplier；combat 在发射时锁定强化状态并消耗进度，在有效普通弹直接命中时累积。ownerLife 绑定发射生命，避免延迟弹丸给复活后的射手累积。初始化、死亡、复活、network-state 与副本验证共同维护 criticalProgress。HUD 和模型炮口光只读取副本，原有 damage 事件的 critical 标记控制强化提示。
+
+部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。

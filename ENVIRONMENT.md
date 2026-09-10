@@ -42,3 +42,5 @@ Docker 上下文排除 art/ 和 docs/；运行镜像只需要 client/ 下的模�
 ## 验证
 
 125/125 自动测试通过，覆盖原战斗回归与新增模型边界、关闭的建筑正面、共享几何、地面标线不跨坡道开口、加载失败回退、HTTP JSON 内容及发布清单。已在 Blender 中打开检查三种模型。尚未进行本版实际浏览器 WebGL 视觉与帧率验收；自动测试使用渲染器替身，不能代替浏览器检查。
+
+部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。

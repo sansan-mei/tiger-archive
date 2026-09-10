@@ -89,3 +89,5 @@ ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射�
 武器可声明 criticalHits（1–10 整数）和 criticalMultiplier（2–3 整数），仅支持无范围伤害的 automatic/projectile 武器。标准炮使用 2 和 2，普通/强化伤害为 35/70。省略这两个字段的武器不启用。从标准炮复制配置制作其他触发/投送类型时，应去掉这两个字段。
 
 实体 criticalProgress 从零累加至 criticalHits；有效普通弹直接命中后累加，发射强化弹清零，强化命中不累加。弹丸持有 critical 和 ownerLife（发射时射手 deaths），防止前一条命的弹丸给新生命累积。表现层从快照读取进度，不能调用权威计数。
+
+部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。

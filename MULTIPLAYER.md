@@ -120,7 +120,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 已实现单连接限流、序号/连接/对局校验、服务器权威结算、Origin 检查和静态文件允许列表。Origin 检查与插件清单核对不等于用户身份认证或反作弊证明。当前广播状态仍下发所有敌人位置，缺少可见性过滤、按 IP 的连接/建房限制和自动瞄准异常检测。没有账号或持久化战绩系统。
 
-先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。136 项自动化测试是模拟验证，不能证明这些部署场景已通过。
+先做两台设备的真实 WebSocket 联调，再验证 8 人、弱网、代理、Redis 和重启恢复。141 项自动化测试是模拟验证，不能证明这些部署场景已通过。
 
 ## 人类移动与爆炸判定
 
@@ -148,10 +148,12 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 固定延时激光
 
-协议 v14，trigger=delayed。fire 按下边沿启动 charge 计时，普通松开后仍由权威核心继续推进至 90 tick，固定 power=1 发射。预热状态沿用快照 charge 字段，恢复后接着计时；不接受客户端指定伤害或发射时刻。长按只打一发，冷却期间按下不排队；cancelFire、超时、断线与死亡清空预热。激光插件 2.3.1，Redis 前缀 tiger:rooms:v14。
+协议 v14，trigger=delayed。fire 按下边沿启动 charge 计时，普通松开后仍由权威核心继续推进至 90 tick，固定 power=1 发射。预热状态沿用快照 charge 字段，恢复后接着计时；不接受客户端指定伤害或发射时刻。长按只打一发，冷却期间按下不排队；cancelFire、超时、断线与死亡清空预热。激光插件 2.3.1，Redis 前缀 tiger:rooms:production。
 
 ## 强化弹状态（v14）
 
 快照/广播实体新增 criticalProgress，范围 0 到对应武器 criticalHits；非强化武器和死亡单位必须为 0。弹丸新增 critical 布尔值及 ownerLife（发射时射手死亡次数）。副本检查弹丸伤害与强化标记匹配、生命编号不超过当前死亡次数；标准炮普通弹只能为 35，强化弹只能为 70。
 
-shot/damage 事件携带 critical 布尔标记用于表现。服务器在有效普通弹直接命中时积攒，发射强化弹时消耗；进度与在途强化弹都保存在检查点，恢复不重复计算。客户端输入不接受 critical 或 criticalProgress。协议 v14 与 standard 2.2.0 清单拒绝旧客户端/检查点，Redis 前缀 tiger:rooms:v14。
+shot/damage 事件携带 critical 布尔标记用于表现。服务器在有效普通弹直接命中时积攒，发射强化弹时消耗；进度与在途强化弹都保存在检查点，恢复不重复计算。客户端输入不接受 critical 或 criticalProgress。协议 v14 与 standard 2.2.0 清单拒绝旧客户端/检查点，Redis 前缀 tiger:rooms:production。
+
+部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。

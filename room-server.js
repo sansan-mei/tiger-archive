@@ -380,9 +380,22 @@ class RoomServer {
     };
   }
   restore(data) {
-    if (!data) return;
-    if (data.version !== C.VERSION || data.pluginManifest !== C.PLUGIN_MANIFEST)
-      throw new Error("Redis checkpoint plugin/version mismatch");
+    if (data === null || data === undefined) return;
+    if (
+      typeof data !== "object" ||
+      !Number.isInteger(data.version) ||
+      typeof data.pluginManifest !== "string" ||
+      !Array.isArray(data.rooms)
+    )
+      throw new Error("Invalid Redis checkpoint header");
+    if (
+      data.version !== C.VERSION ||
+      data.pluginManifest !== C.PLUGIN_MANIFEST
+    ) {
+      const error = new Error("Redis checkpoint plugin/version mismatch");
+      error.code = "CHECKPOINT_INCOMPATIBLE";
+      throw error;
+    }
     if (!Array.isArray(data.rooms) || data.rooms.length > this.maxRooms)
       throw new Error("Invalid saved room count");
     const recovered = new Map();
