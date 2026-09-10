@@ -6,7 +6,7 @@ const SAVE_SCRIPT =
 const RELEASE_SCRIPT =
   "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end return 0";
 class RedisStore {
-  constructor(client, { prefix = "tiger:rooms:v9", timeoutMs = 3000 } = {}) {
+  constructor(client, { prefix = "tiger:rooms:v10", timeoutMs = 3000 } = {}) {
     if (!/^[a-zA-Z0-9:_-]{1,80}$/.test(prefix))
       throw new Error("Invalid REDIS_PREFIX");
     this.client = client;

@@ -62,6 +62,19 @@
     }
     return lo;
   }
+  // Lowest underside across the unit footprint; thickness is measured vertically.
+  function rampCeiling(map, ramp, x, z, radius = 0) {
+    const lo = Math.min(ramp.a.z, ramp.b.z),
+      hi = Math.max(ramp.a.z, ramp.b.z);
+    if (z <= lo || z >= hi || Math.abs(x - ramp.a.x) >= ramp.width / 2 + radius)
+      return Infinity;
+    return (
+      Math.min(
+        rampHeight(map, ramp, Math.max(lo, z - radius)),
+        rampHeight(map, ramp, Math.min(hi, z + radius)),
+      ) - 0.6
+    );
+  }
   function boxHit(a, b, o, pad = 0) {
     return slabHit(
       { x: a.x, y: 0, z: a.z },
@@ -78,6 +91,7 @@
     finite,
     deckRects,
     rampHeight,
+    rampCeiling,
     slabHit,
     boxHit,
   };

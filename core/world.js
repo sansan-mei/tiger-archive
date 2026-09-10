@@ -5,7 +5,7 @@
   else (root.TankSystems ??= {}).world = api;
 })(typeof window === "undefined" ? globalThis : window, function (C) {
   "use strict";
-  const { TANKS, slabHit, deckRects, rampHeight } = C;
+  const { TANKS, slabHit, deckRects, rampHeight, rampCeiling } = C;
   function surface(battle, body, x, z) {
     const radius = TANKS[body.tankType].radius;
     const flat = (floor) => ({
@@ -32,6 +32,12 @@
       const u = (z - r.a.z) / (r.b.z - r.a.z),
         old = (body.z - r.a.z) / (r.b.z - r.a.z);
       if (u <= 0 || u >= 1 || Math.abs(x - r.a.x) >= r.width / 2 + radius)
+        continue;
+      if (
+        body.floor === r.a.floor &&
+        rampCeiling(battle.map, r, x, z, radius) >=
+          body.y + (TANKS[body.tankType].height || 3) + 0.1
+      )
         continue;
       if (Math.abs(x - r.a.x) > r.width / 2 - radius) return null;
       const entering =
@@ -65,18 +71,25 @@
       Math.abs(z) > level.bound - radius
     )
       return false;
-    // Flat-floor navigation must go around ramp sides / upper deck openings.
-    if (!surface)
-      for (const r of battle.map.ramps) {
-        if (floor !== r.a.floor && floor !== r.b.floor) continue;
-        const u = (z - r.a.z) / (r.b.z - r.a.z);
-        if (
-          z > Math.min(r.a.z, r.b.z) - margin &&
-          z < Math.max(r.a.z, r.b.z) + margin &&
-          Math.abs(x - r.a.x) < r.width / 2 + radius
-        )
-          return false;
-      }
+    // Navigation and actual movement share the same clearance check.
+    // Only an explicit ramp surface can climb; passing underneath remains flat.
+    for (const r of battle.map.ramps) {
+      if (surface?.rampId === r.id) continue;
+      if (floor !== r.a.floor && floor !== r.b.floor) continue;
+      const lo = Math.min(r.a.z, r.b.z),
+        hi = Math.max(r.a.z, r.b.z);
+      const checkZ =
+        margin && z > lo - margin && z < hi + margin
+          ? Math.max(lo + 1e-6, Math.min(hi - 1e-6, z))
+          : z;
+      const ceiling = rampCeiling(battle.map, r, x, checkZ, radius);
+      if (ceiling === Infinity) continue;
+      if (
+        floor === r.b.floor ||
+        ceiling < y + (body ? TANKS[body.tankType].height || 3 : 3) + 0.1
+      )
+        return false;
+    }
     for (const o of battle.map.obstacles) {
       const oy = battle.map.levels[o.floor].y;
       if (y >= oy + o.h || y + 3 <= oy) continue;

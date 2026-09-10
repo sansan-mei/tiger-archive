@@ -117,6 +117,15 @@
           throw new Error("Invalid ramp state");
       } else if (e.y !== C.MAP.levels[e.floor].y || e.rampDir !== 0)
         throw new Error("Invalid floor height");
+      if (e.rampId === null)
+        for (const ramp of C.MAP.ramps) {
+          if (
+            e.floor === ramp.a.floor &&
+            C.rampCeiling(C.MAP, ramp, e.x, e.z, tank.radius) <
+              e.y + (tank.height || 3) + 0.1 - 1e-6
+          )
+            throw new Error("Insufficient ramp clearance");
+        }
       if (
         !network &&
         (!plain(e.brain) ||

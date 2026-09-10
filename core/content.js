@@ -20,12 +20,13 @@
       finite,
       deckRects,
       rampHeight,
+      rampCeiling,
       slabHit,
       boxHit,
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 9,
+    const VERSION = 10,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -137,6 +138,7 @@
       clone,
       deckRects,
       rampHeight,
+      rampCeiling,
       clamp,
     };
   },
