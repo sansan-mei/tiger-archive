@@ -37,6 +37,7 @@
     "client/scene.js",
     "client/camera.js",
     "client/input.js",
+    "client/aim-assist.js",
     "client/effects.js",
     "client/hud.js",
     "client/units.js",

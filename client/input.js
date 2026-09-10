@@ -18,6 +18,7 @@
   const state = {};
   state.mouseKnown = false;
   state.activeAim = null;
+  state.aimRevision = 0;
   let mouseFire = false,
     keys = new Set(),
     touch = new Map();
@@ -26,6 +27,8 @@
       ? "paused"
       : getSession().current().status;
   function clearInput() {
+    state.aimRevision++;
+    state.activeAim = null;
     cameraRig.lastPointer = null;
     keys.clear();
     touch.clear();
@@ -54,6 +57,8 @@
         ? e.clientY - cameraRig.lastPointer.y
         : 0;
     if (dx || dy) {
+      state.aimRevision++;
+      state.activeAim = null;
       cameraRig.viewYaw = C.wrap(
         (cameraRig.viewYaw ?? body.heading) - dx * 0.004,
       );

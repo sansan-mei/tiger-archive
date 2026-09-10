@@ -416,6 +416,25 @@
     0,
     true,
   );
+  const aimAssist = window.TankClient.createAimAssist();
+  const assistRay = new T.Raycaster(),
+    assistPoint = new T.Vector3();
+  function projectAim(point) {
+    assistPoint.set(point.x, point.y, point.z).project(camera);
+    return {
+      x: (assistPoint.x + 1) * 50,
+      y: (1 - assistPoint.y) * 50,
+      distance: Math.hypot(
+        (assistPoint.x * window.innerWidth) / 2,
+        (assistPoint.y * window.innerHeight) / 2,
+      ),
+      visible:
+        assistPoint.z >= -1 &&
+        assistPoint.z <= 1 &&
+        Math.abs(assistPoint.x) <= 1 &&
+        Math.abs(assistPoint.y) <= 1,
+    };
+  }
   let last = 0,
     hudTime = 0;
   function frame(time) {
@@ -447,6 +466,51 @@
         if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
         input.state.activeAim = { x: aimWorld.x, y: aimWorld.y, z: aimWorld.z };
       }
+    }
+    const weapon = C.WEAPONS[localBefore.weaponType];
+    const assisted = aimAssist.update({
+      time,
+      inputRevision: input.state.aimRevision,
+      enabled:
+        input.state.mouseKnown &&
+        localBefore.alive &&
+        status() === "playing" &&
+        $("game-overlay").hidden,
+      player: localBefore,
+      entities: before.entities.map((e) => ({
+        ...e,
+        height: C.TANKS[e.tankType].height || 3,
+      })),
+      hitId: targetedId,
+      range: Math.min(
+        140,
+        weapon.delivery === "ray"
+          ? weapon.range
+          : (weapon.speed * weapon.life) / C.TICK_RATE,
+      ),
+      project: projectAim,
+      visible: (entity, point) => {
+        const direction = new T.Vector3(point.x, point.y, point.z).sub(
+          camera.position,
+        );
+        assistRay.set(camera.position, direction.normalize());
+        const hit = units.aimHit(
+          assistRay,
+          floorGroups.filter((g) => g.visible),
+        );
+        if (hit?.object.userData.entityId !== entity.id) return false;
+        return !window.TankSystems.world.collision(
+          { map: C.MAP, entities: before.entities },
+          { x: localBefore.x, y: localBefore.y + 2.2, z: localBefore.z },
+          point,
+          localBefore.id,
+          { bodies: false },
+        );
+      },
+    });
+    if (assisted) {
+      targetedId = assisted.id;
+      input.state.activeAim = assisted.point;
     }
     const events = session.advance(seconds, command(localBefore));
     eventsReceived(events);
@@ -480,6 +544,12 @@
     sun.position.set(target.x - 25, target.y + 52, target.z + 20);
     sun.target.position.set(target.x, target.y, target.z);
     units.update({ state, truth, cameraFloor, camera, dt, time, targetedId });
+    const reticlePosition = assisted
+      ? projectAim(assisted.point)
+      : { x: 50, y: 50 };
+    $("aim-reticle").style.left = reticlePosition.x + "%";
+    $("aim-reticle").style.top = reticlePosition.y + "%";
+    $("aim-reticle").dataset.assisted = String(Boolean(assisted));
     $("aim-reticle").dataset.targeted = String(
       Boolean(targetedId) && p.alive && truth.status === "playing",
     );

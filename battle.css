@@ -84,3 +84,6 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 #aim-reticle[data-targeted="true"] b{border-color:#ff4545}
 .enemy-tag[data-targeted="true"]{color:#ff5555;font-weight:700;text-shadow:0 1px 3px #300,0 0 8px #ff3333}
 .enemy-tag[data-targeted="true"]>div{border-color:#ff5555}
+
+.aim-lock-label{display:none;position:absolute;top:36px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:#ff7373;text-shadow:0 1px 3px #000}
+#aim-reticle[data-assisted="true"] .aim-lock-label{display:block}
