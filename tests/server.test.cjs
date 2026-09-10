@@ -95,6 +95,38 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
   assert.equal(asset.status, 200);
   assert.ok(asset.data.length > 100000);
   assert.equal((await request("/.env")).status, 404);
+  const scenery = await request("/client/environment/maintenance-kit.json");
+  assert.equal(scenery.status, 200);
+  assert.equal(
+    scenery.headers["Content-Type"],
+    "application/json; charset=utf-8",
+  );
+  assert.deepEqual(
+    JSON.parse(scenery.data),
+    require("../client/environment/maintenance-kit.json"),
+  );
+  assert.ok(
+    require("../scripts/client-release.cjs").files.includes(
+      "client/environment/maintenance-kit.json",
+    ),
+  );
+  assert.equal((await request("/art/maintenance-base.blend")).status, 404);
+  const arsenal = await request("/client/models/arsenal.json");
+  assert.equal(arsenal.status, 200);
+  assert.equal(
+    arsenal.headers["Content-Type"],
+    "application/json; charset=utf-8",
+  );
+  assert.deepEqual(
+    JSON.parse(arsenal.data),
+    require("../client/models/arsenal.json"),
+  );
+  assert.ok(
+    require("../scripts/client-release.cjs").files.includes(
+      "client/models/arsenal.json",
+    ),
+  );
+  assert.equal((await request("/art/arsenal.blend")).status, 404);
   const recording = await request("/client/audio/tank-drive.mp3");
   assert.equal(recording.status, 200);
   assert.equal(recording.headers["Content-Type"], "audio/mpeg");

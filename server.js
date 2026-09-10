@@ -120,6 +120,7 @@ function createApp({
         ".js": "text/javascript; charset=utf-8",
         ".css": "text/css; charset=utf-8",
         ".mp3": "audio/mpeg",
+        ".json": "application/json; charset=utf-8",
       };
       res.writeHead(200, {
         "Content-Type": types[path.extname(file)],

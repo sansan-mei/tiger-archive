@@ -334,5 +334,13 @@
       return true;
     });
   }
-  return { views, bullets, createViews, update, aimHit };
+  // Recreate against the current session only after the optional library has loaded.
+  // No captured entity list: room/loadout changes during the request remain safe.
+  const modelsReady = window.TankModelAssets
+    ? window.TankModelAssets.load(T).then((loaded) => {
+        if (loaded) createViews();
+        return loaded;
+      })
+    : Promise.resolve(false);
+  return { views, bullets, createViews, update, aimHit, modelsReady };
 };

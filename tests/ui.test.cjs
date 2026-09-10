@@ -168,9 +168,12 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     document,
     TextEncoder,
     AbortController,
-    fetch: async () => ({
+    fetch: async (url) => ({
       ok: true,
-      json: async () => ({ version: C.VERSION, rooms: [] }),
+      json: async () =>
+        url.endsWith("maintenance-kit.json") || url.endsWith("arsenal.json")
+          ? JSON.parse(fs.readFileSync(path.join(ROOT, url), "utf8"))
+          : { version: C.VERSION, rooms: [] },
       arrayBuffer: async () => new ArrayBuffer(8),
     }),
     console,

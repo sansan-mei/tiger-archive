@@ -10,3 +10,8 @@ tests
 
 public-dist/
 .client-release-*/
+
+# Editable Blender sources and previews are local authoring artifacts.
+art/
+docs/
+*.blend1

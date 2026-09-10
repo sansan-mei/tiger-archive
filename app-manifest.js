@@ -33,7 +33,9 @@
     "battle-core.js",
     "battle-session.js",
     "network-session.js",
+    "client/model-assets.js",
     "tank-model.js",
+    "client/environment.js",
     "client/scene.js",
     "client/camera.js",
     "client/input.js",
@@ -45,6 +47,10 @@
     "client/rooms.js",
     "battle.js",
   ]);
-  const assets = Object.freeze(["client/audio/tank-drive.mp3"]);
+  const assets = Object.freeze([
+    "client/audio/tank-drive.mp3",
+    "client/models/arsenal.json",
+    "client/environment/maintenance-kit.json",
+  ]);
   return Object.freeze({ plugins, scripts, assets });
 });

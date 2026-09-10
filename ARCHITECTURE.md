@@ -37,10 +37,12 @@
 | server.js / redis-store.js | HTTP / WebSocket 生命周期；可选 Redis 存储与租约 |
 | battle.js | 页面初始化、会话切换、大厅、事件协调及帧循环 |
 | client/scene.js / units.js | 静态世界和动态单位表现 |
+| client/environment.js / environment/ | Blender 建筑外观异步加载、克隆复用及地面标线；不参与权威碰撞 |
 | client/camera.js / input.js | 追尾镜头、鼠标俯仰和操作采集 |
 | client/rooms.js | 公开房间列表、可见时刷新及加入入口，不建立对局连接 |
 | client/hud.js / effects.js | HUD / 小地图；音效及特效构造 |
 | plugins/ / tank-model.js | 单位和武器配置、可信外观钩子及模型组装 |
+| client/model-assets.js / models/ | 可选 Blender 模型库、单次加载和独立实例资源 |
 
 核心系统接受 Battle 状态并由 Battle 调用，不能依赖 DOM、Three.js、WebSocket 或 Redis。客户端模块由工厂创建，使用显式参数和会话 getter，切换本地/联机后仍读取当前会话。Battle 中的薄委托方法用于保留调用边界，不是另一套规则实现。
 
@@ -98,7 +100,7 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 
 ## 卡通美术资源
 
-车体与武器全部由 Three.js 基础几何生成。`tank-model.js` 提供倒角方块、圆柱、配色和由炮口距离推导的 `weaponLength`；四个武器插件各自组合造型。外部顶点数据、Kenney 导入工具和对应资源白名单已移除。
+`client/model-assets.js` 异步读取 `client/models/arsenal.json`，缓存 Blender 原型。`tank-model.js` 优先组装已加载外观，沿用共享配置推导的 `weaponLength`、炮塔/武器枢轴与涂装材质；未加载、加载失败或未知模型插件使用原程序化外观钩子。`client/units.js` 在加载完成时按当前会话重建外观，避免恢复过期的单位配置。每个活跃实例独立拥有几何；缓存原型与其他玩家不会被该实例的 dispose 释放。
 
 静态几何按父节点和材质合并，既有 `client/units.js` 继续驱动移动、后坐、摆腿、护盾和红色标记。外观不进入房间快照。模型预算与离线预览见 ART.md。
 
@@ -107,3 +109,7 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 `client/engine-audio.js` 独立管理一个循环 AudioBufferSource 和音量节点，在用户开始/继续战斗后加载与解码本地录音。单次请求去重，下载 8 秒超时，失败通过通知提示并允许下一次继续时重试；延迟加载完成也保留当前静音状态。`battle.js` 传入玩家和对局状态，不改权威模拟。
 
 `app-manifest.js.assets` 管理非脚本资源，与 scripts 一起进入 HTTP 白名单、发布完整性检查和发布文件列表；启动器只执行 scripts。`scripts/client-release.cjs` 用 Buffer 读取/复制，只有需混淆的 JS 才转为 UTF-8，避免音频二进制损坏。录音位于 client/，沿用 Docker COPY。
+
+## 场景美术资产
+
+`client/environment.js` 由 scene 工厂创建，将 `maintenance-kit.json` 中的三种归一化建筑按共享地图尺寸应用到掩体容器。模型请求失败保留基础外观；同型实例共享材质与几何。JSON 通过 manifest.assets 进入静态白名单与发布拷贝清单。Blender 原件与生成脚本属于编辑侧，服务端只需网页资产；详见 [ENVIRONMENT.md](ENVIRONMENT.md)。

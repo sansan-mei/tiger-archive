@@ -6,3 +6,7 @@ node_modules/
 
 public-dist/
 .client-release-*/
+
+# Blender backup copies are not game assets.
+*.blend1
+*.blend2

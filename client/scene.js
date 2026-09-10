@@ -39,8 +39,8 @@
   scene.add(sun);
   scene.add(sun.target);
   const mat = (color) => new T.MeshToonMaterial({ color });
-  const turf = mat(0x709c78),
-    road = mat(0x839da6),
+  const turf = mat(0xa6b3a1),
+    road = mat(0x829394),
     wall = mat(0xcbbfac),
     dark = mat(0x627e73),
     stripe = mat(0xf1d89b),
@@ -57,6 +57,7 @@
     (parent || scene).add(m);
     return m;
   }
+  const covers = new Map();
   for (const level of C.MAP.levels) {
     const group = floorGroups[level.id],
       b = level.bound;
@@ -89,7 +90,11 @@
         for (const z of [-44, 44])
           block(1.1, 8, 1.1, x, level.y - 4, z, dark, group);
     for (const o of C.MAP.obstacles.filter((o) => o.floor === level.id)) {
-      block(o.w, o.h, o.d, o.x, level.y + o.h / 2, o.z, wall, group);
+      const cover = new T.Group();
+      cover.name = "cover-" + o.id;
+      covers.set(o.id, cover);
+      group.add(cover);
+      block(o.w, o.h, o.d, o.x, level.y + o.h / 2, o.z, wall, cover);
       block(
         o.w + 0.2,
         0.16,
@@ -98,7 +103,7 @@
         level.y + o.h + 0.08,
         o.z,
         dark,
-        group,
+        cover,
       );
       // Painted panels remain inside the authoritative cover footprint.
       for (let x = o.x - o.w / 2 + 1.4; x < o.x + o.w / 2 - 1; x += 2.5) {
@@ -110,7 +115,7 @@
           level.y + o.h * 0.6,
           o.z + o.d / 2 + 0.03,
           dark,
-          group,
+          cover,
         );
         block(
           1.1,
@@ -120,7 +125,7 @@
           level.y + o.h * 0.6 - 0.5,
           o.z + o.d / 2 + 0.06,
           stripe,
-          group,
+          cover,
         );
       }
       for (const side of [-1, 1])
@@ -132,7 +137,7 @@
           level.y + o.h * 0.6,
           o.z,
           stripe,
-          group,
+          cover,
         );
     }
   }
@@ -302,7 +307,17 @@
     cloudMesh.setMatrixAt(i, transform.matrix);
   }
   clouds.add(cloudMesh);
+  const environment = window.TankClient.createEnvironment({
+    T,
+    C,
+    floorGroups,
+    covers,
+    onError: (error) =>
+      console.warn("维修基地外观加载失败，保留基础掩体：", error.message),
+  });
   return {
+    environmentReady: environment.ready,
+    covers,
     renderer,
     scene,
     camera,

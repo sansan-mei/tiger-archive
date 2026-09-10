@@ -70,10 +70,12 @@ window.createTankModel = function (
     wheels,
     limbs,
   };
-  window.TankPlugins.tanks[tankType].buildVisual(ctx);
+  const authored =
+    window.TankModelAssets?.build(ctx, { tankType, weaponType }) || false;
+  if (!authored) window.TankPlugins.tanks[tankType].buildVisual(ctx);
   turret.position.set(...spec.mount);
   tank.add(turret);
-  if (spec.movement !== "strafe") {
+  if (!authored && spec.movement !== "strafe") {
     const width = tankType === "heavy" ? 2.35 : tankType === "light" ? 1.65 : 2;
     block(2.0, 0.78, width, 0.05, 0.4, 0, paint, turret);
     block(0.12, 0.3, width * 0.65, -0.97, 0.51, 0, ink, turret);
@@ -97,8 +99,10 @@ window.createTankModel = function (
   }
   gun.position.set(-1.12, 0.51, 0);
   turret.add(gun);
-  block(0.3, 0.58, 1.3, 0, 0, 0, edge, gun);
-  window.TankPlugins.weapons[weaponType].buildVisual(ctx);
+  if (!authored) {
+    block(0.3, 0.58, 1.3, 0, 0, 0, edge, gun);
+    window.TankPlugins.weapons[weaponType].buildVisual(ctx);
+  }
   if (spec.movement === "strafe") {
     gun.scale.setScalar(0.55);
     gun.position.set(-0.35, 0.51, 0.6);
@@ -137,6 +141,7 @@ window.createTankModel = function (
     }
   }
   const retained = new Set();
+  retired.add(geometry);
   tank.traverse((o) => {
     if (o.geometry) retained.add(o.geometry);
   });
@@ -175,6 +180,7 @@ window.createTankModel = function (
   frontShield.position.set(-3.8, 1, 0);
   turret.add(frontShield);
   return {
+    assetSource: authored ? "blender" : "procedural",
     frontShield,
     tank,
     turret,
