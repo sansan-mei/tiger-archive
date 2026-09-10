@@ -75,6 +75,15 @@
       ) - 0.6
     );
   }
+  function dropExit(map, floor, x, z, radius) {
+    const level = map.levels[floor];
+    return (map.dropExits || []).find(
+      (exit) =>
+        exit.floor === floor &&
+        Math.abs(x - exit.x) <= exit.width / 2 - radius &&
+        z * exit.side > level.bound - radius,
+    );
+  }
   function boxHit(a, b, o, pad = 0) {
     return slabHit(
       { x: a.x, y: 0, z: a.z },
@@ -92,6 +101,7 @@
     deckRects,
     rampHeight,
     rampCeiling,
+    dropExit,
     slabHit,
     boxHit,
   };

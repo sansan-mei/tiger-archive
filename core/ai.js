@@ -140,6 +140,10 @@
     const aimYaw = Math.atan2(dz, -dx),
       aimPitch = Math.atan2(target.y - body.y, Math.max(1, range));
     const input = { aimYaw, aimPitch: clamp(aimPitch, -0.55, 0.55) };
+    if (body.falling) {
+      input.fire = los && range < 60;
+      return input;
+    }
     let goal = null,
       direct = false;
     if (body.rampId) {

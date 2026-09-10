@@ -1,6 +1,6 @@
 # 项目架构
 
-当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v10；开发规则以共享核心为准。
+当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v11；开发规则以共享核心为准。
 
 ## 数据流
 
@@ -76,7 +76,7 @@ Replica 在 welcome 时核对配置清单，随后校验网络字段、版本、
 
 轻量回归：`node --test tests/*.test.cjs`。架构测试保留拆分前 900 tick 的完整模拟结果，排除版本和清单格式后逐字段比对；其余用例覆盖规则、传输、插件和页面替身。更新基准必须确认玩法变化，不能只为让测试通过而重录。
 
-本次协议升级为 v10，Redis 默认前缀 tiger:rooms:v10。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
+本次协议升级为 v11，Redis 默认前缀 tiger:rooms:v11。更新后需要重启服务并刷新客户端，旧检查点不能直接迁入。Dockerfile 已复制 core/ 和 client/ 等运行文件，但本次没有构建或启动服务。真实 WebGL、异机联机及 Redis / Docker 验收范围见 VERIFICATION.md。
 
 ## 发布副本
 
@@ -85,3 +85,9 @@ Replica 在 welcome 时核对配置清单，随后校验网络字段、版本、
 ## 坡底净空
 
 core/math.js 的 rampCeiling 计算圆形占地包围范围内的保守最低坡底高度；core/world.js 的 surface / valid、AI 导航与快照校验共用它。只有从坡道端点进入才会获得 rampId；从侧面进入足够高的坡下空间保持平地状态。camera.js 额外检查坡板与楼板，避免追尾镜头进入坡内。
+
+## 下落系统
+
+core/map.js 的 dropExits 声明出口，core/math.js 的 dropExit 统一判断可通过的宽度，world.surface/valid 只对实际驾驶开放出口，普通导航保持避开边缘。core/falling.js 负责重力、水平惯性、首个下方楼板检测及落点占用处理，movement 在空中跳过驾驶/技能触发而继续瞄准开火。当前只开放外缘出口，不支持任意跳跃或从坡道侧边坠落。
+
+初始化、网络字段清单、快照校验、复活重置及 HUD 同步处理空中状态。场景和小地图从同一出口配置绘制橙色标记。900 tick 历史回归仍比较原有字段，并明确要求该固定场景未进入下落；新增专项另验证实际空中状态。

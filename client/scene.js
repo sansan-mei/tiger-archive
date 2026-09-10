@@ -75,7 +75,14 @@
     for (let n = -b + 3; n < b; n += 8)
       for (const side of [-1, 1]) {
         block(1, 0.9, 5, side * (b + 0.2), level.y + 0.45, n, dark, group);
-        block(5, 0.9, 1, n, level.y + 0.45, side * (b + 0.2), dark, group);
+        const exit = (C.MAP.dropExits || []).find(
+          (e) =>
+            e.floor === level.id &&
+            e.side === side &&
+            Math.abs(n - e.x) < e.width / 2 + 2.5,
+        );
+        if (!exit)
+          block(5, 0.9, 1, n, level.y + 0.45, side * (b + 0.2), dark, group);
       }
     if (level.id)
       for (const x of [-44, 44])
@@ -128,6 +135,34 @@
           group,
         );
     }
+  }
+  for (const exit of C.MAP.dropExits || []) {
+    const level = C.MAP.levels[exit.floor],
+      group = floorGroups[exit.floor];
+    const dropPaint = mat(0xe9a449);
+    for (const offset of [-4, 0, 4]) {
+      block(
+        8,
+        0.035,
+        0.8,
+        exit.x,
+        level.y + 0.03,
+        exit.side * (level.bound - 7 - offset),
+        dropPaint,
+        group,
+      );
+    }
+    for (const side of [-1, 1])
+      block(
+        0.35,
+        1.6,
+        0.35,
+        exit.x + (side * exit.width) / 2,
+        level.y + 0.8,
+        exit.side * (level.bound - 0.4),
+        dropPaint,
+        group,
+      );
   }
   for (const ramp of C.MAP.ramps) {
     const a = ramp.a,

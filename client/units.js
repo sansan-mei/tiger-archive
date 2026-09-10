@@ -86,7 +86,8 @@
             e.heading,
           ),
         );
-      view.tank.visible = e.floor <= cameraFloor || Boolean(e.rampId); // Cosmetic suspension only; authority coordinates and turret aim stay untouched.
+      view.tank.visible =
+        e.falling || e.floor <= cameraFloor || Boolean(e.rampId); // Cosmetic suspension only; authority coordinates and turret aim stay untouched.
       if (view.lastSpeed === undefined) {
         view.lastSpeed = e.speed;
         view.lastHeading = e.heading;
@@ -101,7 +102,7 @@
           Math.min(18, (e.speed - view.lastSpeed) / Math.max(dt, 0.001)),
         ),
         angular = C.wrap(e.heading - view.lastHeading) / Math.max(dt, 0.001);
-      const moving = e.alive && truth.status === "playing";
+      const moving = e.alive && !e.falling && truth.status === "playing";
       view.leanPitch +=
         ((moving && !reduced ? -acceleration * 0.002 : 0) - view.leanPitch) *
         response;

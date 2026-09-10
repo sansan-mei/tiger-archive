@@ -16,6 +16,11 @@ test("the refactored simulation matches the pre-refactor 900 tick baseline", () 
       p1: { forward: i < 120, fire: i % 180 < 100, ability: i === 30 },
     });
   const actual = b.snapshot();
+  for (const entity of actual.entities) {
+    assert.equal(entity.falling, false);
+    for (const key of ["falling", "fallVelocity", "fallVX", "fallVZ"])
+      delete entity[key];
+  }
   delete actual.version;
   delete actual.pluginManifest;
   assert.deepEqual(

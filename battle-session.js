@@ -103,6 +103,31 @@
         typeof e.forfeited !== "boolean"
       )
         throw new Error("Invalid entity state");
+      const fallLimit = Math.max(
+        C.ABILITIES[tank.ability].burstSpeed,
+        tank.speed * 1.35,
+        tank.reverse,
+      );
+      if (
+        typeof e.falling !== "boolean" ||
+        !number(e.fallVelocity, -C.RULES.terminalFallSpeed, 0) ||
+        !number(e.fallVX, -fallLimit, fallLimit) ||
+        !number(e.fallVZ, -fallLimit, fallLimit) ||
+        Math.hypot(e.fallVX, e.fallVZ) > fallLimit + 1e-6
+      )
+        throw new Error("Invalid falling state");
+      if (e.falling) {
+        if (
+          e.rampId !== null ||
+          e.rampDir !== 0 ||
+          e.floor === 0 ||
+          e.y > C.MAP.levels[e.floor].y ||
+          Math.abs(e.x) > C.MAP.levels[0].bound - tank.radius + 1e-6 ||
+          Math.abs(e.z) > C.MAP.levels[0].bound - tank.radius + 1e-6
+        )
+          throw new Error("Invalid falling position");
+      } else if (e.fallVelocity !== 0 || e.fallVX !== 0 || e.fallVZ !== 0)
+        throw new Error("Unexpected airborne velocity");
       if (e.rampId !== null) {
         const r = C.MAP.ramps.find((r) => r.id === e.rampId);
         if (
@@ -115,9 +140,12 @@
           Math.abs(e.y - C.rampHeight(C.MAP, r, e.z)) > 0.00001
         )
           throw new Error("Invalid ramp state");
-      } else if (e.y !== C.MAP.levels[e.floor].y || e.rampDir !== 0)
+      } else if (
+        !e.falling &&
+        (e.y !== C.MAP.levels[e.floor].y || e.rampDir !== 0)
+      )
         throw new Error("Invalid floor height");
-      if (e.rampId === null)
+      if (e.rampId === null && !e.falling)
         for (const ramp of C.MAP.ramps) {
           if (
             e.floor === ramp.a.floor &&
@@ -368,6 +396,8 @@
           "explosion",
           "damage",
           "destroy",
+          "fallStart",
+          "land",
           "rampEnter",
           "rampExit",
           "respawn",

@@ -21,16 +21,19 @@
       deckRects,
       rampHeight,
       rampCeiling,
+      dropExit,
       slabHit,
       boxHit,
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 10,
+    const VERSION = 11,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
     const RULES = Object.freeze({
+      gravity: 20,
+      terminalFallSpeed: 30,
       duration: 18000,
       killLimit: 15,
       respawn: 240,
@@ -139,6 +142,7 @@
       deckRects,
       rampHeight,
       rampCeiling,
+      dropExit,
       clamp,
     };
   },

@@ -9,6 +9,7 @@
           ai: require("./core/ai.js"),
           combat: require("./core/combat.js"),
           movement: require("./core/movement.js"),
+          falling: require("./core/falling.js"),
           match: require("./core/match.js"),
         }
       : root.TankSystems,
@@ -96,6 +97,10 @@
           charge: 0,
           fireHeld: false,
           needsRelease: false,
+          falling: false,
+          fallVelocity: 0,
+          fallVX: 0,
+          fallVZ: 0,
           rampId: null,
           rampDir: 0,
           kills: 0,
@@ -173,6 +178,9 @@
       body.fireHeld = false;
       body.abilityHeld = false;
       body.needsRelease = true;
+    }
+    tickFall(body) {
+      return Systems.falling.tickFall(this, body);
     }
     tickEntity(...args) {
       return Systems.movement.tickEntity(this, ...args);

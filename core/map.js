@@ -61,6 +61,12 @@
         b: { floor: 2, x: 36, z: -2 },
       },
     ],
+    dropExits: [
+      { floor: 1, side: -1, x: 30, width: 12 },
+      { floor: 1, side: 1, x: 30, width: 12 },
+      { floor: 2, side: -1, x: 30, width: 12 },
+      { floor: 2, side: 1, x: 30, width: 12 },
+    ],
     pickups: [
       { id: "repair-0", kind: "repair", floor: 0, x: 0, z: 0 },
       { id: "boost-0", kind: "boost", floor: 0, x: 0, z: -38 },

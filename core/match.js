@@ -46,6 +46,10 @@
             abilityUntil: 0,
             abilityHeld: true,
             speed: 0,
+            falling: false,
+            fallVelocity: 0,
+            fallVX: 0,
+            fallVZ: 0,
             rampId: null,
             rampDir: 0,
             cooldown: 0,
@@ -59,7 +63,7 @@
           battle.emit("respawn", { id: body.id });
         }
       }
-      if (!body.alive || body.rampId) continue;
+      if (!body.alive || body.rampId || body.falling) continue;
       for (const pickup of battle.pickups) {
         if (
           pickup.readyAt > battle.tick ||

@@ -18,10 +18,16 @@
     const spec = TANKS[body.tankType],
       weapon = WEAPONS[body.weaponType],
       ability = ABILITIES[spec.ability];
+    if (body.falling) battle.tickFall(body);
     if (!body.alive) return;
     if (body.abilityCooldown) body.abilityCooldown--;
     if (body.abilityUntil <= battle.tick) body.barrier = 0;
-    if (input.ability && !body.abilityHeld && !body.abilityCooldown) {
+    if (
+      !body.falling &&
+      input.ability &&
+      !body.abilityHeld &&
+      !body.abilityCooldown
+    ) {
       body.abilityCooldown = spec.abilityCooldown;
       body.abilityUntil = battle.tick + spec.abilityDuration;
       if (ability.barrier) body.barrier = ability.barrier;
@@ -35,67 +41,80 @@
       );
     if (body.cooldown) body.cooldown--;
     if (!input.fire) body.needsRelease = false;
-    const strafe = spec.movement === "strafe" && body.controller === "human";
-    if (!strafe)
-      body.heading = wrap(
-        body.heading +
-          ((input.left ? 1 : 0) - (input.right ? 1 : 0)) * spec.turn * DT,
-      );
-    const active = body.abilityUntil > battle.tick,
-      throttle = (input.forward ? 1 : 0) - (input.reverse ? 1 : 0);
-    let desired = input.brake
-      ? 0
-      : throttle > 0
-        ? spec.speed * (body.boostUntil > battle.tick ? 1.35 : 1)
-        : throttle < 0
-          ? -spec.reverse
-          : 0;
-    if (strafe) {
-      const forward = (input.forward ? 1 : 0) - (input.reverse ? 1 : 0),
-        side = (input.right ? 1 : 0) - (input.left ? 1 : 0),
-        yaw = input.moveYaw ?? body.aim;
-      if (forward || side) body.heading = wrap(yaw - Math.atan2(side, forward));
-      desired = input.brake
+    if (!body.falling) {
+      const strafe = spec.movement === "strafe" && body.controller === "human";
+      if (!strafe)
+        body.heading = wrap(
+          body.heading +
+            ((input.left ? 1 : 0) - (input.right ? 1 : 0)) * spec.turn * DT,
+        );
+      const active = body.abilityUntil > battle.tick,
+        throttle = (input.forward ? 1 : 0) - (input.reverse ? 1 : 0);
+      let desired = input.brake
         ? 0
-        : forward || side
+        : throttle > 0
           ? spec.speed * (body.boostUntil > battle.tick ? 1.35 : 1)
-          : 0;
-    }
-    if (active) {
-      desired *= ability.speedFactor;
-      if (ability.burstSpeed) {
+          : throttle < 0
+            ? -spec.reverse
+            : 0;
+      if (strafe) {
+        const forward = (input.forward ? 1 : 0) - (input.reverse ? 1 : 0),
+          side = (input.right ? 1 : 0) - (input.left ? 1 : 0),
+          yaw = input.moveYaw ?? body.aim;
+        if (forward || side)
+          body.heading = wrap(yaw - Math.atan2(side, forward));
         desired = input.brake
           ? 0
-          : (ability.allowReverse && input.reverse ? -1 : 1) *
-            ability.burstSpeed;
-        body.speed = desired;
+          : forward || side
+            ? spec.speed * (body.boostUntil > battle.tick ? 1.35 : 1)
+            : 0;
       }
-    }
-    body.speed += clamp(
-      desired - body.speed,
-      -spec.accel * DT,
-      spec.accel * DT,
-    );
-    if (input.brake) body.speed = 0;
-    const nx = body.x - Math.cos(body.heading) * body.speed * DT,
-      nz = body.z + Math.sin(body.heading) * body.speed * DT;
-    const surface = battle.surface(body, nx, nz);
-    if (surface && battle.valid(nx, nz, surface.floor, body, { surface })) {
-      const oldRamp = body.rampId,
-        oldFloor = body.floor;
-      Object.assign(body, { x: nx, z: nz, ...surface });
-      body.brain.blocked = 0;
-      if (oldRamp !== body.rampId) {
-        body.brain.path = [];
-        body.brain.pathTick = 0;
-        if (oldRamp)
-          battle.emit("rampExit", { id: body.id, floor: body.floor });
-        else battle.emit("rampEnter", { id: body.id, rampId: body.rampId });
+      if (active) {
+        desired *= ability.speedFactor;
+        if (ability.burstSpeed) {
+          desired = input.brake
+            ? 0
+            : (ability.allowReverse && input.reverse ? -1 : 1) *
+              ability.burstSpeed;
+          body.speed = desired;
+        }
       }
-      if (oldFloor !== body.floor) body.brain.pathTick = 0;
-    } else {
-      if (Math.abs(body.speed) > 0.1) body.brain.blocked++;
-      body.speed = 0;
+      body.speed += clamp(
+        desired - body.speed,
+        -spec.accel * DT,
+        spec.accel * DT,
+      );
+      if (input.brake) body.speed = 0;
+      const nx = body.x - Math.cos(body.heading) * body.speed * DT,
+        nz = body.z + Math.sin(body.heading) * body.speed * DT;
+      const surface = battle.surface(body, nx, nz);
+      if (
+        surface &&
+        battle.valid(nx, nz, surface.floor, body, { surface, allowDrop: true })
+      ) {
+        const wasFalling = body.falling;
+        const oldRamp = body.rampId,
+          oldFloor = body.floor;
+        Object.assign(body, { x: nx, z: nz, ...surface });
+        if (body.falling && !wasFalling) {
+          body.fallVelocity = 0;
+          body.fallVX = -Math.cos(body.heading) * body.speed;
+          body.fallVZ = Math.sin(body.heading) * body.speed;
+          battle.emit("fallStart", { id: body.id });
+        }
+        body.brain.blocked = 0;
+        if (oldRamp !== body.rampId) {
+          body.brain.path = [];
+          body.brain.pathTick = 0;
+          if (oldRamp)
+            battle.emit("rampExit", { id: body.id, floor: body.floor });
+          else battle.emit("rampEnter", { id: body.id, rampId: body.rampId });
+        }
+        if (oldFloor !== body.floor) body.brain.pathTick = 0;
+      } else {
+        if (Math.abs(body.speed) > 0.1) body.brain.blocked++;
+        body.speed = 0;
+      }
     }
     if (input.aimLeft || input.aimRight)
       body.aim = wrap(

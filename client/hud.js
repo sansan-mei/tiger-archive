@@ -20,6 +20,15 @@
     for (const s of C.MAP.ramps)
       for (const p of [s.a, s.b])
         if (p.floor === floor) mc.fillRect(p.x - 2, p.z - 2, 4, 4);
+    mc.fillStyle = "#e79e35";
+    for (const exit of C.MAP.dropExits || [])
+      if (exit.floor === floor)
+        mc.fillRect(
+          exit.x - exit.width / 2,
+          exit.side * b - 1.5,
+          exit.width,
+          3,
+        );
     for (const p of state.pickups)
       if (p.floor === floor && p.readyAt <= state.tick) {
         mc.fillStyle = p.kind === "repair" ? "#238454" : "#c28a27";
@@ -130,9 +139,13 @@
           return row;
         }),
     );
-    $("ramp-status").textContent = p.rampId
-      ? "斜坡行驶 · 可停车 / 倒车 / 交战"
-      : "直接驾驶上坡 · 无需按键";
+    $("ramp-status").textContent = p.falling
+      ? "下落中 · 保持惯性 / 可开火"
+      : p.rampId
+        ? "斜坡行驶 · 可停车 / 倒车 / 交战"
+        : p.floor > 0
+          ? "橙色标线为下落口 · 可直接驶出到底楼"
+          : "直接驾驶上坡 · 无需按键";
     drawMap(state, target);
   }
   return { update };

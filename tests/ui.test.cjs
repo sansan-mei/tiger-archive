@@ -407,6 +407,27 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(nodes.get("respawn-status").hidden, true);
   assert.equal(nodes.get("scoreboard").children.length, 2);
   assert.ok(audioValues.length > 0);
+  Object.assign(e, {
+    x: 30,
+    z: 45,
+    y: 16,
+    floor: 2,
+    rampId: null,
+    rampDir: 0,
+    heading: Math.PI / 2,
+    aim: Math.PI / 2,
+    speed: 11,
+  });
+  for (const fn of windowEvents.keydown)
+    fn({ code: "KeyW", preventDefault() {}, repeat: false });
+  advance(18);
+  assert.equal(e.falling, true);
+  assert.ok(nodes.get("ramp-status").textContent.includes("下落中"));
+  for (const fn of windowEvents.keyup)
+    fn({ code: "KeyW", preventDefault() {} });
+  advance(150);
+  assert.equal(e.falling, false);
+  assert.equal(e.floor, 0);
   e.kills = 15;
   advance(6);
   assert.equal(nodes.get("menu-title").textContent, "本局冠军");
@@ -430,7 +451,11 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     fn({ code: "KeyD", preventDefault() {} });
   // Run real local AI and weapon presentation, not just room snapshots.
   // A frame exception must fail the test rather than silently skip rendering.
-  for (const [weapon, fireKey] of [["rocket", "Space"], ["laser", "Space"], ["laser", "KeyF"]]) {
+  for (const [weapon, fireKey] of [
+    ["rocket", "Space"],
+    ["laser", "Space"],
+    ["laser", "KeyF"],
+  ]) {
     nodes.get("pause-btn").emit("click");
     nodes.get("weapon-select").value = weapon;
     nodes.get("restart-button").emit("click");

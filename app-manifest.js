@@ -28,6 +28,7 @@
     "core/ai.js",
     "core/combat.js",
     "core/movement.js",
+    "core/falling.js",
     "core/match.js",
     "battle-core.js",
     "battle-session.js",

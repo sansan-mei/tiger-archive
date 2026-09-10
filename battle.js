@@ -161,6 +161,12 @@
         puff(e, 2.3, 12);
         notify(e.id === playerId ? "你已被击毁" : e.owner + " 击毁 " + e.id);
       }
+      if (e.type === "fallStart" && e.id === playerId)
+        notify("下落中 · 可瞄准开火，落地后恢复驾驶");
+      if (e.type === "land") {
+        puff(e, 1.2, 6);
+        if (e.id === playerId) notify("已落地 · 无摔落伤害");
+      }
       if (e.type === "rampEnter" && e.id === playerId)
         notify("驶入斜坡 · 可停车、倒车和交战");
       if (e.type === "rampExit" && e.id === playerId)
