@@ -48,6 +48,18 @@ window.TankModelAssets = (() => {
           } catch (error) {
             console.warn("角色外观加载失败，保留原人类模型：", error.message);
           }
+          try {
+            const response = await fetchImpl("client/models/public-weapons.json", {signal: controller.signal});
+            if (!response.ok) throw new Error("Weapons unavailable");
+            const data = await response.json();
+            if (data.metadata?.generator !== "Quaternius public weapons") throw new Error("Unexpected weapon library");
+            const kit = await new T.ObjectLoader().parseAsync(data);
+            for (const name of ["pistol", "standard", "rapid", "rocket", "laser"])
+              if (!kit.children.some(w => w.name === name)) throw new Error("Incomplete weapon library");
+            for (const weapon of kit.children) loaded.set(weapon.name, weapon);
+          } catch (error) {
+            console.warn("公开武器模型加载失败，保留原武器：", error.message);
+          }
           models = loaded;
           return true;
         } catch (error) {
@@ -83,7 +95,7 @@ window.TankModelAssets = (() => {
         clone.traverse((o) => {
           if (o.isMesh) {
             o.geometry = o.geometry.clone();
-            o.material = o.material.name.startsWith("paimon-")
+            o.material = (o.material.name.startsWith("paimon-") || o.material.name.startsWith("public-weapon-"))
               ? (characterMaterials.get(o.material.name) || (() => {
                   const material = o.material.clone();
                   characterMaterials.set(o.material.name, material);

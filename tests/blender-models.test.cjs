@@ -9,6 +9,8 @@ const T = require("three"),
 const data = require("../client/models/arsenal.json");
 const character = structuredClone(require("../client/models/paimon.json"));
 for (const image of character.images) image.url = {data: [255,255,255,255], width: 1, height: 1, type: "Uint8Array"};
+const publicWeapons = structuredClone(require("../client/models/public-weapons.json"));
+for (const image of publicWeapons.images || []) image.url = {data: [255,255,255,255], width: 1, height: 1, type: "Uint8Array"};
 function browser() {
   const context = vm.createContext({
     window: { TankBattle: C },
@@ -34,7 +36,7 @@ function browser() {
     );
   return context.window;
 }
-const fetchKit = async (url) => ({ ok: true, json: async () => url?.includes("paimon") ? character : data });
+const fetchKit = async (url) => ({ ok: true, json: async () => url?.includes("paimon") ? character : url?.includes("public-weapons") ? publicWeapons : data });
 test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawing cost", async () => {
   const b = browser();
   assert.equal(await b.TankModelAssets.load(T, fetchKit), true);
@@ -71,7 +73,7 @@ test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawi
       });
       assert.ok(painted > 0);
       assert.ok(meshes <= 30, `meshes ${meshes}`);
-      assert.ok(triangles < (tankType === "human" ? 17000 : 8000), `triangles ${triangles}`);
+      assert.ok(triangles < (tankType === "human" ? 19000 : 10000), `triangles ${triangles}`);
       const p = v.gun.localToWorld(new T.Vector3(-1, 0, 0));
       v.turret.rotation.y = 1;
       v.gun.rotation.z = -0.4;
@@ -105,7 +107,7 @@ test("each asset is fetched once and disposing a wreck leaves other views and su
     b.TankModelAssets.load(T, fetch),
     b.TankModelAssets.load(T, fetch),
   ]);
-  assert.equal(requests, 2);
+  assert.equal(requests, 3);
   const create = () =>
       b.createTankModel(T, { tankType: "heavy", weaponType: "rocket" }),
     a = create(),

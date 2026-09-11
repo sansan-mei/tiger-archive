@@ -1,0 +1,48 @@
+[
+  {
+    "id": "pistol",
+    "name": "9mm Pistol",
+    "author": "Quaternius",
+    "page": "https://poly.pizza/m/BoZWhFdsj4",
+    "download": "https://static.poly.pizza/e9192aa9-16b4-471d-a9c6-1823f8856b26.glb",
+    "license": "CC BY 3.0",
+    "sha256": "be431e9fa5b595f0f55c007dc82bad9c00fc930379dffc17a61204e45d3a7d22",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+  },
+  {
+    "id": "standard",
+    "name": "Rifle",
+    "author": "Quaternius",
+    "page": "https://poly.pizza/m/KjHL5JJrxU",
+    "download": "https://static.poly.pizza/875d7c7c-188f-4447-8cf8-bc6da771c25a.glb",
+    "license": "CC0",
+    "sha256": "69592a6da5da02a5c67f9312d50baf00b2dd2c36437f33ab3ea4faaefd8c4747"
+  },
+  {
+    "id": "rapid",
+    "name": "Scifi Smg",
+    "author": "Quaternius",
+    "page": "https://poly.pizza/m/NHYaHnTNIM",
+    "download": "https://static.poly.pizza/cc2ce213-28b2-4aed-a6f7-4b9cf8f80568.glb",
+    "license": "CC0",
+    "sha256": "066a677cf1a4d053eefcd94830151cdbb18374a575288c5d972c098b79d7b295"
+  },
+  {
+    "id": "rocket",
+    "name": "Rocket Launcher",
+    "author": "Quaternius",
+    "page": "https://poly.pizza/m/GCqUvqleqN",
+    "download": "https://static.poly.pizza/4b445cbf-38b6-43f3-afd6-32d88e8f074b.glb",
+    "license": "CC0",
+    "sha256": "a72bedf2d0e5da57d71af7a7aea2e97123dbbce3bf26da2b375fd0abed0142e2"
+  },
+  {
+    "id": "laser",
+    "name": "Ray Gun",
+    "author": "Quaternius",
+    "page": "https://poly.pizza/m/DIcib0mihf",
+    "download": "https://static.poly.pizza/bbff65c0-4ae8-41d5-8666-f88500a82c13.glb",
+    "license": "CC0",
+    "sha256": "2d2e5ddcb2e82a27deb62ea89811f2d896cc670d18c490de01af2facd8093085"
+  }
+]

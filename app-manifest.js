@@ -60,6 +60,7 @@
     "client/audio/tank-drive.mp3",
     "client/models/arsenal.json",
     "client/models/paimon.json",
+    "client/models/public-weapons.json",
     "client/environment/maintenance-kit.json",
     "client/icons/icon-192x192.png",
     "client/icons/icon-512x512.png",
