@@ -10,6 +10,7 @@
     "controller",
     "tankType",
     "zombieType",
+    "slowUntil",
     "weaponType",
     "x",
     "y",

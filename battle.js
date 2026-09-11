@@ -37,6 +37,7 @@
   const effects = [],
     sphere = new T.IcosahedronGeometry(1, 0),
     shellMat = new T.MeshBasicMaterial({ color: 0xffd18a });
+  const pveEffects = window.TankClient.createPveEffects({ T, scene });
   const units = window.TankClient.createUnits({
     T,
     C,
@@ -221,10 +222,10 @@
       }),
     );
   }
-  const pveUI = window.TankClient.createPveUI({ C, $, choose: (wave, choice) => {
+  const pveUI = window.TankClient.createPveUI({ C, $, choose: (wave, choice, offerId) => {
     if (session.online && !session.suspended) {
       clearInput();
-      network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice });
+      network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId });
     }
   } });
   function config() {
@@ -357,7 +358,7 @@
       const s = session.current(),
         p = s.entities.find((e) => e.id === playerId);
       $("menu-title").textContent =
-        s.mode === "pve" ? (s.pve.result === "victory" ? "生存成功" : "队伍覆灭") :
+        s.mode === "pve" ? (s.pve.result === "victory" ? "撤离成功" : "挑战失败") :
           s.winnerId === playerId ? "本局冠军" : "对局结束";
       $("match-results").hidden = false;
       $("match-results").replaceChildren(
@@ -566,6 +567,7 @@
     sun.position.set(target.x - 25, target.y + 52, target.z + 20);
     sun.target.position.set(target.x, target.y, target.z);
     units.update({ state, truth, cameraFloor, camera, dt, time, targetedId });
+    pveEffects.update(truth, cameraFloor);
     const reticlePosition = assisted
       ? projectAim(assisted.point)
       : { x: 50, y: 50 };
@@ -733,7 +735,7 @@
       $("restart-button").hidden = true;
       $("menu-title").textContent = "准备大厅";
       $("menu-description").textContent =
-        room.mode === "pve" ? "合作生存 · 1–8 人 · 人类＋小手枪开局，撑过 8 分钟。清波后按 1 / 2 / 3 选择升级。" :
+        room.mode === "pve" ? "合作生存 · 1–8 人 · 人类＋小手枪开局，击杀共享经验，按 1 / 2 / 3 升级、U 暂存；8 分钟内击败最终 Boss。" :
           "分享房间码，所有人准备后由房主开局（2–8 人，8 分钟）。";
       if (me) {
         $("tank-select").value = me.tankType;

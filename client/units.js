@@ -93,6 +93,7 @@
       const view = views.get(e.id);
       const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();
       view.paint.color.copy(view.basePaintColor);
+      if (e.slowUntil > truth.tick) view.paint.color.setHex(0x75c9e2);
       if (targeted) view.paint.color.setHex(0xe34848);
       if (view.label) view.label.dataset.targeted = String(targeted);
       const recoil = window.TankClient.recoil;
@@ -218,6 +219,11 @@
               0.45 *
               Math.min(1, Math.abs(e.speed) / 4)
             : 0;
+      view.animateCharacter?.({
+        travel: view.travel, speed: moving && !reduced ? e.speed : 0,
+        aim: C.wrap(e.aim - e.heading), pitch: e.pitch,
+        recoil: impulse, alive: e.alive, time: reduced ? 0 : time / 1000,
+      });
       if (!e.alive && !view.dead) {
         view.dead = true;
         view.tank.traverse((o) => {

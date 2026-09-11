@@ -11,6 +11,7 @@ function clearWave(b) {
   b.pve.nextWaveAt = 0; b.pve.queue = 0;
   for (const z of enemies(b)) { z.protectedUntil = 0; if (z.alive) b.damage(z, 1000, b.entities[0].id, z); }
   b.step();
+  if (!b.pve.choices[b.entities[0].id]) C.PVE.progression.addExperience(b, C.PVE.progression.xpNeeded(b.pve.level), C.PVE.rewards);
 }
 test('rounds last eight minutes; solo PvE starts as human+pistol and never wins at 15 kills', () => {
   assert.equal(C.RULES.duration, 8 * 60 * C.TICK_RATE);
@@ -20,7 +21,7 @@ test('rounds last eight minutes; solo PvE starts as human+pistol and never wins 
   assert.equal(enemies(b).length,16); assert.ok(enemies(b).every(e=>!e.alive));
   p.kills=15; b.step(); assert.equal(b.status,'playing');
   assert.throws(()=>new C.Battle({participants:[{...participants()[0],tankType:'zombie'},...participants(2).slice(1)]}));
-  b.tick = C.RULES.duration-1; b.step(); assert.equal(b.pve.result,'victory');
+  b.tick = C.RULES.duration-1; b.step(); assert.equal(b.pve.result,'defeat');
   assert.equal(b.status,'finished'); S.validateSnapshot(b.snapshot());
 });
 test('PvE prevents direct, self and splash friendly fire while retaining zombie damage', () => {
@@ -96,7 +97,7 @@ test('co-op room starts solo, authenticates upgrades and restores checkpoint/rec
   const b=room.authority.battle, id=room.seats[0].id;
   clearWave(b);const choice=b.pve.choices[id][0];
   send('upgrade',{epoch:0,wave:1,choice});assert.ok(b.pve.choices[id]);
-  send('upgrade',{epoch:room.epoch,wave:1,choice});assert.equal(b.pve.choices[id],undefined);
+  send('upgrade',{epoch:room.epoch,wave:1,choice,offerId:b.pve.choiceIds[id]});assert.equal(b.pve.choices[id],undefined);
   const copy=new RoomServer({now:()=>2000});copy.restore(server.checkpoint());
   const recovered=copy.rooms.get(room.code);assert.equal(recovered.mode,'pve');
   assert.deepEqual(recovered.authority.battle.pve,b.pve);
@@ -156,8 +157,8 @@ test('wave composition progressively unlocks all five enemies with distinct move
       if(wave===1) assert.equal(type,'walker');
     }
   }
-  assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).sort());
-  for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS)) {
+  assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).filter(k=>k!=="boss").sort());
+  for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS).filter(([k])=>k!=="boss")) {
     const b=create(), p=b.entities[0], z=enemies(b)[0];
     b.pve.wave=6;b.pve.nextWaveAt=10000;
     Object.assign(p,{x:0,z:55});

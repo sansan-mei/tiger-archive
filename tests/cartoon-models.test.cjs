@@ -115,5 +115,5 @@ test('five original zombie variants have distinct silhouettes, bounded geometry 
     for(const resource of resources) resource.addEventListener('dispose',()=>resource.disposed=true);
     v.dispose();assert.ok([...resources].every(r=>r.disposed));
   }
-  assert.equal(signatures.size,5);
+  assert.equal(signatures.size,6);
 });

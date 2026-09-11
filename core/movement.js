@@ -64,6 +64,7 @@
             ? spec.speed * (body.boostUntil > battle.tick ? 1.35 : 1)
             : 0;
       }
+      if (body.slowUntil > battle.tick) desired *= 0.55;
       if (active) {
         desired *= ability.speedFactor;
         if (ability.burstSpeed) {

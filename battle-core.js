@@ -181,9 +181,14 @@
     shoot(...args) {
       return Systems.combat.shoot(this, ...args);
     }
-    chooseUpgrade(id, wave, choice) {
-      return Systems.pve.choose(this, id, wave, choice);
+    chooseUpgrade(id, wave, choice, offerId) {
+      return Systems.pve.choose(this, id, wave, choice, offerId);
     }
+    pveDeath(target, owner) {
+      Systems.pve.progression.onDeath(this, target, owner, Systems.pve.rewards);
+    }
+    pveHit(hit, shot) { Systems.pve.progression.onHit(this, hit, shot); }
+    pveFire(hit, shot) { Systems.pve.progression.fireZone(this, hit, shot); }
     releaseControl(id) {
       const body = this.getEntity(id);
       if (!body) return;

@@ -235,8 +235,8 @@ class RoomServer {
         return;
       }
       if (m.type === "upgrade") {
-        if (room.phase !== "playing" || room.mode !== "pve" || m.epoch !== room.epoch ||
-            !room.authority.battle.chooseUpgrade(seat.id, m.wave, m.choice))
+        if (room.phase !== "playing" || room.mode !== "pve" || m.epoch !== room.epoch || !Number.isSafeInteger(m.offerId) ||
+            !room.authority.battle.chooseUpgrade(seat.id, m.wave, m.choice, m.offerId))
           throw new Error("升级选项已过期或无效");
         this.broadcastState(room);
         return;

@@ -61,6 +61,7 @@
       target.speed = 0;
       target.charge = 0;
       target.criticalProgress = 0;
+      if (battle.mode === "pve") battle.pveDeath(target, owner);
       const killer = battle.getEntity(owner);
       if (killer && killer !== target) killer.kills++;
       battle.emit("destroy", {
@@ -81,7 +82,9 @@
       ...hit.point,
       weaponType: shot.weaponType,
     });
-    const spec = WEAPONS[shot.weaponType];
+    const base = WEAPONS[shot.weaponType];
+    const spec = battle.mode === "pve" && shot.weaponType === "rocket"
+      ? { ...base, splashRadius: base.splashRadius + (battle.pve.upgrades[shot.owner]?.blast || 0) } : base;
     if (hit.kind === "tank") {
       const applied = battle.damage(
         battle.getEntity(hit.id),
@@ -91,6 +94,7 @@
         { x: shot.dx, z: shot.dz },
         shot.critical === true,
       );
+      if (applied && battle.mode === "pve") battle.pveHit(hit, shot);
       const owner = battle.getEntity(shot.owner);
       // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
       if (
@@ -107,6 +111,7 @@
           owner.criticalProgress + 1,
         );
     }
+    if (battle.mode === "pve") battle.pveFire(hit, shot);
     if (spec.splashDamage) {
       battle.emit("explosion", {
         owner: shot.owner,

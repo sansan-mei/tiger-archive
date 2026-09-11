@@ -115,7 +115,7 @@ window.createTankModel = function (
   for (const parent of [tank, turret, gun, ...limbs]) {
     const groups = new Map();
     for (const mesh of [...parent.children]) {
-      if (!mesh.isMesh || animated.has(mesh) || mesh.geometry.attributes.color)
+      if (!mesh.isMesh || mesh.isSkinnedMesh || mesh.material.map || animated.has(mesh) || mesh.geometry.attributes.color)
         continue;
       mesh.updateMatrix();
       const copy = mesh.geometry
@@ -195,6 +195,7 @@ window.createTankModel = function (
   frontShield.position.set(-3.8, 1, 0);
   turret.add(frontShield);
   return {
+    animateCharacter: ctx.animateCharacter,
     criticalGlow,
     assetSource: authored ? "blender" : "procedural",
     frontShield,
@@ -213,6 +214,7 @@ window.createTankModel = function (
     spec,
     weapon,
     dispose() {
+      ctx.disposeCharacter?.();
       const geometries = new Set(),
         materials = new Set();
       tank.traverse((o) => {

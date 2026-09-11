@@ -510,7 +510,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   nodes.get("ready-room").emit("click");
   assert.equal(nodes.get("start-room").disabled, false);
   nodes.get("start-room").emit("click");
-  advance(210);
+  advance(360);
   const survival = coop.authority.battle;
   assert.equal(nodes.get("weapon-label").textContent, "小手枪");
   assert.match(nodes.get("mission-title").textContent, /CO-OP/);
@@ -527,6 +527,11 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(12);
   assert.equal(nodes.get("pve-rewards").hidden, false);
   assert.equal(nodes.get("pve-choices").children.length, 3);
+  assert.match(nodes.get("pve-level").textContent, /Lv.2/);
+  for (const fn of documentEvents.keydown || []) fn({ code: "KeyU", preventDefault() {}, repeat: false });
+  advance(6); assert.equal(nodes.get("pve-rewards").hidden, true);
+  for (const fn of documentEvents.keydown || []) fn({ code: "KeyU", preventDefault() {}, repeat: false });
+  advance(6); assert.equal(nodes.get("pve-rewards").hidden, false);
   survival.pve.choices[survival.entities[0].id] = ["rocket", "haste", "regen"];
   advance(12);
   for (const fn of documentEvents.keydown || []) fn({ code: "Digit1", preventDefault() {}, repeat: false });
@@ -534,8 +539,12 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(survival.entities[0].weaponType, "rocket");
   assert.equal(nodes.get("weapon-label").textContent, "火箭筒");
   assert.equal(nodes.get("pve-rewards").hidden, true);
-  survival.tick = C.RULES.duration - 1;
+  survival.tick = C.RULES.duration - 3601;
   advance(12);
-  assert.equal(nodes.get("menu-title").textContent, "生存成功");
+  const boss = survival.entities.find(e=>e.zombieType === "boss");
+  assert.ok(boss?.alive);
+  boss.protectedUntil = 0; survival.damage(boss, 100000, survival.entities[0].id, boss);
+  advance(12);
+  assert.equal(nodes.get("menu-title").textContent, "撤离成功");
   assert.equal(nodes.get("match-results").children.length, 1);
 });

@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v16）
+# 多人接入边界（协议 v17）
 
 ## 已实现
 
@@ -183,3 +183,11 @@ create 新增可选 `mode: "pvp" | "pve"`，缺省 pvp；房间目录、room 消
 PvE 状态新增 teamSize（1–8），僵尸实体新增 zombieType（walker/cone/runner/bucket/brute）；两者都由服务器计算，不能从输入命令修改。副本校验类型解锁波次，并按类型和 teamSize 推导 maxHp 与移动上限，拒绝伪造类型、人数和生命。正式离场在下一模拟 tick 按剩余血量比例缩放，阵亡/断线宽限期不减少人数。
 
 完整检查点保存类型、人数和已缩放生命，恢复不再次缩放；新版握手为 v16、zombie 插件 1.1.0。不兼容的 v15 检查点沿用归档后重置策略，Redis 前缀继续保持 tiger:rooms:production。
+
+## v17：经验、流派与 Boss
+
+升级命令变为 `{ type: "upgrade", epoch, wave, choice, offerId }`。offerId 每次发放选项时递增，拒绝双击/重发领到下一次升级；没有 offerId 的旧消息拒绝。pending 为每位玩家未使用的升级次数，choiceIds 绑定当前选项，choices 不再依赖波间截止时间。
+
+新增共享 level/xp、持久化 rng、个人 hits、hazards/bursts 与 Boss spawned/defeated/nextAttackAt/telegraph；slowUntil 随实体广播。校验限制等级 20、每人待选次数 19、燃烧区 12、次爆队列 16、预警圈 8，校验所有者与数值边界。Boss 类型仅用于最终阶段，打败 Boss 才能获胜，8 分钟超时失败。
+
+完整检查点恢复所有计时和随机状态；协议 v17、zombie 1.2.0，Redis 前缀保持 tiger:rooms:production。不兼容 v16 检查点按已有策略归档并重置。模拟仍为 60 Hz，PvE 广播 10 Hz。

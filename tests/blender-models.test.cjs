@@ -7,6 +7,8 @@ const T = require("three"),
   C = require("../battle-core.js"),
   manifest = require("../app-manifest.js");
 const data = require("../client/models/arsenal.json");
+const character = structuredClone(require("../client/models/paimon.json"));
+for (const image of character.images) image.url = {data: [255,255,255,255], width: 1, height: 1, type: "Uint8Array"};
 function browser() {
   const context = vm.createContext({
     window: { TankBattle: C },
@@ -20,8 +22,10 @@ function browser() {
     "plugins/registry.js",
     "plugins/tanks/common.js",
     ...manifest.plugins,
+    "client/paimon-rig.js",
     "client/model-assets.js",
     "tank-model.js",
+    "client/recoil.js",
     "client/units.js",
   ])
     vm.runInContext(
@@ -30,7 +34,7 @@ function browser() {
     );
   return context.window;
 }
-const fetchKit = async () => ({ ok: true, json: async () => data });
+const fetchKit = async (url) => ({ ok: true, json: async () => url?.includes("paimon") ? character : data });
 test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawing cost", async () => {
   const b = browser();
   assert.equal(await b.TankModelAssets.load(T, fetchKit), true);
@@ -51,7 +55,7 @@ test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawi
         v.wheels.length,
         tankType === "human" ? 0 : tankType === "light" ? 6 : 10,
       );
-      assert.equal(v.limbs.length, tankType === "human" ? 2 : 0);
+      assert.equal(v.limbs.length, 0);
       let meshes = 0,
         triangles = 0,
         painted = 0;
@@ -67,7 +71,7 @@ test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawi
       });
       assert.ok(painted > 0);
       assert.ok(meshes <= 30, `meshes ${meshes}`);
-      assert.ok(triangles < 8000, `triangles ${triangles}`);
+      assert.ok(triangles < (tankType === "human" ? 17000 : 8000), `triangles ${triangles}`);
       const p = v.gun.localToWorld(new T.Vector3(-1, 0, 0));
       v.turret.rotation.y = 1;
       v.gun.rotation.z = -0.4;
@@ -90,18 +94,18 @@ test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawi
       v.dispose();
     }
 });
-test("cached load is single-request and disposing a wreck leaves other views and subsequent respawns intact", async () => {
+test("each asset is fetched once and disposing a wreck leaves other views and subsequent respawns intact", async () => {
   const b = browser();
   let requests = 0;
-  const fetch = async () => {
+  const fetch = async (url) => {
     requests++;
-    return fetchKit();
+    return fetchKit(url);
   };
   await Promise.all([
     b.TankModelAssets.load(T, fetch),
     b.TankModelAssets.load(T, fetch),
   ]);
-  assert.equal(requests, 1);
+  assert.equal(requests, 2);
   const create = () =>
       b.createTankModel(T, { tankType: "heavy", weaponType: "rocket" }),
     a = create(),
@@ -130,6 +134,53 @@ test("cached load is single-request and disposing a wreck leaves other views and
   assert.ok(respawn.originals.size > 0);
   other.dispose();
   respawn.dispose();
+});
+
+test("reference human walks, aims and recoils with every weapon including the pistol", async () => {
+  const b = browser();
+  await b.TankModelAssets.load(T, fetchKit);
+  for (const weaponType of Object.keys(C.WEAPONS)) {
+    const entity = { ...new C.Battle().entities[0], id: "self", tankType: "human", weaponType,
+      x: 0, y: 0, z: 0, heading: 0, aim: .6, pitch: .25, speed: 4, alive: true };
+    const units = b.TankClient.createUnits({ T, C, scene: new T.Scene(), floorGroups: [],
+      getEntities: () => [entity], getPlayerId: () => "self", effects: [], sound() {}, reduced: false });
+    await units.modelsReady;
+    const view = units.views.get("self");
+    assert.equal(view.tank.getObjectByName("human").userData.rig, "paimon-skinned");
+    assert.equal(view.limbs.length, 0);
+    view.recoil = 1;
+    units.update({ state: { entities: [entity], bullets: [] }, truth: { tick: 0, status: "playing" },
+      dt: 1 / 60, time: 0, cameraFloor: 0, camera: new T.PerspectiveCamera() });
+    const leg = view.tank.getObjectByName("足DL");
+    assert.ok(leg.quaternion.angleTo(new T.Quaternion()) > .01);
+    assert.ok(view.tank.getObjectByName("上半身").isBone);
+    assert.equal(view.gun.rotation.z, -.25);
+    assert.ok(view.gun.position.x > -.35);
+    assert.ok(view.turret.position.x > 0);
+    const skin = [...view.originals.values()].find(m => m.name === "paimon-皮肤");
+    assert.ok(skin);
+    assert.ok(skin.map);
+    view.dispose();
+  }
+});
+
+test("character download failure retains the original Blender human", async () => {
+  const b = browser();
+  assert.equal(await b.TankModelAssets.load(T, async url => url.includes("paimon") ? { ok: false } : fetchKit(url)), true);
+  const view = b.createTankModel(T, { tankType: "human", weaponType: "rocket" });
+  assert.equal(view.assetSource, "blender");
+  assert.equal(view.limbs.length, 2);
+  assert.equal(view.tank.getObjectByName("human").userData.rig, undefined);
+  view.dispose();
+});
+
+test("runtime character preserves UVs, textures, weights and manifest registration", () => {
+  assert.ok(manifest.assets.includes("client/models/paimon.json"));
+  const asset = require("../client/models/paimon.json");
+  assert.equal(asset.images.length, 5);
+  assert.ok(asset.images.every(i => /^data:image\/(jpeg|png);base64,/.test(i.url)));
+  assert.ok(asset.geometries.every(g => g.data.attributes.uv && g.data.attributes.skinIndex && g.data.attributes.skinWeight));
+  assert.ok(asset.skeletons[0].bones.length > 100);
 });
 test("failed asset loading leaves procedural visuals and unknown plugins can still use their hooks", async () => {
   const b = browser();
@@ -177,4 +228,33 @@ test("optional model completion rebuilds the current loadout instead of an obsol
   assert.equal(old.tank.parent, null);
   assert.equal(current.tank.parent, scene);
   current.dispose();
+});
+
+test("Paimon instances have independent skeletons and walking deforms weighted vertices", async () => {
+  const b = browser();
+  await b.TankModelAssets.load(T, fetchKit);
+  const a = b.createTankModel(T, {tankType: 'human', weaponType: 'pistol'});
+  const other = b.createTankModel(T, {tankType: 'human', weaponType: 'pistol'});
+  const meshes = [];
+  a.tank.traverse(o => {if (o.isSkinnedMesh) meshes.push(o);});
+  const otherBones = [];
+  other.tank.traverse(o => {if (o.isBone) otherBones.push(o);});
+  assert.ok(meshes.length > 0);
+  assert.ok(meshes.every(m => m.skeleton.bones.every(bone => !otherBones.includes(bone))));
+  a.tank.updateMatrixWorld(true);
+  const before = meshes.map(m => Array.from({length: m.geometry.attributes.position.count},
+    (_, i) => m.getVertexPosition(i, new T.Vector3())));
+  a.animateCharacter({travel: .5, speed: 4, aim: .4, recoil: 1});
+  a.tank.updateMatrixWorld(true);
+  let moved = 0;
+  meshes.forEach((m, j) => before[j].forEach((p, i) => {
+    if (m.getVertexPosition(i, new T.Vector3()).distanceTo(p) > .01) moved++;
+  }));
+  assert.ok(moved > 500, `${moved} vertices moved`);
+  const leg = other.tank.getObjectByName('足DL');
+  assert.ok(leg.quaternion.angleTo(new T.Quaternion()) < 1e-6);
+  a.dispose();
+  other.animateCharacter({travel: 1, speed: 4});
+  assert.ok(leg.quaternion.angleTo(new T.Quaternion()) > .1);
+  other.dispose();
 });

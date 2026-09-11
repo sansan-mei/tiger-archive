@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v16）
+# 机甲与武器插件（API v1，协议 v17）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种玩家单位 × 5 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -64,7 +64,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 联机一致性
 
-协议已升级为 v16。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议已升级为 v17。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -94,8 +94,12 @@ ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射�
 
 ## PvE 感染者与小手枪
 
-当前 zombie 1.1.0 / pistol 1.0.0，均为原创程序化外观。zombie 声明 enemyOnly: true，只能由 PvE 创建为 bot 实体；PLAYER_TANKS 排除它，TANKS 保留碰撞参数。感染者复用 standard 武器的冷却字段，但 AI 只做近战，不调用开火或 Shift 技能，模型不绘制枪械。
+当前 zombie 1.2.0 / pistol 1.0.0，均为原创程序化外观。zombie 声明 enemyOnly: true，只能由 PvE 创建为 bot 实体；PLAYER_TANKS 排除它，TANKS 保留碰撞参数。感染者复用 standard 武器的冷却字段，但 AI 只做近战，不调用开火或 Shift 技能，模型不绘制枪械。
 
 pistol 为 automatic/projectile，20 伤害、24 tick 冷却；玩家可在 FFA 自由组合，PvE 固定以 human/pistol 开局。PvE 被动和换装奖励由 core/pve.js 管理，不修改全局插件配置，因此不会影响同服务器的其他 PvP/PvE 房间。
 
 僵尸通过 spec.variants 共享五种配置，外观钩子接收 zombieType；无需注册五个玩家车体。variants 参数进入插件清单，改动时应提升 zombie 插件版本。血量缩放系数来自 RULES.pveHealthPerPlayer，换装和人数不会修改冻结的插件基础数值。
+
+## v17 Boss 与流派
+
+僵尸 variants 新增 boss（1200 基础生命），仅由最终阶段生成，不加入普通波次权重。原创 Boss 外观使用红色重装、冠饰和重锤。经验及流派配置位于 core/roguelike，武器插件基础数值保持冻结；火箭范围加成按玩家局内被动生成临时参数，不修改全局插件。

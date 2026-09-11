@@ -128,7 +128,7 @@
     a,
     b,
     owner = null,
-    { bodies = true, radius = 0 } = {},
+    { bodies = true, radius = 0, ignoreIds = [] } = {},
   ) {
     // Swept beam: expand solid obstacles and bodies equally, so the wider beam cannot cut through cover.
     const sweep = (start, end, min, max, verticalRadius = radius) =>
@@ -202,7 +202,7 @@
     }
     if (bodies)
       for (const e of battle.entities) {
-        if (!e.alive || e.id === owner) continue;
+        if (!e.alive || e.id === owner || ignoreIds.includes(e.id)) continue;
         if (battle.mode === "pve" && e.tankType !== "zombie" &&
             battle.entities.some((v) => v.id === owner && v.tankType !== "zombie")) continue;
         const r = TANKS[e.tankType].radius * 0.87;
