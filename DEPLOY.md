@@ -54,6 +54,62 @@ docker-compose build tank
 docker-compose push tank
 ```
 
+`docker-compose.yaml` 已将 `tank` 的目标平台固定为 `linux/amd64`。即使在 Apple Silicon Mac 上执行上述构建命令，生成并推送的镜像也会使用常见 Linux x86_64 服务器架构，避免服务器启动时报镜像架构不兼容。
+
+## PWA 部署
+
+项目已支持 PWA（渐进式 Web 应用），用户可将游戏安装到桌面或手机主屏幕，离线时仍能打开游戏界面（多人联机功能需联网）。
+
+### 新增文件
+
+- `manifest.webmanifest` — PWA 应用清单（名称、主题色、图标、横屏）
+- `service-worker.js` — 缓存策略 + 版本管理
+- `client/icons/` — PWA 图标（192×192、512×512、maskable 512×512）
+
+### 缓存策略
+
+| 资源类型 | 策略 | 说明 |
+|----------|------|------|
+| HTML/JS/CSS | 网络优先 | 始终获取最新版本，避免协议不兼容 |
+| 模型、音频、Three.js | 缓存优先 | 大文件，版本化，离线可用 |
+| `/api/*`、`/ws` | 不缓存 | 多人联机数据，必须实时 |
+
+### 版本更新流程
+
+Service Worker 会在后台检查新版本，检测到更新时弹出提示：
+
+> "新版本已就绪，是否立即刷新？"
+
+- **战斗中**：建议推迟到战斗结束后再刷新
+- **大厅中**：可直接刷新
+
+强制刷新（清除旧缓存）：
+
+```sh
+# 服务器重启 tank 容器（可选，强制客户端获取新 SW）
+docker-compose restart tank
+```
+
+### 统一 Compose 部署
+
+PWA 文件已加入 `app-manifest.js` 资源清单，构建时自动进入 `public-dist`。部署命令不变：
+
+```sh
+docker-compose -f my-docker-compose.yml pull tank
+docker-compose -f my-docker-compose.yml up -d
+```
+
+### 验收
+
+1. Chrome/Edge 地址栏出现"安装"按钮
+2. 安装后独立窗口运行（无浏览器地址栏）
+3. 断网后仍能打开游戏首页
+4. 新版本发布后弹出更新提示
+
+详细测试清单见 `VERIFICATION.md`。
+
+
+
 服务器拉取并启动已发布镜像：
 
 ```sh
@@ -154,17 +210,20 @@ location / {
 
 ## 统一服务 Compose
 
-已在 `/Users/lan/Documents/my-chatgpt-site/docker-compose/my-docker-compose.yml` 添加 tank 服务，与该文件的 redis 共用默认网络。镜像为 `1596944197/tank:latest`，宿主机 3007 映射容器 8080，避开现有 Nginx 的 8080 端口。
+统一文件位于 `/Users/lan/Documents/my-chatgpt-site/docker-compose/my-docker-compose.yml`。tank 与已有 Redis 共用默认网络，镜像为 `1596944197/tank:latest`。
 
-镜像发布后，在统一配置文件所在目录执行：
+对外入口为 **https://mh33.top:3007**。统一配置由 Nginx 发布 HTTPS 3007，转发到内部 tank:8080；tank 不再直接映射宿主端口。PUBLIC_ORIGIN 已同步为 https://mh33.top:3007，复用 mh33.top 现有证书，不新增 DNS 或证书域名。需要放行 TCP 3007。
+
+将统一 Compose 和其 `nginx/` 目录一起上传，Nginx 配置挂载改为 `./nginx/t_nginx.conf`、`./nginx/ssl_common.conf`，证书目录仍为原有 /certbot-etc。镜像发布后，在统一文件所在目录执行：
 
 ```sh
 docker-compose -f my-docker-compose.yml pull tank
+docker-compose -f my-docker-compose.yml run --rm --no-deps nginx nginx -t
 docker-compose -f my-docker-compose.yml up -d
 ```
 
-该命令启动统一文件中的全部服务。只更新游戏时，可使用 `up -d --no-deps tank`。统一配置只引用游戏镜像，不需要服务器上有游戏源码。
+up 会应用新增的 Nginx 端口、配置挂载和 tank 环境变量。只更新游戏和网关时可用 `up -d --no-deps nginx tank`。不要仅 reload 旧 Nginx 容器，因为其端口和挂载也需要更新。
 
-默认可通过 `http://服务器IP:3007` 访问。可选环境变量均以 TANK_ 开头：TANK_IMAGE、TANK_HTTP_PORT、TANK_MAX_ROOMS、TANK_PUBLIC_ORIGIN、TANK_REDIS_URL、TANK_REDIS_PREFIX，避免与其他服务参数混用。以后配置 HTTPS 域名反代时，TANK_PUBLIC_ORIGIN 填实际游戏源地址，并配置 WebSocket Upgrade。
+Nginx 代理保留带端口的 Host，处理 WebSocket Upgrade，使用 Docker DNS 跟随 tank 容器地址变化。独立游戏项目的 docker-compose.yaml 仍可直接提供 HTTP；本节描述的是统一配置的 HTTPS 部署。
 
-此轮只校验了 Compose 配置；没有构建、推送、拉取镜像或启动服务。
+本轮未运行构建、推送、拉取或启动容器；仅通过 Compose 解析和静态代理配置检查，服务器 nginx -t、证书加载及真实 WSS 仍待部署验收。

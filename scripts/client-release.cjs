@@ -10,6 +10,8 @@ const files = Object.freeze([
     "battle.html",
     "battle.css",
     "app-manifest.js",
+    "manifest.webmanifest",
+    "service-worker.js",
     "client/bootstrap.js",
     ...manifest.scripts,
     ...manifest.assets,
@@ -47,7 +49,7 @@ function optionsFor(file) {
   };
 }
 function shouldObfuscate(file) {
-  return file.endsWith(".js") && !file.startsWith("vendor/");
+  return file.endsWith(".js") && !file.startsWith("vendor/") && file !== "service-worker.js";
 }
 function transform(source, file) {
   return require("javascript-obfuscator")

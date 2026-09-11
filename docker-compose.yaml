@@ -1,6 +1,7 @@
 services:
   tank:
     container_name: "tank"
+    platform: linux/amd64
     image: "${TANK_IMAGE:-1596944197/tank:latest}"
     build:
       context: .

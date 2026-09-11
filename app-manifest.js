@@ -46,11 +46,16 @@
     "client/units.js",
     "client/rooms.js",
     "battle.js",
+    "service-worker.js",
   ]);
   const assets = Object.freeze([
     "client/audio/tank-drive.mp3",
     "client/models/arsenal.json",
     "client/environment/maintenance-kit.json",
+    "client/icons/icon-192x192.png",
+    "client/icons/icon-512x512.png",
+    "client/icons/icon-maskable-512x512.png",
+    "manifest.webmanifest",
   ]);
   return Object.freeze({ plugins, scripts, assets });
 });

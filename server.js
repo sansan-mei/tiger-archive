@@ -22,6 +22,8 @@ function assetPath(url, { mode = "source" } = {}) {
     "/battle.html",
     "/battle.css",
     "/app-manifest.js",
+    "/manifest.webmanifest",
+    "/service-worker.js",
     "/client/bootstrap.js",
     ...[
       ...require("./app-manifest.js").scripts,
@@ -121,6 +123,8 @@ function createApp({
         ".css": "text/css; charset=utf-8",
         ".mp3": "audio/mpeg",
         ".json": "application/json; charset=utf-8",
+        ".webmanifest": "application/manifest+json; charset=utf-8",
+        ".png": "image/png",
       };
       res.writeHead(200, {
         "Content-Type": types[path.extname(file)],
