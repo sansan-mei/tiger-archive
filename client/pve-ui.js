@@ -19,7 +19,7 @@
       const options = pve?.choices[id];
       $("mission-title").textContent = pve ? "CO-OP SURVIVAL / 8" : "FREE FOR ALL / 8";
       $("mission-rule").textContent = pve
-        ? "第 " + pve.wave + " 波 · " + (pve.nextWaveAt ? Math.max(0, Math.ceil((pve.nextWaveAt - state.tick) / 60)) + " 秒后下一波" : "待入场 " + pve.queue + " 只")
+        ? pve.teamSize + " 人 / 血量×" + (1 + C.RULES.pveHealthPerPlayer * (pve.teamSize - 1)).toFixed(2) + " · 第 " + pve.wave + " 波 · " + (pve.nextWaveAt ? Math.max(0, Math.ceil((pve.nextWaveAt - state.tick) / 60)) + " 秒后下一波" : "待入场 " + pve.queue + " 只")
         : "8 分钟 · 先到 15 次击毁";
       $("score-title").textContent = pve ? "合作生存 · 撑满 8 分钟撤离" : "计分板 · 15 次击毁获胜";
       $("enemy-capacity").textContent = pve ? " / 16 僵尸" : " / 7";

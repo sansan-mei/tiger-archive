@@ -126,3 +126,63 @@ test('leaving during reward selection cannot leave stale choices in the next wav
   assert.equal(b.pve.wave,2);S.validateSnapshot(b.snapshot());
   assert.throws(()=>new C.Battle({mode:'pve',participants:[{...participants()[0],id:'zombie_0'}]}));
 });
+test('zombie health scales for 1–8 participants and rescales remaining health only on forfeiture', () => {
+  for (let n=1;n<=8;n++) {
+    const b=create(n), z=enemies(b)[0];
+    assert.equal(b.pve.teamSize,n);
+    assert.equal(z.maxHp,80*(1+0.25*(n-1)));
+    b.pve.nextWaveAt=1;b.step();
+    const spawned=enemies(b).find(e=>e.alive);
+    assert.equal(spawned.hp,spawned.maxHp);
+    assert.equal(spawned.maxHp,C.PVE.healthFor(spawned.zombieType,n));
+    S.validateSnapshot(b.snapshot());
+  }
+  const b=create(4), z=enemies(b)[0];
+  b.pve.nextWaveAt=10000;
+  Object.assign(z,{alive:true,hp:70});
+  b.damage(b.entities[1],1000,null,b.entities[1]);b.step();
+  assert.equal(b.pve.teamSize,4);assert.equal(z.maxHp,140);assert.equal(z.hp,70);
+  b.entities[1].forfeited=true;b.step();
+  assert.equal(b.pve.teamSize,3);assert.equal(z.maxHp,120);assert.equal(z.hp,60);
+  const dead=enemies(b)[1];assert.equal(dead.hp,0);assert.equal(dead.alive,false);
+  S.validateSnapshot(b.snapshot());
+});
+test('wave composition progressively unlocks all five enemies with distinct movement and attacks', () => {
+  const seen=new Set();
+  for (let wave=1;wave<=6;wave++) {
+    for(let ordinal=0;ordinal<20;ordinal++) {
+      const type=C.PVE.typeFor(wave,ordinal);seen.add(type);
+      assert.ok(C.ZOMBIE_SPECS[type].wave<=wave);
+      if(wave===1) assert.equal(type,'walker');
+    }
+  }
+  assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).sort());
+  for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS)) {
+    const b=create(), p=b.entities[0], z=enemies(b)[0];
+    b.pve.wave=6;b.pve.nextWaveAt=10000;
+    Object.assign(p,{x:0,z:55});
+    Object.assign(z,{zombieType:type,maxHp:spec.hp,hp:spec.hp,alive:true,x:8,z:55,y:0,floor:0,heading:0});
+    for(let i=0;i<30;i++) b.step();
+    assert.ok(Math.abs(z.speed-spec.speed)<0.001,type);
+    Object.assign(z,{x:1.9,z:55,speed:0,cooldown:0});
+    b.step();assert.equal(p.hp,80-(spec.meleeDamage+12));
+    assert.equal(z.cooldown,spec.meleeCooldown-1);
+    S.validateSnapshot(b.snapshot());
+  }
+});
+test('scaled variants survive replica and checkpoint replay; forged health/type/team size are rejected', () => {
+  const a=new S.Authority({mode:'pve',participants:participants(8)}), b=a.battle;
+  const r=new S.Replica();r.welcome(a.attach('peer','p0'));b.start();
+  b.pve.wave=6;b.pve.nextWaveAt=1;
+  for(let i=0;i<500;i++) a.step();
+  assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===1100));
+  const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
+  assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
+  assert.equal(r.receive(packet).ok,true);
+  const copy=create(8);copy.restore(b.snapshot());
+  for(let i=0;i<120;i++){b.step();copy.step();}
+  assert.deepEqual(copy.snapshot(),b.snapshot());
+  for(const mutate of [s=>s.pve.teamSize=9,s=>enemies(s)[0].zombieType='fake',s=>enemies(s)[0].maxHp++,s=>enemies(s)[0].hp=9999]) {
+    const invalid=b.snapshot();mutate(invalid);assert.throws(()=>S.validateSnapshot(invalid));
+  }
+});

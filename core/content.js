@@ -27,7 +27,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 15,
+    const VERSION = 16,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -42,6 +42,7 @@
       boost: 360,
       pickupCooldown: 1200,
       repair: 40,
+      pveHealthPerPlayer: 0.25,
     });
     const PLUGIN_MANIFEST = JSON.stringify({
       plugins: Plugins.seal(),
@@ -53,6 +54,11 @@
         Object.entries(Plugins.tanks).map(([id, p]) => [id, p.spec]),
       ),
     );
+    const ZOMBIE_SPECS = Object.freeze(Object.fromEntries(
+      Object.entries(TANKS.zombie.variants).map(([id, variant]) => [id, Object.freeze({ ...TANKS.zombie, ...variant })]),
+    ));
+    const unitSpec = (body) => body.tankType === "zombie"
+      ? ZOMBIE_SPECS[body.zombieType || "walker"] : TANKS[body.tankType];
     const PLAYER_TANKS = Object.freeze(Object.fromEntries(Object.entries(TANKS).filter(([, spec]) => !spec.enemyOnly)));
     const WEAPONS = Object.freeze(
       Object.fromEntries(
@@ -132,6 +138,8 @@
       MAX_PLAYERS,
       TANKS,
       PLAYER_TANKS,
+      ZOMBIE_SPECS,
+      unitSpec,
       WEAPONS,
       MAP,
       normalizeInput,

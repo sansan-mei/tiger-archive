@@ -70,15 +70,16 @@
         !Object.hasOwn(C.WEAPONS, e.weaponType)
       )
         throw new Error("Invalid entity identity");
-      const tank = C.TANKS[e.tankType],
+      const tank = C.unitSpec(e),
+        maxHp = e.tankType === "zombie" ? C.PVE.healthFor(e.zombieType, s.pve.teamSize) : tank.hp,
         weapon = C.WEAPONS[e.weaponType];
       if (
         !number(e.x, -80, 80) ||
         !number(e.z, -80, 80) ||
         !number(e.y, 0, 20) ||
         !integer(e.floor, 0, 2) ||
-        !number(e.hp, 0, tank.hp) ||
-        e.maxHp !== tank.hp ||
+        !number(e.hp, 0, maxHp) ||
+        e.maxHp !== maxHp ||
         typeof e.alive !== "boolean" ||
         e.alive !== e.hp > 0 ||
         !number(

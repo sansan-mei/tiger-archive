@@ -9,6 +9,7 @@
     "id",
     "controller",
     "tankType",
+    "zombieType",
     "weaponType",
     "x",
     "y",

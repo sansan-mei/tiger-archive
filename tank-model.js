@@ -1,7 +1,7 @@
 /* Lightweight vehicle visuals. Gameplay dimensions come from the shared catalogue. */
 window.createTankModel = function (
   T,
-  { tankType, weaponType, color = 0x61c6b1 },
+  { tankType, weaponType, zombieType = "walker", color = 0x61c6b1 },
 ) {
   const spec = window.TankBattle.TANKS[tankType],
     weapon = window.TankBattle.WEAPONS[weaponType];
@@ -54,6 +54,7 @@ window.createTankModel = function (
   const ctx = {
     T,
     tankType,
+    zombieType,
     weaponLength:
       weapon.muzzle - (spec.movement === "strafe" ? 0.35 / 0.55 : 1.54),
     accent,

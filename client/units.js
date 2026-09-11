@@ -21,7 +21,7 @@
       0x62cbb1, 0xf18473, 0x70b7e6, 0xf1c566, 0xb49be0, 0x79c6cf, 0xf1a66d,
       0x92afd9,
     ];
-  function createViews(onlyId = null) {
+  function createViews(onlyId = null, entities = getEntities()) {
     for (const [id, view] of views) {
       if (onlyId && id !== onlyId) continue;
       scene.remove(view.tank);
@@ -32,14 +32,16 @@
       view.dispose();
       views.delete(id);
     }
-    getEntities().forEach((body, i) => {
+    entities.forEach((body, i) => {
       if (onlyId && body.id !== onlyId) return;
       const view = window.createTankModel(T, {
         tankType: body.tankType,
         weaponType: body.weaponType,
+        zombieType: body.zombieType,
         color: palette[i % palette.length],
       });
       view.weaponType = body.weaponType;
+      view.zombieType = body.zombieType;
       view.basePaintColor = view.paint.color.clone();
       view.shield.userData.aimIgnore = true;
       view.frontShield.userData.aimIgnore = true;
@@ -51,7 +53,7 @@
         const label = document.createElement("div");
         label.className = "enemy-tag";
         const text = document.createElement("span");
-        text.textContent = body.id + " / " + C.TANKS[body.tankType].name;
+        text.textContent = body.id + " / " + C.unitSpec(body).name;
         const bar = document.createElement("div"),
           fill = document.createElement("i");
         bar.appendChild(fill);
@@ -86,7 +88,7 @@
     targetedId = null,
   }) {
     for (const e of state.entities)
-      if (views.get(e.id)?.weaponType !== e.weaponType) createViews(e.id);
+      if (views.get(e.id)?.weaponType !== e.weaponType || views.get(e.id)?.zombieType !== e.zombieType) createViews(e.id, state.entities);
     for (const e of state.entities) {
       const view = views.get(e.id);
       const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();

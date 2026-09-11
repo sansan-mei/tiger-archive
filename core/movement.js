@@ -15,7 +15,7 @@
       body.abilityHeld = false;
       body.needsRelease = true;
     }
-    const spec = TANKS[body.tankType],
+    const spec = C.unitSpec(body),
       weapon = WEAPONS[body.weaponType],
       ability = ABILITIES[spec.ability];
     if (body.falling) battle.tickFall(body);

@@ -143,8 +143,8 @@
     const input = { aimYaw, aimPitch: clamp(aimPitch, -0.55, 0.55) };
     if (zombie && range < 2.1 && Math.abs(target.y - body.y) < 1.5 && los) {
       if (!body.cooldown) {
-        battle.damage(target, Math.min(24, 8 + battle.pve.wave * 2), body.id, { x: target.x, y: target.y + 1, z: target.z });
-        body.cooldown = 60;
+        battle.damage(target, C.unitSpec(body).meleeDamage + Math.min(16, battle.pve.wave * 2), body.id, { x: target.x, y: target.y + 1, z: target.z });
+        body.cooldown = C.unitSpec(body).meleeCooldown;
       }
       return { ...input, brake: true };
     }
