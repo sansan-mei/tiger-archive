@@ -29,8 +29,8 @@
     }
     if (
       body.floor > 0 &&
-      Math.abs(z) > battle.map.levels[body.floor].bound &&
-      C.dropExit(battle.map, body.floor, x, z, radius)
+      (Math.abs(x) > battle.map.levels[body.floor].bound ||
+        Math.abs(z) > battle.map.levels[body.floor].bound)
     )
       return { ...flat(body.floor), falling: true };
     for (const r of battle.map.ramps) {
@@ -77,10 +77,12 @@
     if (!level) return false;
     const radius = (body ? TANKS[body.tankType].radius : 3.1) + margin,
       y = surface?.y ?? level.y;
-    const exit = allowDrop && C.dropExit(battle.map, floor, x, z, radius);
+    // Driving may overhang an upper deck until its center loses support.
+    // Navigation still keeps a full footprint away from the edge.
+    const bound = (allowDrop && floor > 0 ? battle.map.levels[0] : level).bound;
     if (
-      Math.abs(x) > level.bound - radius ||
-      Math.abs(z) > (exit ? battle.map.levels[0].bound : level.bound) - radius
+      Math.abs(x) > bound - radius ||
+      Math.abs(z) > bound - radius
     )
       return false;
     // Navigation and actual movement share the same clearance check.

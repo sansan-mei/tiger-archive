@@ -214,7 +214,7 @@ location / {
 
 对外入口为 **https://mh33.top:3007**。统一配置由 Nginx 发布 HTTPS 3007，转发到内部 tank:8080；tank 不再直接映射宿主端口。PUBLIC_ORIGIN 已同步为 https://mh33.top:3007，复用 mh33.top 现有证书，不新增 DNS 或证书域名。需要放行 TCP 3007。
 
-将统一 Compose 和其 `nginx/` 目录一起上传，Nginx 配置挂载改为 `./nginx/t_nginx.conf`、`./nginx/ssl_common.conf`，证书目录仍为原有 /certbot-etc。镜像发布后，在统一文件所在目录执行：
+上传统一 Compose，并将本地 `nginx/t_nginx.conf` 新增的 tank server 块及 http 级 map 合并到服务器 `/mnginx.conf`，保留服务器其他配置。volumes 沿用服务器 `/mnginx.conf`、`/ssl_common.conf` 和证书目录 `/certbot-etc`。游戏 HTTPS 入口启用 HTTP/2；Nginx 到 tank 使用 HTTP/1.1，以支持 WebSocket Upgrade。镜像发布后，在统一文件所在目录执行：
 
 ```sh
 docker-compose -f my-docker-compose.yml pull tank
@@ -222,7 +222,7 @@ docker-compose -f my-docker-compose.yml run --rm --no-deps nginx nginx -t
 docker-compose -f my-docker-compose.yml up -d
 ```
 
-up 会应用新增的 Nginx 端口、配置挂载和 tank 环境变量。只更新游戏和网关时可用 `up -d --no-deps nginx tank`。不要仅 reload 旧 Nginx 容器，因为其端口和挂载也需要更新。
+up 会应用新增的 Nginx 端口和 tank 环境变量。只更新游戏和网关时可用 `up -d --no-deps nginx tank`。不要仅 reload 旧 Nginx 容器，因为其端口映射也需要更新；volumes 保持原样。
 
 Nginx 代理保留带端口的 Host，处理 WebSocket Upgrade，使用 Docker DNS 跟随 tank 容器地址变化。独立游戏项目的 docker-compose.yaml 仍可直接提供 HTTP；本节描述的是统一配置的 HTTPS 部署。
 

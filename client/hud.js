@@ -9,7 +9,7 @@
     mc.translate(130, 130);
     mc.scale(1.8, 1.8);
     const b = C.MAP.levels[floor].bound;
-    mc.strokeStyle = "#718974";
+    mc.strokeStyle = floor > 0 ? "#e79e35" : "#718974";
     mc.lineWidth = 1;
     mc.strokeRect(-b, -b, b * 2, b * 2);
     mc.fillStyle = "#a88e73";
@@ -165,7 +165,7 @@
       : p.rampId
         ? "斜坡行驶 · 可停车 / 倒车 / 交战"
         : p.floor > 0
-          ? "橙色标线为下落口 · 可直接驶出到底楼"
+          ? "平台四周可直接驶出下落 · 注意边缘"
           : "直接驾驶上坡 · 无需按键";
     drawMap(state, target);
   }

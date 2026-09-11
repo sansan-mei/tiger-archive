@@ -63,12 +63,11 @@ test("all units descend from both marked exits on both upper decks without fall 
         assert.ok(Math.abs(p.z) <= 64 - C.TANKS[type].radius);
       }
 });
-test("closed deck edges and ramp rails still block departure; navigation does not choose drop exits", () => {
+test("all outer deck edges allow departure; navigation and ramp rails remain conservative", () => {
   const { b, p } = setup();
-  p.x = -10;
-  for (let i = 0; i < 240; i++) b.step({ p1: { forward: true } });
-  assert.equal(p.falling, false);
-  assert.ok(p.z <= 46 - C.TANKS.medium.radius);
+  p.x = -16;
+  enter(b, p);
+  assert.ok(p.z > 46);
   assert.equal(b.valid(30, 46, 2, p, { ignoreEntities: true }), false);
   const r = C.MAP.ramps[0];
   Object.assign(p, {
@@ -185,4 +184,44 @@ test("midair destruction does not freeze the corpse and respawn clears all fall 
   assert.equal(p.alive, true);
   assert.equal(p.falling, false);
   assert.deepEqual([p.fallVelocity, p.fallVX, p.fallVZ], [0, 0, 0]);
+});
+
+test("every unit can drive off all four unmarked edges and corners on either upper floor", () => {
+  for (const type of Object.keys(C.TANKS))
+    for (const floor of [1, 2])
+      for (const [x, z, heading] of [
+        [44, 38, Math.PI], [-44, 38, 0],
+        [-16, 44, Math.PI / 2], [-16, -44, -Math.PI / 2],
+        [44, 44, Math.PI * 3 / 4], [-44, -44, -Math.PI / 4],
+      ]) {
+        const { b, p } = setup(type, floor);
+        b.map.dropExits = [];
+        Object.assign(p, { x, z, heading, aim: heading });
+        enter(b, p);
+        assert.ok(Math.abs(p.x) > 46 || Math.abs(p.z) > 46);
+        for (let i = 0; i < 180 && p.falling; i++) {
+          b.step();
+          S.validateSnapshot(b.snapshot());
+        }
+        assert.equal(p.falling, false);
+        assert.equal(p.floor, 0);
+        assert.equal(p.y, 0);
+      }
+});
+test("edge overhang stays supported until the center leaves; ground boundary and cover still block", () => {
+  const { b, p } = setup();
+  Object.assign(p, { x: 45.9, z: 38 });
+  b.step({ p1: { brake: true } });
+  assert.equal(p.falling, false);
+  assert.equal(p.y, 16);
+  assert.equal(b.surface(p, 46.01, 38).falling, true);
+  assert.equal(b.valid(64, 38, 0, p, { allowDrop: true }), false);
+  assert.equal(b.valid(0, 0, 2, p, { allowDrop: true }), false);
+});
+test("landing near an intermediate deck edge does not snap the unit inward", () => {
+  const { b, p } = setup();
+  Object.assign(p, { x: 45.5, z: 38, y: 9, falling: true,
+    fallVelocity: -2, fallVX: 0, fallVZ: 0 });
+  for (let i = 0; i < 90 && p.falling; i++) b.step();
+  assert.deepEqual([p.x, p.z, p.y, p.floor, p.falling], [45.5, 38, 8, 1, false]);
 });

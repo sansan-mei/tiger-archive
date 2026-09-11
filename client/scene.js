@@ -75,6 +75,12 @@
     block(11, 0.02, b * 2 - 2, 0, level.y + 0.015, 0, road, group);
     for (let n = -b + 3; n < b; n += 8)
       for (const side of [-1, 1]) {
+        if (level.id) {
+          // Paint the exposed edge instead of drawing an impassable-looking rail.
+          block(0.5, 0.025, 5, side * (b - 0.4), level.y + 0.02, n, stripe, group);
+          block(5, 0.025, 0.5, n, level.y + 0.02, side * (b - 0.4), stripe, group);
+          continue;
+        }
         block(1, 0.9, 5, side * (b + 0.2), level.y + 0.45, n, dark, group);
         const exit = (C.MAP.dropExits || []).find(
           (e) =>

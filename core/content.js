@@ -32,6 +32,7 @@
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
     const RULES = Object.freeze({
+      edgeFall: "all-outer-edges-v1",
       gravity: 20,
       terminalFallSpeed: 30,
       duration: 18000,

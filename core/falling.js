@@ -1,4 +1,4 @@
-/* Server-authoritative descent from designated open deck edges. */
+/* Server-authoritative descent from unsupported upper deck edges. */
 (function (root, factory) {
   const node = typeof module === "object" && module.exports;
   const api = factory(node ? require("./content.js") : root.TankContent);
@@ -29,13 +29,18 @@
       )
       .sort((a, b) => b.y - a.y)[0];
     if (landing) {
-      // Reserved exits lead to clear ground. Resolve an occupied landing deterministically.
+      // Resolve an occupied landing deterministically, staying on actual deck support.
       let spot = null;
       for (let ring = 0; ring <= 4 && !spot; ring++)
         for (let i = 0; i < (ring ? 16 : 1); i++) {
           const px = x + Math.cos((i * Math.PI) / 8) * ring * (radius + 1);
           const pz = z + Math.sin((i * Math.PI) / 8) * ring * (radius + 1);
-          if (battle.valid(px, pz, landing.id, body)) {
+          if (
+            C.deckRects(battle.map, landing).some(
+              (q) => px >= q.x0 && px <= q.x1 && pz >= q.z0 && pz <= q.z1,
+            ) &&
+            battle.valid(px, pz, landing.id, body, { allowDrop: true })
+          ) {
             spot = { x: px, z: pz };
             break;
           }
