@@ -15,7 +15,7 @@
     nova: { name: "电磁脉冲", description: "每 4 秒对 5 米内可见僵尸造成 20 伤害，最多叠加 3 次" },
     rapid: { name: "快速炮", description: "替换当前武器，适合持续压制尸群" },
     rocket: { name: "火箭筒", description: "替换当前武器，爆炸可伤害多只僵尸；合作模式无友伤" },
-    laser: { name: "激光炮", description: "替换当前武器，固定 100 伤害，预热 1.5 秒" },
+    laser: { name: "激光炮", description: "替换当前武器，固定 100 伤害，预热 1.5 秒并穿透直线上的敌人" },
   });
   const survivors = (b) => b.entities.filter((e) => e.tankType !== "zombie");
   const zombies = (b) => b.entities.filter((e) => e.tankType === "zombie");

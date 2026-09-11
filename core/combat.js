@@ -221,28 +221,44 @@
       dz: dir.z,
     });
     const beamRadius = spec.delivery === "ray" ? spec.beamRadius || 0 : 0;
-    const near = battle.collision(start, muzzle, body.id, {
-      radius: beamRadius,
-    });
     if (spec.delivery === "ray") {
       const end = {
           x: start.x + dir.x * spec.range,
           y: start.y + dir.y * spec.range,
           z: start.z + dir.z * spec.range,
         },
-        hit =
-          near ||
-          battle.collision(muzzle, end, body.id, { radius: beamRadius });
+        hits = [],
+        ignoreIds = [];
+      let hit = battle.collision(start, end, body.id, {
+          radius: beamRadius,
+          ignoreIds,
+        }),
+        blocker = null;
+      while (hit) {
+        hits.push(hit);
+        if (!spec.penetratesBodies || hit.kind !== "tank") {
+          blocker = hit;
+          break;
+        }
+        ignoreIds.push(hit.id);
+        hit = battle.collision(start, end, body.id, {
+          radius: beamRadius,
+          ignoreIds,
+        });
+      }
       battle.emit("beam", {
         id: body.id,
         radius: beamRadius,
         from: muzzle,
-        to: hit ? hit.point : end,
+        to: blocker ? blocker.point : end,
         power,
       });
-      if (hit) battle.resolveHit(hit, shot);
-    } else if (near) battle.resolveHit(near, shot);
-    else battle.bullets.push(shot);
+      for (const rayHit of hits) battle.resolveHit(rayHit, shot);
+    } else {
+      const near = battle.collision(start, muzzle, body.id);
+      if (near) battle.resolveHit(near, shot);
+      else battle.bullets.push(shot);
+    }
     return true;
   }
   return { damage, resolveHit, shoot };

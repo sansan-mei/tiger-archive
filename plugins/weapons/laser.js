@@ -6,10 +6,10 @@
   registry.register({
     kind: "weapon",
     id: "laser",
-    version: "2.4.0",
+    version: "2.5.0",
     apiVersion: 1,
     spec: {
-      name: "延时激光炮",
+      name: "延时穿透激光炮",
       damage: 100,
       cooldown: 102,
       speed: 0,
@@ -19,6 +19,7 @@
       muzzle: 4.8,
       trigger: "delayed",
       delivery: "ray",
+      penetratesBodies: true,
       range: 140,
       beamRadius: 0.45,
       minPower: 1,

@@ -62,6 +62,45 @@ test("wider laser is stopped by walls and the ramp shell", () => {
     "ramp",
   );
 });
+test("laser penetrates every aligned tank before stopping at solid cover", () => {
+  const map = C.clone(C.MAP);
+  map.ramps = [];
+  map.obstacles = [{ id: "wall", floor: 0, x: 0, z: 0, w: 1, d: 6, h: 4 }];
+  const b = new C.Battle({
+    map,
+    participants: [
+      { id: "p1", controller: "human", tankType: "medium", weaponType: "laser", spawn: 0 },
+      { id: "p2", controller: "human", tankType: "human", weaponType: "standard", spawn: 1 },
+      { id: "p3", controller: "human", tankType: "human", weaponType: "standard", spawn: 2 },
+      { id: "p4", controller: "human", tankType: "human", weaponType: "standard", spawn: 3 },
+    ],
+  });
+  Object.assign(b.entities[0], { x: 30, z: 0, aim: 0, pitch: 0 });
+  Object.assign(b.entities[1], { x: 15, z: 0 });
+  Object.assign(b.entities[2], { x: 5, z: 0 });
+  Object.assign(b.entities[3], { x: -15, z: 0 });
+  b.start();
+
+  b.shoot(b.entities[0]);
+
+  assert.deepEqual(
+    b.entities.slice(1).map(({ hp, alive }) => ({ hp, alive })),
+    [
+      { hp: 0, alive: false },
+      { hp: 0, alive: false },
+      { hp: 80, alive: true },
+    ],
+  );
+  assert.deepEqual(
+    b.events.filter((e) => e.type === "impact").map(({ kind, targetId }) => ({ kind, targetId })),
+    [
+      { kind: "tank", targetId: "p2" },
+      { kind: "tank", targetId: "p3" },
+      { kind: "cover", targetId: null },
+    ],
+  );
+  assert.ok(b.events.find((e) => e.type === "beam").to.x > 0);
+});
 test("target highlighting restores paint and ignores invisible shields, walls and dead targets", () => {
   const T = require("three");
   class Element {
