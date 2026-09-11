@@ -23,7 +23,7 @@ function context() {
 }
 test("all cartoon loadouts retain pivots, fit the neutral muzzle reach and stay within the mesh budget", () => {
   const browser = context();
-  for (const tankType of Object.keys(C.TANKS))
+  for (const tankType of Object.keys(C.PLAYER_TANKS))
     for (const weaponType of Object.keys(C.WEAPONS)) {
       const view = browser.createTankModel(T, { tankType, weaponType });
       view.tank.updateMatrixWorld(true);
@@ -79,7 +79,7 @@ test("procedural weapons have distinct silhouettes without external geometry", (
     assert.ok(view.gun.children.some((mesh) => mesh.material === view.glow));
     view.dispose();
   }
-  assert.equal(signatures.size, 4);
+  assert.equal(signatures.size, Object.keys(C.WEAPONS).length);
 });
 test("removed model assets are not published and weapon code is obfuscated", () => {
   const release = require("../scripts/client-release.cjs"),

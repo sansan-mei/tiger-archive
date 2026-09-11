@@ -35,7 +35,7 @@
         mc.fillRect(p.x - 1.5, p.z - 1.5, 3, 3);
       }
     for (const e of state.entities) {
-      if (e.floor !== floor) continue;
+      if (e.floor !== floor || (e.tankType === "zombie" && !e.alive)) continue;
       mc.save();
       mc.translate(e.x, e.z);
       mc.rotate(Math.PI - e.heading);
@@ -45,7 +45,7 @@
           ? "#484d41"
           : e.id === getPlayerId()
             ? "#d7e8ae"
-            : "#f68d69";
+            : state.mode === "pve" && e.tankType !== "zombie" ? "#4faed0" : "#f68d69";
       mc.beginPath();
       mc.moveTo(4, 0);
       mc.lineTo(-3, -2.6);
@@ -84,7 +84,7 @@
     $("vehicle-label").textContent = tank.name + " / " + p.id;
     $("speed").textContent = Math.round(Math.abs(p.speed) * 3.6);
     $("enemy-count").textContent = truth.entities.filter(
-      (e) => e.id !== getPlayerId() && e.alive,
+      (e) => e.id !== getPlayerId() && e.alive && (truth.mode !== "pve" || e.tankType === "zombie"),
     ).length;
     $("weapon-label").textContent = weapon.name;
     $("reload-label").textContent = p.cooldown
@@ -137,6 +137,7 @@
       String(remaining % 60).padStart(2, "0");
     $("scoreboard").replaceChildren(
       ...truth.entities
+        .filter((e) => e.tankType !== "zombie")
         .slice()
         .sort(
           (a, b) =>

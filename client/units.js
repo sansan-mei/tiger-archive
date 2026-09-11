@@ -11,6 +11,7 @@
   effects,
   sound,
   getEntities,
+  getMode = () => "pvp",
   getPlayerId,
 }) {
   const projected = new T.Vector3();
@@ -20,22 +21,25 @@
       0x62cbb1, 0xf18473, 0x70b7e6, 0xf1c566, 0xb49be0, 0x79c6cf, 0xf1a66d,
       0x92afd9,
     ];
-  function createViews() {
-    for (const view of views.values()) {
+  function createViews(onlyId = null) {
+    for (const [id, view] of views) {
+      if (onlyId && id !== onlyId) continue;
       scene.remove(view.tank);
       view.label?.remove();
       view.warning?.geometry.dispose();
       view.warning?.material.dispose();
       scene.remove(view.warning);
       view.dispose();
+      views.delete(id);
     }
-    views.clear();
     getEntities().forEach((body, i) => {
+      if (onlyId && body.id !== onlyId) return;
       const view = window.createTankModel(T, {
         tankType: body.tankType,
         weaponType: body.weaponType,
-        color: palette[i],
+        color: palette[i % palette.length],
       });
+      view.weaponType = body.weaponType;
       view.basePaintColor = view.paint.color.clone();
       view.shield.userData.aimIgnore = true;
       view.frontShield.userData.aimIgnore = true;
@@ -81,6 +85,8 @@
     time,
     targetedId = null,
   }) {
+    for (const e of state.entities)
+      if (views.get(e.id)?.weaponType !== e.weaponType) createViews(e.id);
     for (const e of state.entities) {
       const view = views.get(e.id);
       const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();
@@ -109,7 +115,7 @@
           ),
         );
       view.tank.visible =
-        e.falling || e.floor <= cameraFloor || Boolean(e.rampId); // Cosmetic suspension only; authority coordinates and turret aim stay untouched.
+        (e.tankType !== "zombie" || e.alive) && (e.falling || e.floor <= cameraFloor || Boolean(e.rampId)); // Cosmetic suspension only; authority coordinates and turret aim stay untouched.
       if (view.lastSpeed === undefined) {
         view.lastSpeed = e.speed;
         view.lastHeading = e.heading;
@@ -155,7 +161,7 @@
       if (
         moving &&
         !reduced &&
-        Math.abs(e.speed) > 2 &&
+          e.tankType !== "zombie" && Math.abs(e.speed) > 2 &&
         view.dustTime > 0.14 &&
         effects.length < 140
       ) {
@@ -341,7 +347,7 @@
         ([id, v]) =>
           id !== getPlayerId() &&
           v.tank.visible &&
-          entities.some((e) => e.id === id && e.alive),
+          entities.some((e) => e.id === id && e.alive && (getMode() !== "pve" || e.tankType === "zombie")),
       )
       .map(([, v]) => v.tank);
     return ray.intersectObjects([...roots, ...floors], true).find((hit) => {

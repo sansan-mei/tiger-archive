@@ -100,9 +100,9 @@ test("all sixteen combinations assemble and dispose geometry via plugin visual h
       const view = ctx.createTankModel(T, { tankType, weaponType });
       assert.equal(
         view.wheels.length,
-        tankType === "human" ? 0 : tankType === "light" ? 6 : 10,
+        C.TANKS[tankType].movement === "strafe" ? 0 : tankType === "light" ? 6 : 10,
       );
-      assert.ok(view.gun.children.length > 1);
+      assert.ok(tankType === "zombie" ? view.gun.children.every((mesh) => mesh === view.criticalGlow) : view.gun.children.length > 1);
       const resources = new Set();
       view.tank.traverse((o) => {
         if (o.geometry) resources.add(o.geometry);

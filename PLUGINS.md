@@ -1,6 +1,6 @@
-# 机甲与武器插件（API v1，协议 v14）
+# 机甲与武器插件（API v1，协议 v15）
 
-当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种单位 × 4 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
+当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种玩家单位 × 5 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
 ## 结构
 
@@ -11,7 +11,7 @@
 - app-manifest.js：唯一的可信插件和浏览器脚本清单；plugins/catalog.js、client/bootstrap.js 和 HTTP 静态白名单均读取它。
 - tank-model.js：组装车体、公共炮塔与武器，统一管理轮子、后坐力、保护轮廓与资源释放。
 
-车库从注册目录生成选项，武器音效也读取插件属性。战斗核心不按某个武器 ID 分支。
+车库从 PLAYER_TANKS 与武器目录生成选项，武器音效也读取插件属性。战斗核心不按某个武器 ID 分支。
 
 ## 插件契约
 
@@ -60,11 +60,11 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 })(typeof window === 'undefined' ? globalThis : window);
 ```
 
-该示例复用快速炮外观，也可以覆盖 buildVisual(ctx) 自建模型。然后在 app-manifest.js 的 plugins 数组添加路径；Node、浏览器和静态白名单自动同步。车库会自动出现新选项。现有默认玩家与 AI 预设仍使用八个内置插件；删除或重命名它们时需同步调整默认配置。
+该示例复用快速炮外观，也可以覆盖 buildVisual(ctx) 自建模型。然后在 app-manifest.js 的 plugins 数组添加路径；Node、浏览器和静态白名单自动同步。车库会自动出现新选项；enemyOnly 车体不会显示。现有默认玩家与 AI 预设仍使用八个内置插件；删除或重命名它们时需同步调整默认配置。
 
 ## 联机一致性
 
-协议已升级为 v14。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议已升级为 v15。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -76,7 +76,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.3.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v14 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件为 2.3.1，设置 beamRadius: 0.45。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。协议 v15 对半径进行校验，车体 light/medium/heavy 2.1.1、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.3.1、rocket 1.0.2。
 
 ## 卡通几何上下文
 
@@ -91,3 +91,9 @@ ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射�
 实体 criticalProgress 从零累加至 criticalHits；有效普通弹直接命中后累加，发射强化弹清零，强化命中不累加。弹丸持有 critical 和 ownerLife（发射时射手 deaths），防止前一条命的弹丸给新生命累积。表现层从快照读取进度，不能调用权威计数。
 
 部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。
+
+## PvE 感染者与小手枪
+
+新增 zombie / pistol 1.0.0，均为原创程序化外观。zombie 声明 enemyOnly: true，只能由 PvE 创建为 bot 实体；PLAYER_TANKS 排除它，TANKS 保留碰撞参数。感染者复用 standard 武器的冷却字段，但 AI 只做近战，不调用开火或 Shift 技能，模型不绘制枪械。
+
+pistol 为 automatic/projectile，20 伤害、24 tick 冷却；玩家可在 FFA 自由组合，PvE 固定以 human/pistol 开局。PvE 被动和换装奖励由 core/pve.js 管理，不修改全局插件配置，因此不会影响同服务器的其他 PvP/PvE 房间。

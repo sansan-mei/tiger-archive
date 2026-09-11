@@ -77,6 +77,7 @@ class RoomServer {
     return [...this.rooms.values()]
       .map((room) => ({
         code: room.code,
+        mode: room.mode || "pvp",
         hostName:
           room.seats.find((seat) => seat.id === room.host)?.name || "等待房主",
         players: room.seats.length,
@@ -93,7 +94,7 @@ class RoomServer {
   loadout(raw) {
     if (
       !raw ||
-      !Object.hasOwn(C.TANKS, raw.tankType) ||
+      !Object.hasOwn(C.PLAYER_TANKS, raw.tankType) ||
       !Object.hasOwn(C.WEAPONS, raw.weaponType)
     )
       throw new Error("车体或武器无效");
@@ -174,6 +175,8 @@ class RoomServer {
           return;
         }
         const loadout = this.loadout(m.loadout);
+        if (m.type === "create" && m.mode !== undefined && !["pvp", "pve"].includes(m.mode))
+          throw new Error("无效的游戏模式");
         if (
           typeof m.name !== "string" ||
           !m.name.trim() ||
@@ -191,6 +194,7 @@ class RoomServer {
           } while (this.rooms.has(code));
           room = {
             code,
+            mode: m.mode || "pvp",
             phase: "lobby",
             seats: [],
             host: null,
@@ -210,7 +214,7 @@ class RoomServer {
         const seat = {
           id: "p" + randomBytes(6).toString("hex"),
           name: m.name.trim(),
-          loadout,
+          loadout: room.mode === "pve" ? { tankType: "human", weaponType: "pistol" } : loadout,
           ready: false,
           clientId: id,
           token: randomBytes(24).toString("hex"),
@@ -230,7 +234,15 @@ class RoomServer {
         this.send(client, { type: "left" });
         return;
       }
+      if (m.type === "upgrade") {
+        if (room.phase !== "playing" || room.mode !== "pve" || m.epoch !== room.epoch ||
+            !room.authority.battle.chooseUpgrade(seat.id, m.wave, m.choice))
+          throw new Error("升级选项已过期或无效");
+        this.broadcastState(room);
+        return;
+      }
       if (m.type === "loadout") {
+        if (room.mode === "pve") throw new Error("合作生存固定人类＋小手枪开局");
         if (room.phase !== "lobby") throw new Error("仅能在准备大厅修改配置");
         seat.loadout = this.loadout(m.loadout);
         seat.ready = false;
@@ -242,11 +254,12 @@ class RoomServer {
         if (room.host !== seat.id) throw new Error("只有房主可以开局");
         if (
           room.phase !== "lobby" ||
-          room.seats.length < 2 ||
+          room.seats.length < (room.mode === "pve" ? 1 : 2) ||
           room.seats.some((s) => !s.clientId || !s.ready)
         )
-          throw new Error("至少 2 人，且所有玩家在线并准备后才能开局");
+          throw new Error("人数不足，或仍有玩家未在线准备");
         room.authority = new Authority({
+          mode: room.mode || "pvp",
           matchId: room.code,
           epoch: ++room.epoch,
           participants: room.seats.map((s, i) => ({
@@ -305,6 +318,7 @@ class RoomServer {
     const message = {
       type: "room",
       code: room.code,
+      mode: room.mode || "pvp",
       phase: room.phase,
       host: room.host,
       players: room.seats.map((s) => ({
@@ -378,6 +392,7 @@ class RoomServer {
       savedAt: this.now(),
       rooms: [...this.rooms.values()].map((room) => ({
         code: room.code,
+        mode: room.mode || "pvp",
         phase: room.phase,
         host: room.host,
         epoch: room.epoch,
@@ -412,6 +427,7 @@ class RoomServer {
     for (const saved of data.rooms) {
       if (
         !codePattern.test(saved.code) ||
+        !["pvp", "pve"].includes(saved.mode || "pvp") ||
         recovered.has(saved.code) ||
         !["lobby", "playing", "finished"].includes(saved.phase) ||
         !Array.isArray(saved.seats) ||
@@ -432,7 +448,8 @@ class RoomServer {
       };
       if (saved.snapshot) {
         validateSnapshot(saved.snapshot);
-        const participants = saved.snapshot.entities.map((e, i) => ({
+        if ((saved.snapshot.mode || "pvp") !== (saved.mode || "pvp")) throw new Error("Saved mode mismatch");
+        const participants = saved.snapshot.entities.filter((e) => e.tankType !== "zombie").map((e, i) => ({
           id: e.id,
           controller: "human",
           tankType: e.tankType,
@@ -441,6 +458,7 @@ class RoomServer {
         }));
         room.authority = new Authority({
           participants,
+          mode: saved.mode || "pvp",
           matchId: saved.code,
           epoch: saved.epoch + 1,
         });
@@ -485,6 +503,7 @@ class RoomServer {
       if (room.phase === "playing" && now - room.startedAt > 900000) {
         const b = room.authority.battle;
         b.status = "finished";
+        if (b.pve) b.pve.result = "defeat";
         b.winnerId = null;
         room.authority.history.push(b.emit("end", { winnerId: null }));
       }
@@ -501,7 +520,7 @@ class RoomServer {
           }
           room.authority.step();
           const b = room.authority.battle;
-          if (b.tick % 3 === 0 || b.status === "finished")
+          if (b.tick % (b.mode === "pve" ? 6 : 3) === 0 || b.status === "finished")
             this.broadcastState(room);
           if (b.status === "finished") {
             room.phase = "finished";

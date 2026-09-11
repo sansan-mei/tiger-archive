@@ -1,9 +1,9 @@
-# 多人接入边界（协议 v14）
+# 多人接入边界（协议 v15）
 
 ## 已实现
 
-- 2–8 个独立实体，按稳定字符串 ID 管理，controller 为 human 或 bot。
-- 车体与武器来自统一目录，开局时确定，不接受对局输入修改配置。
+- FFA 2–8 人；PvE 1–8 人及最多 16 个内部僵尸槽位。稳定字符串 ID，controller 为 human 或 bot。
+- 车体与武器来自统一目录；FFA 开局确定配置，PvE 只允许权威奖励流程换装，不接受原始输入修改配置。
 - 自由混战、统一胜负判定、独立弹丸所有者和击毁归属。
 - 固定 60 Hz 模拟，不以浏览器实际帧率计算速度或伤害。
 - Authority 接收绑定玩家的输入并运行规则；Replica 接收快照并供渲染插值。
@@ -22,12 +22,12 @@
 
 通过 require('./battle-session.js') 可在 Node.js 中加载。
 
-1. new Authority({ participants, matchId, epoch }) 创建对局。participants 是已确定的 2–8 名玩家及配置。
+1. new Authority({ participants, matchId, epoch, mode }) 创建对局。mode 默认 pvp，participants 为 2–8 人；pve 允许 1–8 人并固定人类＋小手枪。
 2. attach(peerId, entityId) 将经过外部房间验证的连接绑定到 human 实体，返回 welcome。
 3. receive(peerId, packet) 校验输入并保留最新有效命令。
 4. authority.battle.start() 开始模拟。
 5. step() 推进一个固定 tick。外部驱动负责按真实累计时间保持 60 Hz；不要按收到网络包的次数推进。
-6. statePacket({ network: true }) 返回用于 20 Hz 广播及客户端重连的状态包。默认 statePacket() 保留完整快照供本地会话使用；服务端恢复使用 Battle.snapshot() 完整检查点。
+6. statePacket({ network: true }) 返回用于 FFA 20 Hz / PvE 10 Hz 广播及客户端重连的状态包。默认 statePacket() 保留完整快照供本地会话使用；服务端恢复使用 Battle.snapshot() 完整检查点。
 7. detach(peerId) 释放该连接的输入。当前实体留在场中，房间层保留 30 秒重连窗口，超时后离场且不再复活。
 
 peerId 必须来自传输连接与认证映射，不能相信客户端自行声明的身份。attach 是权威方接口，不是开放给任意客户端执行的 RPC。
@@ -105,7 +105,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 ## 计分赛与补给（v14）
 
-权威核心负责五分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
+权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
 当前协议 v14 包含 ability 布尔输入与 ability 事件。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.4.0、rocket 1.0.2，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
@@ -169,3 +169,11 @@ NetworkSession 维护最多 32 个已验证快照，以服务器 tick 建立连�
 ## 取消常驻护盾与激光装填调整
 
 轻/中/重甲插件 2.2.0 的 shield 均为 0，人类保持 0；不再自动恢复护盾。保留 shield 字段以兼容现有数据结构，但当前单位的快照校验不允许正值。只有中甲应急屏障提供 60 点 barrier（4 秒、冷却 12 秒），重甲部署仍是正面装甲减伤，不再显示能量盾。激光插件 2.4.0：100 伤害、90 tick 预热、102 tick 装填。协议结构仍 v14，插件清单变化会拒绝旧客户端；Redis 前缀不变，不兼容的旧房间检查点按现有策略备份后重置。
+
+## v15：僵尸合作生存
+
+create 新增可选 `mode: "pvp" | "pve"`，缺省 pvp；房间目录、room 消息、Redis 房间记录携带 mode。PvE 加入后强制 human / pistol，不允许大厅 loadout 修改；单人准备即可开始。PvP 的 2 人起步与 8 人上限保持。
+
+升级命令：`{ type: "upgrade", epoch, wave, choice }`。choice 只能来自当前玩家该波的 choices；拒绝旧 epoch、重复领取、其他席位与未提供的奖励。客户端只提交选择，服务器计算装填、回复及脉冲伤害。PvE 状态校验限制玩家数 8、僵尸槽位 16、待生成数 64、被动等级 0–3，以及角色类型和敌人控制器；客户端不能添加僵尸或改血。
+
+现有 Redis 前缀继续使用，无需手动轮换。v14 检查点因协议与内容清单不兼容，按已有逻辑归档到 previous（24 小时）后清空旧对局；v15 检查点可恢复波次/奖励/敌人位置，恢复后仍按现有 30 秒重连窗口处理。

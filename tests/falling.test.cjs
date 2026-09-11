@@ -38,7 +38,7 @@ function enter(b, p) {
   assert.equal(p.falling, true);
 }
 test("all units descend from both marked exits on both upper decks without fall damage", () => {
-  for (const type of Object.keys(C.TANKS))
+  for (const type of Object.keys(C.PLAYER_TANKS))
     for (const floor of [1, 2])
       for (const side of [-1, 1]) {
         const { b, p } = setup(type, floor, side);
@@ -187,7 +187,7 @@ test("midair destruction does not freeze the corpse and respawn clears all fall 
 });
 
 test("every unit can drive off all four unmarked edges and corners on either upper floor", () => {
-  for (const type of Object.keys(C.TANKS))
+  for (const type of Object.keys(C.PLAYER_TANKS))
     for (const floor of [1, 2])
       for (const [x, z, heading] of [
         [44, 38, Math.PI], [-44, 38, 0],

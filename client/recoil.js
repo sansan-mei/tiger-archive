@@ -1,6 +1,7 @@
 /* Cosmetic impulses only: never write to authority snapshots or mouse aim. */
 (window.TankClient ??= {}).recoil = {
   profiles: {
+    pistol: { barrel: 0.16, body: 0.012, recovery: 18 },
     standard: { barrel: 0.52, body: 0.055, recovery: 10 },
     rapid: { barrel: 0.20, body: 0.018, recovery: 19 },
     rocket: { barrel: 0.30, body: 0.045, recovery: 9 },

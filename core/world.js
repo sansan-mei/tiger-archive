@@ -203,6 +203,8 @@
     if (bodies)
       for (const e of battle.entities) {
         if (!e.alive || e.id === owner) continue;
+        if (battle.mode === "pve" && e.tankType !== "zombie" &&
+            battle.entities.some((v) => v.id === owner && v.tankType !== "zombie")) continue;
         const r = TANKS[e.tankType].radius * 0.87;
         check(
           sweep(

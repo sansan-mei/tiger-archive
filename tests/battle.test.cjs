@@ -42,7 +42,7 @@ function ticks(b, n, inputs = {}) {
 test("eight independently configured entities and all sixteen combinations are accepted", () => {
   const b = make({ eight: true });
   assert.equal(b.entities.length, 8);
-  for (const tank of Object.keys(C.TANKS))
+  for (const tank of Object.keys(C.PLAYER_TANKS))
     for (const weapon of Object.keys(C.WEAPONS)) {
       const battle = make({ tank, weapon });
       assert.equal(battle.entities[0].maxHp, C.TANKS[tank].hp);
@@ -186,7 +186,7 @@ test("a shot outside the upper slab can hit a lower-floor tank", () => {
   assert.equal(hit.id, "p2");
 });
 test("all hulls drive continuously up and reverse down every ramp without interaction", () => {
-  for (const tank of Object.keys(C.TANKS))
+  for (const tank of Object.keys(C.PLAYER_TANKS))
     for (const r of C.MAP.ramps) {
       const b = make({ tank }),
         p = b.entities[0],

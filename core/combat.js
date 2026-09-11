@@ -16,6 +16,10 @@
     critical = false,
   ) {
     if (!target.alive || target.protectedUntil > battle.tick) return false;
+    if (battle.mode === "pve") {
+      const source = battle.getEntity(owner);
+      if (source && (source.tankType === "zombie") === (target.tankType === "zombie")) return false;
+    }
     const attacker = battle.getEntity(owner),
       spec = TANKS[target.tankType],
       ability = ABILITIES[spec.ability];
@@ -50,7 +54,7 @@
     if (!target.hp) {
       target.alive = false;
       target.deaths++;
-      target.respawnAt = battle.tick + RULES.respawn;
+      target.respawnAt = battle.mode === "pve" ? 0 : battle.tick + RULES.respawn;
       target.boostUntil = 0;
       target.abilityUntil = 0;
       target.barrier = 0;
@@ -176,7 +180,7 @@
       z: start.z + dir.z * length,
     };
     if (spec.trigger === "delayed") power = 1;
-    body.cooldown = spec.cooldown;
+    body.cooldown = Math.round(spec.cooldown * (1 - 0.1 * (battle.pve?.upgrades[body.id]?.haste || 0)));
     body.charge = 0;
     const critical =
       !!spec.criticalHits && body.criticalProgress >= spec.criticalHits;

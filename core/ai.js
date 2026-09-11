@@ -123,7 +123,8 @@
   }
   function botInput(battle, body) {
     if (!body.alive) return {};
-    const targets = battle.entities.filter((e) => e.id !== body.id && e.alive);
+    const zombie = battle.mode === "pve" && body.tankType === "zombie";
+    const targets = battle.entities.filter((e) => e.id !== body.id && e.alive && (!zombie || e.tankType !== "zombie"));
     targets.sort(
       (a, b) =>
         Math.abs(a.floor - body.floor) * 100 +
@@ -140,9 +141,16 @@
     const aimYaw = Math.atan2(dz, -dx),
       aimPitch = Math.atan2(target.y - body.y, Math.max(1, range));
     const input = { aimYaw, aimPitch: clamp(aimPitch, -0.55, 0.55) };
+    if (zombie && range < 2.1 && Math.abs(target.y - body.y) < 1.5 && los) {
+      if (!body.cooldown) {
+        battle.damage(target, Math.min(24, 8 + battle.pve.wave * 2), body.id, { x: target.x, y: target.y + 1, z: target.z });
+        body.cooldown = 60;
+      }
+      return { ...input, brake: true };
+    }
     if (body.falling) {
       input.fire =
-        los &&
+        !zombie && los &&
         range < 60 &&
         (C.WEAPONS[body.weaponType].trigger !== "delayed" || !body.fireHeld);
       return input;
@@ -170,7 +178,10 @@
           direct = true;
         }
       }
-    } else if (!los || range > 31) goal = target;
+    } else if (!los || range > (zombie ? 1.8 : 31)) {
+      goal = target;
+      direct = zombie && los && body.brain.blocked < 12 && !body.brain.path.length;
+    }
     const supply = battle.pickups
       .filter(
         (p) =>
@@ -186,7 +197,7 @@
           Math.hypot(body.x - b.x, body.z - b.z),
       )[0];
     if (
-      !body.rampId &&
+      !zombie && !body.rampId &&
       supply &&
       Math.hypot(body.x - supply.x, body.z - supply.z) < 28
     ) {
@@ -197,6 +208,7 @@
     if (goal) {
       if (
         !direct &&
+        (!zombie || battle.tick % 16 === Number(body.id.slice(7))) &&
         (battle.tick >= body.brain.pathTick || body.brain.target !== goalKey)
       ) {
         body.brain.path = battle.route(body, goal);
@@ -226,7 +238,7 @@
       }
     }
     if (
-      los &&
+      !zombie && los &&
       range < 95 &&
       Math.abs(wrap(aimYaw - body.aim)) < 0.09 &&
       !body.cooldown
@@ -234,7 +246,7 @@
       input.fire =
         C.WEAPONS[body.weaponType].trigger !== "delayed" || !body.fireHeld;
     input.ability =
-      body.abilityCooldown === 0 &&
+      !zombie && body.abilityCooldown === 0 &&
       !body.abilityHeld &&
       (body.tankType === "light" ? !!goal : los && range < 55);
     return input;

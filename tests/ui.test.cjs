@@ -72,6 +72,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   for (const [, id] of html.matchAll(/\bid="([^"]+)"/g))
     nodes.set(id, new Element(id));
   nodes.get("player-name").value = "Tester";
+  nodes.get("room-mode").value = "pvp";
   document = {
     hidden: false,
     activeElement: null,
@@ -498,4 +499,43 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     advance(90);
   }
   nodes.get("pause-btn").emit("click");
+  // Real browser modules and an in-memory socket: solo cooperative room, spawn,
+  // reward key, weapon view replacement and cooperative result UI.
+  nodes.get("room-mode").value = "pve";
+  nodes.get("create-room").emit("click");
+  sockets.at(-1).emit("open");
+  const coop = rooms.rooms.get(rooms.clients.get(sockets.at(-1).id).room);
+  assert.equal(coop.mode, "pve");
+  assert.equal(nodes.get("garage").disabled, true);
+  nodes.get("ready-room").emit("click");
+  assert.equal(nodes.get("start-room").disabled, false);
+  nodes.get("start-room").emit("click");
+  advance(210);
+  const survival = coop.authority.battle;
+  assert.equal(nodes.get("weapon-label").textContent, "小手枪");
+  assert.match(nodes.get("mission-title").textContent, /CO-OP/);
+  const live = survival.entities.find((e) => e.tankType === "zombie" && e.alive);
+  assert.ok(live);
+  let zombieMesh;
+  renderedScene.traverse((o) => { if (o.userData.entityId === live.id) zombieMesh = o; });
+  assert.ok(zombieMesh);
+  survival.pve.queue = 0;
+  for (const z of survival.entities.filter((e) => e.tankType === "zombie" && e.alive)) {
+    z.protectedUntil = 0;
+    survival.damage(z, 1000, survival.entities[0].id, z);
+  }
+  advance(12);
+  assert.equal(nodes.get("pve-rewards").hidden, false);
+  assert.equal(nodes.get("pve-choices").children.length, 3);
+  survival.pve.choices[survival.entities[0].id] = ["rocket", "haste", "regen"];
+  advance(12);
+  for (const fn of documentEvents.keydown || []) fn({ code: "Digit1", preventDefault() {}, repeat: false });
+  advance(12);
+  assert.equal(survival.entities[0].weaponType, "rocket");
+  assert.equal(nodes.get("weapon-label").textContent, "火箭筒");
+  assert.equal(nodes.get("pve-rewards").hidden, true);
+  survival.tick = C.RULES.duration - 1;
+  advance(12);
+  assert.equal(nodes.get("menu-title").textContent, "生存成功");
+  assert.equal(nodes.get("match-results").children.length, 1);
 });

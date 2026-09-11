@@ -113,7 +113,7 @@ test("room browser renders empty/error/full rooms, safely joins, throttles and r
   const cards = nodes["room-list"].children;
   assert.equal(
     cards[0].children[0].children[0].textContent,
-    "<img onerror=alert(1)>的房间",
+    "[自由混战] <img onerror=alert(1)>的房间",
   );
   assert.equal(cards[1].children[1].disabled, true);
   assert.equal(cards[2].children[1].disabled, true);

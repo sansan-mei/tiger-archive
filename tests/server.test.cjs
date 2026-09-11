@@ -82,6 +82,7 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
     rooms: [
       {
         code: "ABCDEF",
+        mode: "pvp",
         hostName: "车长",
         players: 1,
         capacity: 8,

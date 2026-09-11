@@ -99,7 +99,7 @@ window.createTankModel = function (
   }
   gun.position.set(-1.12, 0.51, 0);
   turret.add(gun);
-  if (!authored) {
+  if (!authored && tankType !== "zombie") {
     block(0.3, 0.58, 1.3, 0, 0, 0, edge, gun);
     window.TankPlugins.weapons[weaponType].buildVisual(ctx);
   }

@@ -34,8 +34,8 @@ const fetchKit = async () => ({ ok: true, json: async () => data });
 test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawing cost", async () => {
   const b = browser();
   assert.equal(await b.TankModelAssets.load(T, fetchKit), true);
-  for (const tankType of Object.keys(C.TANKS))
-    for (const weaponType of Object.keys(C.WEAPONS)) {
+  for (const tankType of Object.keys(C.PLAYER_TANKS))
+    for (const weaponType of Object.keys(C.WEAPONS).filter((id) => id !== "pistol")) {
       const v = b.createTankModel(T, { tankType, weaponType });
       assert.equal(v.assetSource, "blender");
       v.tank.updateMatrixWorld(true);

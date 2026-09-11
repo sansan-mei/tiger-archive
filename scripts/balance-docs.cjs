@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const C = require("../battle-core.js");
 function renderBalance() {
-  const rows = Object.values(C.TANKS).map(
+  const rows = Object.values(C.PLAYER_TANKS).map(
     (t) =>
       `| ${t.name} | ${t.hp} | ${t.shield} | ${t.speed} | ${C.describeAbility(t.ability)} |`,
   );

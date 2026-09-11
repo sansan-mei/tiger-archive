@@ -248,7 +248,7 @@ test("live authority/replica delivery remains valid through a complete eight-veh
   assert.ok(maxBytes < 65536);
 });
 test("all sixteen local loadouts boot, move and fire through protocol validation", () => {
-  for (const tankType of Object.keys(C.TANKS))
+  for (const tankType of Object.keys(C.PLAYER_TANKS))
     for (const weaponType of Object.keys(C.WEAPONS)) {
       const s = new S.LocalSession({ loadout: { tankType, weaponType } });
       s.start();

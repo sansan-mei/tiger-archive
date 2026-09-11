@@ -49,6 +49,7 @@
     effects,
     sound: (...args) => sound(...args),
     getEntities: () => session.current().entities,
+    getMode: () => session.current().mode || "pvp",
     getPlayerId: () => playerId,
   });
   const { views, bullets, createViews } = units;
@@ -207,7 +208,7 @@
     getPlayerId: () => playerId,
   });
   for (const [id, catalog, selected] of [
-    ["tank-select", C.TANKS, "medium"],
+    ["tank-select", C.PLAYER_TANKS, "medium"],
     ["weapon-select", C.WEAPONS, "standard"],
   ]) {
     $(id).replaceChildren(
@@ -220,6 +221,12 @@
       }),
     );
   }
+  const pveUI = window.TankClient.createPveUI({ C, $, choose: (wave, choice) => {
+    if (session.online && !session.suspended) {
+      clearInput();
+      network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice });
+    }
+  } });
   function config() {
     return {
       tankType: $("tank-select").value,
@@ -350,10 +357,12 @@
       const s = session.current(),
         p = s.entities.find((e) => e.id === playerId);
       $("menu-title").textContent =
-        s.winnerId === playerId ? "本局冠军" : "对局结束";
+        s.mode === "pve" ? (s.pve.result === "victory" ? "生存成功" : "队伍覆灭") :
+          s.winnerId === playerId ? "本局冠军" : "对局结束";
       $("match-results").hidden = false;
       $("match-results").replaceChildren(
         ...s.entities
+          .filter((e) => e.tankType !== "zombie")
           .slice()
           .sort(
             (a, b) =>
@@ -377,8 +386,7 @@
           }),
       );
       $("menu-description").textContent =
-        "获胜者：" +
-        (s.winnerId || "平局") +
+        (s.mode === "pve" ? "存活至第 " + s.pve.wave + " 波" : "获胜者：" + (s.winnerId || "平局")) +
         " · 用时 " +
         Math.floor(s.tick / 60) +
         " 秒 · 你的击毁数 " +
@@ -490,7 +498,7 @@
         status() === "playing" &&
         $("game-overlay").hidden,
       player: localBefore,
-      entities: before.entities.map((e) => ({
+      entities: before.entities.filter((e) => before.mode !== "pve" || e.tankType === "zombie").map((e) => ({
         ...e,
         height: C.TANKS[e.tankType].height || 3,
       })),
@@ -537,6 +545,7 @@
       clearInput();
     }
     if (events.some((e) => e.type === "end")) showMenu("finished");
+    pveUI.update(truth, playerId);
     const renderPlayer = state.entities.find((e) => e.id === playerId);
     const target =
       !p.alive && observing
@@ -608,6 +617,7 @@
       "已被击毁 · " +
       Math.max(0, Math.ceil((p.respawnAt - truth.tick) / 60)) +
       " 秒后复活 · 跟随击毁者观战";
+    if (truth.mode === "pve" && !p.alive) $("respawn-status").textContent = "已倒下 · 等待队友清波后复活";
     $("boost-status").textContent =
       p.boostUntil > truth.tick
         ? "极速 +35% · " + Math.ceil((p.boostUntil - truth.tick) / 60) + "s"
@@ -711,10 +721,10 @@
     $("ready-room").textContent = me?.ready ? "取消准备" : "准备";
     $("start-room").hidden = !host || room.phase !== "lobby";
     $("start-room").disabled =
-      room.players.length < 2 ||
+      room.players.length < (room.mode === "pve" ? 1 : 2) ||
       room.players.some((p) => !p.connected || !p.ready);
     $("rematch-room").hidden = !host || room.phase !== "finished";
-    $("garage").disabled = room.phase !== "lobby";
+    $("garage").disabled = room.phase !== "lobby" || room.mode === "pve";
     if (room.phase === "lobby") {
       if (session.online) session.pause();
       $("game-overlay").hidden = false;
@@ -723,7 +733,8 @@
       $("restart-button").hidden = true;
       $("menu-title").textContent = "准备大厅";
       $("menu-description").textContent =
-        "分享房间码，所有人准备后由房主开局（2–8 人）。";
+        room.mode === "pve" ? "合作生存 · 1–8 人 · 人类＋小手枪开局，撑过 8 分钟。清波后按 1 / 2 / 3 选择升级。" :
+          "分享房间码，所有人准备后由房主开局（2–8 人，8 分钟）。";
       if (me) {
         $("tank-select").value = me.tankType;
         $("weapon-select").value = me.weaponType;
@@ -801,6 +812,7 @@
   $("create-room").addEventListener("click", () =>
     connectRoom({
       type: "create",
+      mode: $("room-mode").value,
       name: $("player-name").value,
       loadout: config(),
     }),

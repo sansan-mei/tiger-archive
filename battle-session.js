@@ -40,6 +40,8 @@
       !plain(s) ||
       (!network && s.pluginManifest !== C.PLUGIN_MANIFEST) ||
       (network && s.kind !== "network") ||
+      (s.mode !== undefined && !["pvp", "pve"].includes(s.mode)) ||
+      (s.mode !== "pve" && s.pve !== undefined) ||
       s.version !== VERSION ||
       s.mapId !== C.MAP.id ||
       !id(s.matchId) ||
@@ -52,11 +54,13 @@
       throw new Error("Invalid snapshot header");
     if (
       !Array.isArray(s.entities) ||
-      s.entities.length < 2 ||
-      s.entities.length > C.MAX_PLAYERS ||
+      s.entities.length < (s.mode === "pve" ? 1 : 2) ||
+      s.entities.length > C.MAX_PLAYERS + (s.mode === "pve" ? C.PVE.MAX_ZOMBIES : 0) ||
       new Set(s.entities.map((e) => e.id)).size !== s.entities.length
     )
       throw new Error("Invalid entities");
+    if (s.mode === "pve") C.PVE.validate(s);
+    else if (s.entities.some((e) => e.tankType === "zombie")) throw new Error("PvE enemy in PvP");
     for (const e of s.entities) {
       if (
         !plain(e) ||

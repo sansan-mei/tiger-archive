@@ -29,7 +29,7 @@ function make(tankType = "medium") {
   return b;
 }
 test("all units start without passive shields and never regenerate them", () => {
-  for (const type of Object.keys(C.TANKS)) {
+  for (const type of Object.keys(C.PLAYER_TANKS)) {
     const b = make(type), a = b.entities[0];
     assert.equal(a.shield, 0);
     b.damage(a, 20, "b", a);
@@ -97,7 +97,7 @@ test("deploy reduces only frontal damage, follows turret and slows movement", ()
   assert.ok(a.speed <= C.TANKS.heavy.speed * 0.35 + 0.001);
 });
 test("ability and shield state survives authority/replica and checkpoint continuation", () => {
-  for (const tankType of Object.keys(C.TANKS)) {
+  for (const tankType of Object.keys(C.PLAYER_TANKS)) {
     const session = new S.LocalSession({
       participants: C.defaultParticipants({
         tankType,

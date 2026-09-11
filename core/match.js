@@ -11,6 +11,7 @@
       if (
         !body.alive &&
         !body.forfeited &&
+        battle.mode !== "pve" &&
         body.respawnAt &&
         battle.tick >= body.respawnAt
       ) {
@@ -64,7 +65,7 @@
           battle.emit("respawn", { id: body.id });
         }
       }
-      if (!body.alive || body.rampId || body.falling) continue;
+      if (!body.alive || body.tankType === "zombie" || body.rampId || body.falling) continue;
       for (const pickup of battle.pickups) {
         if (
           pickup.readyAt > battle.tick ||

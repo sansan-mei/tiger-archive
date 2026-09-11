@@ -45,7 +45,7 @@
           detail = document.createElement("span"),
           button = document.createElement("button");
         card.className = "room-card";
-        title.textContent = room.hostName + "的房间";
+        title.textContent = (room.mode === "pve" ? "[合作生存] " : "[自由混战] ") + room.hostName + "的房间";
         const phase =
           { lobby: "等待玩家", playing: "战斗中", finished: "已结束" }[
             room.phase

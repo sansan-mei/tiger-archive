@@ -9,10 +9,12 @@
     "plugins/tanks/medium.js",
     "plugins/tanks/heavy.js",
     "plugins/tanks/human.js",
+    "plugins/tanks/zombie.js",
     "plugins/weapons/standard.js",
     "plugins/weapons/rapid.js",
     "plugins/weapons/laser.js",
     "plugins/weapons/rocket.js",
+    "plugins/weapons/pistol.js",
   ]);
   const scripts = Object.freeze([
     "vendor/three.min.js",
@@ -30,6 +32,7 @@
     "core/movement.js",
     "core/falling.js",
     "core/match.js",
+    "core/pve.js",
     "battle-core.js",
     "battle-session.js",
     "network-session.js",
@@ -46,6 +49,7 @@
     "client/hud.js",
     "client/units.js",
     "client/rooms.js",
+    "client/pve-ui.js",
     "battle.js",
     "client/pwa.js",
   ]);

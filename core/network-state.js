@@ -63,6 +63,7 @@
       Object.fromEntries(entityFields.map((key) => [key, entity[key]])),
     );
     return {
+      ...(snapshot.mode === "pve" ? { mode: "pve", pve: snapshot.pve } : {}),
       kind: "network",
       version,
       mapId,

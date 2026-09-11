@@ -37,7 +37,7 @@ function setup(type, r) {
   return { b, p };
 }
 test("all four units drive underneath every ramp, reverse out, and keep flat state", () => {
-  for (const type of Object.keys(C.TANKS))
+  for (const type of Object.keys(C.PLAYER_TANKS))
     for (const r of C.MAP.ramps) {
       const { b, p } = setup(type, r);
       let passed = false;

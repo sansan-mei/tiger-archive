@@ -27,7 +27,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 14,
+    const VERSION = 15,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -35,7 +35,7 @@
       edgeFall: "all-outer-edges-v1",
       gravity: 20,
       terminalFallSpeed: 30,
-      duration: 18000,
+      duration: 28800,
       killLimit: 15,
       respawn: 240,
       protection: 120,
@@ -53,6 +53,7 @@
         Object.entries(Plugins.tanks).map(([id, p]) => [id, p.spec]),
       ),
     );
+    const PLAYER_TANKS = Object.freeze(Object.fromEntries(Object.entries(TANKS).filter(([, spec]) => !spec.enemyOnly)));
     const WEAPONS = Object.freeze(
       Object.fromEntries(
         Object.entries(Plugins.weapons).map(([id, p]) => [id, p.spec]),
@@ -130,6 +131,7 @@
       DT,
       MAX_PLAYERS,
       TANKS,
+      PLAYER_TANKS,
       WEAPONS,
       MAP,
       normalizeInput,

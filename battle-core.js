@@ -11,6 +11,7 @@
           movement: require("./core/movement.js"),
           falling: require("./core/falling.js"),
           match: require("./core/match.js"),
+          pve: require("./core/pve.js"),
         }
       : root.TankSystems,
   );
@@ -36,15 +37,18 @@
       matchId = "local",
       epoch = 1,
       map = MAP,
+      mode = "pvp",
     } = {}) {
       if (
         !Array.isArray(participants) ||
-        participants.length < 2 ||
+        participants.length < (mode === "pve" ? 1 : 2) ||
         participants.length > MAX_PLAYERS
       )
         throw new Error("A match requires 2–8 participants");
       if (new Set(participants.map((p) => p.id)).size !== participants.length)
         throw new Error("Duplicate player ID");
+      if (!["pvp", "pve"].includes(mode)) throw new Error("Invalid game mode");
+      this.mode = mode;
       this.map = clone(map);
       this.matchId = matchId;
       this.epoch = epoch;
@@ -60,11 +64,16 @@
         readyAt: 0,
       }));
       this.entities = participants.map((p, i) => {
+        if (mode === "pve") {
+          if (p.controller !== "human") throw new Error("PvE participants must be human-controlled");
+          p = { ...p, tankType: "human", weaponType: "pistol" };
+        }
         if (
           typeof p.id !== "string" ||
+          (mode === "pve" && p.id.startsWith("zombie_")) ||
           !/^[a-zA-Z0-9_-]{1,32}$/.test(p.id) ||
           !["human", "bot"].includes(p.controller) ||
-          !Object.hasOwn(TANKS, p.tankType) ||
+          !Object.hasOwn(C.PLAYER_TANKS, p.tankType) ||
           !Object.hasOwn(WEAPONS, p.weaponType)
         )
           throw new Error("Invalid participant");
@@ -116,6 +125,7 @@
       for (const e of this.entities)
         if (!this.valid(e.x, e.z, e.floor, e))
           throw new Error("Overlapping or obstructed spawn");
+      if (mode === "pve") Systems.pve.initialize(this);
     }
     get time() {
       return this.tick / TICK_RATE;
@@ -171,6 +181,9 @@
     shoot(...args) {
       return Systems.combat.shoot(this, ...args);
     }
+    chooseUpgrade(id, wave, choice) {
+      return Systems.pve.choose(this, id, wave, choice);
+    }
     releaseControl(id) {
       const body = this.getEntity(id);
       if (!body) return;
@@ -199,11 +212,13 @@
       }
       Systems.match.respawnAndPickups(this);
       Systems.match.projectiles(this);
-      Systems.match.finish(this);
+      if (this.mode === "pve") Systems.pve.step(this);
+      else Systems.match.finish(this);
       return clone(this.events);
     }
     snapshot() {
       return {
+        ...(this.mode === "pve" ? { mode: "pve", pve: clone(this.pve) } : {}),
         version: VERSION,
         pluginManifest: PLUGIN_MANIFEST,
         mapId: this.map.id,
@@ -241,11 +256,13 @@
         "nextEvent",
       ])
         this[k] = snapshot[k];
+      this.mode = snapshot.mode || "pvp";
+      this.pve = snapshot.pve ? clone(snapshot.pve) : undefined;
       this.pickups = clone(snapshot.pickups);
       this.entities = clone(snapshot.entities);
       this.bullets = clone(snapshot.bullets);
       this.events = [];
     }
   }
-  return { ...C, Battle };
+  return { ...C, PVE: Systems.pve, Battle };
 });
