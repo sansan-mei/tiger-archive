@@ -209,7 +209,7 @@ AI 导航使用同一净空规则；炮弹、激光与爆炸遮挡继续使用�
 
 ## 卡通林地地图
 
-场景使用 Quaternius Stylized Nature MegaKit 免费 Standard 版的树木、花草与岩石，地面从 128×128 扩至 256×256，增加外围林地环路、掩体和四个补给点。保留中央三层坡道与开局出生点，人物、武器尺寸不变。模型约 4.9 MiB，实例化复用植被；地图 ID 更新为 woodland-crossfire-v4，协议 v19。来源、加载回退和验证见 [ENVIRONMENT.md](ENVIRONMENT.md)。
+场景使用 Quaternius Stylized Nature MegaKit 免费 Standard 版的树木、花草与岩石，地面从 128×128 扩至 256×256，增加外围林地环路、掩体和四个补给点。保留中央三层坡道与开局出生点，人物、武器尺寸不变。模型约 4.9 MiB，实例化复用植被；地图 ID 更新为 woodland-crossfire-v5，协议 v20。来源、加载回退和验证见 [ENVIRONMENT.md](ENVIRONMENT.md)。
 
 ## 激光固定延时发射
 

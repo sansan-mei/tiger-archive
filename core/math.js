@@ -44,6 +44,14 @@
         (map.levels[r.b.floor].y - map.levels[r.a.floor].y)
     );
   }
+  // Grounded ends leave a crosswise culvert through the high middle of each ramp.
+  function rampSupports(map, r) {
+    const rise = map.levels[r.b.floor].y - map.levels[r.a.floor].y;
+    return [[.6 / rise, .3], [.96, 1]].map(([u0,u1]) => {
+      const a = r.a.z + (r.b.z-r.a.z)*u0, b = r.a.z + (r.b.z-r.a.z)*u1;
+      return {z0: Math.min(a,b), z1: Math.max(a,b)};
+    });
+  }
   function slabHit(a, b, min, max) {
     let lo = 0,
       hi = 1;
@@ -100,6 +108,7 @@
     finite,
     deckRects,
     rampHeight,
+    rampSupports,
     rampCeiling,
     dropExit,
     slabHit,

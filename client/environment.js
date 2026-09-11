@@ -41,6 +41,13 @@
         // Flowers grow beside solid cover; vegetation itself never blocks aiming.
         if (i % 3 === 0) plant('Bush_Common_Flowers', o.floor, o.x + o.w * .35, y + o.h * .65, o.z, Math.min(1.7, o.w * .3), i);
       }
+      for (const r of C.MAP.ramps) {
+        for(let i=1;i<18;i++) for(const side of [-1,1]) {
+          const z=r.a.z+(r.b.z-r.a.z)*i/18;
+          plant(i%5===0?'Flower_3_Group':'Grass_Common_Short',r.a.floor,
+            r.a.x+side*(r.width/2-.65),C.rampHeight(C.MAP,r,z)+.02,z,.3+(i%3)*.12,i);
+        }
+      }
       for (const level of C.MAP.levels) {
         const rects = C.deckRects(C.MAP, level);
         for (let i = 0; i < (level.id ? 300 : 3200); i++) {

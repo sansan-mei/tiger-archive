@@ -20,6 +20,7 @@
       finite,
       deckRects,
       rampHeight,
+      rampSupports,
       rampCeiling,
       dropExit,
       slabHit,
@@ -27,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 19,
+    const VERSION = 20,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -151,6 +152,7 @@
       clone,
       deckRects,
       rampHeight,
+      rampSupports,
       rampCeiling,
       dropExit,
       clamp,

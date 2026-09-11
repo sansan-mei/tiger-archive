@@ -41,6 +41,7 @@
     "client/model-assets.js",
     "tank-model.js",
     "client/environment.js",
+    "client/ramp-terrain.js",
     "client/scene.js",
     "client/recoil.js",
     "client/camera.js",

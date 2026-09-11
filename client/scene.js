@@ -137,52 +137,7 @@
         group,
       );
   }
-  for (const ramp of C.MAP.ramps) {
-    const a = ramp.a,
-      b = ramp.b,
-      low = C.MAP.levels[a.floor].y,
-      high = C.MAP.levels[b.floor].y;
-    const length = Math.hypot(b.z - a.z, high - low),
-      angle = -Math.atan((high - low) / (b.z - a.z));
-    const deck = block(
-      ramp.width,
-      0.6,
-      length,
-      a.x,
-      (low + high) / 2 - 0.3,
-      (a.z + b.z) / 2,
-      rampMat,
-      floorGroups[a.floor],
-    );
-    deck.rotation.x = angle;
-    for (const side of [-1, 1]) {
-      const rail = block(
-        0.24,
-        0.65,
-        length,
-        a.x + side * (ramp.width / 2 - 0.12),
-        (low + high) / 2 + 0.35,
-        (a.z + b.z) / 2,
-        stripe,
-        floorGroups[a.floor],
-      );
-      rail.rotation.x = angle;
-    }
-    for (const point of [a, b]) {
-      const ring = new T.Mesh(
-        new T.RingGeometry(3.3, 3.55, 40),
-        new T.MeshBasicMaterial({
-          color: 0x8ff0ce,
-          side: T.DoubleSide,
-          transparent: true,
-          opacity: 0.7,
-        }),
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(point.x, C.MAP.levels[point.floor].y + 0.05, point.z);
-      floorGroups[point.floor].add(ring);
-    }
-  }
+  window.TankClient.createRampTerrain({T, C, floorGroups});
   const scenery = new T.Group(); scene.add(scenery);
   const transform = new T.Object3D();
   block(600, .7, 600, 0, -1.1, 0, mat(0x91ad73), scenery);

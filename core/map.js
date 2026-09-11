@@ -4,7 +4,7 @@
   else root.TankMap = api;
 })(typeof window === "undefined" ? globalThis : window, function () {
   const MAP = Object.freeze({
-    id: "woodland-crossfire-v4",
+    id: "woodland-crossfire-v5",
     // Ground is 256 × 256; upper decks preserve the existing ramp connections.
     worldLimit: 144,
     levels: [

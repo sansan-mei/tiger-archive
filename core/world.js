@@ -104,6 +104,16 @@
       )
         return false;
     }
+    for (const r of battle.map.ramps) {
+      if (surface?.rampId === r.id || floor !== r.a.floor) continue;
+      // The low toe is already impassable through rampCeiling; keep its climb-in
+      // endpoint open. Only the new high abutment adds a movement footprint.
+      for (const support of C.rampSupports(battle.map,r).slice(1)) {
+        const dx=Math.max(Math.abs(x-r.a.x)-r.width/2,0);
+        const dz=Math.max(support.z0-z,z-support.z1,0);
+        if (dx*dx+dz*dz<(radius+.12)**2) return false;
+      }
+    }
     for (const o of battle.map.obstacles) {
       const oy = battle.map.levels[o.floor].y;
       if (y >= oy + o.h || y + 3 <= oy) continue;
@@ -187,6 +197,22 @@
         ),
         { kind: "ramp", id: r.id },
       );
+      for (const support of C.rampSupports(battle.map,r)) {
+        // Clip the ray to the support footprint/ground first, then its sloping roof.
+        const base=battle.map.levels[r.a.floor].y;
+        const t=sweep(a,b,{x:r.a.x-r.width/2,y:base,z:support.z0},
+          {x:r.a.x+r.width/2,y:battle.map.levels[r.b.floor].y,z:support.z1});
+        if(t!==null) {
+          const reverse=sweep(b,a,{x:r.a.x-r.width/2,y:base,z:support.z0},
+            {x:r.a.x+r.width/2,y:battle.map.levels[r.b.floor].y,z:support.z1});
+          const endT=1-reverse;
+          const at=u=>({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:a.z+(b.z-a.z)*u});
+          const roof=sweep(transform(at(t)),transform(at(endT)),
+            {x:r.a.x-r.width/2,y:base-battle.map.levels[r.b.floor].y,z:support.z0},
+            {x:r.a.x+r.width/2,y:-.6,z:support.z1});
+          if(roof!==null) check(t+(endT-t)*roof,{kind:'ramp',id:r.id});
+        }
+      }
       for (const side of [-1, 1]) {
         const x = r.a.x + side * (r.width / 2 - 0.12);
         check(
