@@ -1,8 +1,8 @@
 (function (root) {
   const registry = typeof module === "object" && module.exports ? require("../registry.js") : root.TankPlugins;
   registry.register({
-    kind: "weapon", id: "pistol", version: "1.0.0", apiVersion: 1,
-    spec: { name: "小手枪", damage: 20, cooldown: 24, speed: 120, life: 60,
+    kind: "weapon", id: "pistol", version: "1.0.1", apiVersion: 1,
+    spec: { name: "小手枪", damage: 20, cooldown: 24, speed: 360, life: 20,
       charge: 0, minCharge: 0, muzzle: 1.8, trigger: "automatic", delivery: "projectile",
       range: 120, minPower: 1, sound: "cannon" },
     buildVisual({ block, cylinder, edge, ink, glow, gun, weaponLength: L }) {

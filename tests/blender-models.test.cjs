@@ -258,3 +258,29 @@ test("Paimon instances have independent skeletons and walking deforms weighted v
   assert.ok(leg.quaternion.angleTo(new T.Quaternion()) > .1);
   other.dispose();
 });
+
+test("both hands stay on the lowered weapon grips through aim, walking and recoil", async () => {
+  const b = browser();
+  await b.TankModelAssets.load(T, fetchKit);
+  for (const weaponType of Object.keys(C.WEAPONS)) {
+    const view = b.createTankModel(T, {tankType: 'human', weaponType});
+    assert.ok(view.gunRestPosition.y + view.spec.mount[1] < 1.3);
+    for (const aim of [0, .8, -1.6, Math.PI])
+      for (const pitch of [-.65, 0, .65]) {
+        view.tank.position.set(17, 3, -9);
+        view.tank.rotation.set(.1, .7, -.04);
+        view.turret.rotation.y = aim;
+        view.gun.rotation.z = -pitch;
+        view.gun.position.x = view.gunRestPosition.x + .05;
+        view.animateCharacter({aim, pitch, recoil: .5, speed: 4, travel: .6});
+        view.tank.updateMatrixWorld(true);
+        for (const side of ['R', 'L']) {
+          const hand = view.tank.getObjectByName('手首' + side).getWorldPosition(new T.Vector3());
+          const grip = view.gun.getObjectByName('hand-grip-' + side).getWorldPosition(new T.Vector3());
+          assert.ok(hand.distanceTo(grip) < .025,
+            `${weaponType}/${side} aim=${aim} pitch=${pitch}: ${hand.distanceTo(grip)}`);
+        }
+      }
+    view.dispose();
+  }
+});

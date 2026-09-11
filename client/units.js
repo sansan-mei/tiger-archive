@@ -204,7 +204,7 @@
         );
       view.gun.rotation.z = -e.pitch;
       view.gun.position.x =
-        (view.spec.movement === "strafe" ? -0.35 : -1.12) + impulse * profile.barrel;
+        view.gunRestPosition.x + impulse * profile.barrel;
       // Recoil follows the weapon's direction in the hull's local coordinates.
       // Infantry uses a smaller weapon stroke to match its scaled launcher.
       if (view.spec.movement === "strafe")

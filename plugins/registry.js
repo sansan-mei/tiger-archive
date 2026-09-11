@@ -77,7 +77,7 @@
           : {
               damage: [1, 1000],
               cooldown: [1, 3600],
-              speed: [0, 200],
+              speed: [0, 600],
               life: [0, 600],
               charge: [0, 3600],
               minCharge: [0, 3600],

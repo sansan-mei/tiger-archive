@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "standard",
-    version: "2.2.0",
+    version: "2.2.1",
     apiVersion: 1,
     spec: {
       name: "标准炮",
@@ -14,8 +14,8 @@
       criticalHits: 2,
       criticalMultiplier: 2,
       cooldown: 72,
-      speed: 88,
-      life: 160,
+      speed: 264,
+      life: 53,
       charge: 0,
       minCharge: 0,
       muzzle: 5.0,

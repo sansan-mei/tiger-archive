@@ -54,6 +54,7 @@ window.createTankModel = function (
   const ctx = {
     T,
     tankType,
+    weaponType,
     zombieType,
     weaponLength:
       weapon.muzzle - (spec.movement === "strafe" ? 0.35 / 0.55 : 1.54),
@@ -108,6 +109,8 @@ window.createTankModel = function (
     gun.scale.setScalar(0.55);
     gun.position.set(-0.35, 0.51, 0.6);
   }
+  if (ctx.characterGunPosition) gun.position.copy(ctx.characterGunPosition);
+  const gunRestPosition = gun.position.clone();
   tank.scale.setScalar(spec.scale);
   // Merge stationary armor by material, preserving turret/gun/limb/wheel pivots.
   const animated = new Set(wheels);
@@ -194,7 +197,9 @@ window.createTankModel = function (
   frontShield.scale.set(0.07, 0.6, 0.85);
   frontShield.position.set(-3.8, 1, 0);
   turret.add(frontShield);
+  ctx.animateCharacter?.();
   return {
+    gunRestPosition,
     animateCharacter: ctx.animateCharacter,
     criticalGlow,
     assetSource: authored ? "blender" : "procedural",

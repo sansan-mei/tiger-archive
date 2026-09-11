@@ -104,7 +104,7 @@ window.TankModelAssets = (() => {
         turret = hull.getObjectByName("turret");
       if (hull.userData.rig === "paimon-skinned") {
         window.TankPaimonRig.attach(ctx, hull);
-        ctx.block(0.05, 0.13, 0.20, 0.40, -0.12, 0, ctx.paint, ctx.turret);
+        ctx.block(0.05, 0.13, 0.20, 0.20, 1.05, 0, ctx.paint, ctx.tank);
       } else {
         for (const child of [...turret.children]) ctx.turret.add(child);
         hull.remove(turret);

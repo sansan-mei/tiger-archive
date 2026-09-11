@@ -6,7 +6,7 @@
   registry.register({
     kind: "weapon",
     id: "rocket",
-    version: "1.0.2",
+    version: "1.0.3",
     apiVersion: 1,
     spec: {
       name: "火箭筒",
@@ -14,8 +14,8 @@
       splashDamage: 80,
       splashRadius: 6,
       cooldown: 150,
-      speed: 38,
-      life: 210,
+      speed: 114,
+      life: 70,
       charge: 0,
       minCharge: 0,
       muzzle: 4.5,
