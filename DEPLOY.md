@@ -229,3 +229,5 @@ Nginx 代理保留带端口的 Host，处理 WebSocket Upgrade，使用 Docker D
 本轮未运行构建、推送、拉取或启动容器；仅通过 Compose 解析和静态代理配置检查，服务器 nginx -t、证书加载及真实 WSS 仍待部署验收。
 
 PWA 使用独立的 /service-worker.js 注册，遵循现有 CSP，不需要放开 inline script。offline.html、client/pwa.js 与安装图标已纳入资源清单和 Docker 复制步骤。更新后关闭所有游戏窗口再重新打开；当前仅支持在线游玩及离线提示页。
+
+联机平滑修复需要更新前端发布产物并重新打开游戏（旧标签仍运行旧脚本）。这次不改协议/Redis 前缀；未自动打包或启动容器。部署后两人测试直线移动、转弯、突然停车、首次开火及上下坡，并观察顶部 FPS、延迟、距收包时间。

@@ -50,16 +50,24 @@
       this.sequence = 0;
       this.lastSent = 0;
       this.receivedAt = 0;
-      this.snapshotGap = 50;
+      this.snapshots = [];
+      this.renderTick = null;
+      this.renderAt = null;
       this.progressAt = 0;
       this.stale = false;
       this.lastInput = "";
       this.retry = 0;
+      this.rtt = null;
+      this.lastPing = 0;
+      this.pendingPing = null;
     }
     connect(action) {
       this.cancel(this.timer);
       this.stopped = false;
       this.accepted = false;
+      this.rtt = null;
+      this.pendingPing = null;
+      this.lastPing = this.now();
       this.action = action;
       this.onStatus("正在连接服务器…");
       const ws = new this.WebSocketImpl(this.url);
@@ -114,6 +122,13 @@
     message(raw) {
       try {
         const m = S.decode(raw);
+        if (m.type === "pong") {
+          if (typeof m.sentAt === "number" && m.sentAt === this.pendingPing) {
+            this.rtt = Math.max(0, this.now() - m.sentAt);
+            this.pendingPing = null;
+          }
+          return;
+        }
         if (m.type === "joined") {
           this.accepted = true;
           this.credentials = { code: m.code, token: m.token };
@@ -138,35 +153,35 @@
           this.lastInput = "";
           this.receivedAt = 0;
           this.progressAt = 0;
-          this.snapshotGap = 50;
+          this.snapshots = [];
+          this.renderTick = null;
+          this.renderAt = null;
           return;
         }
         if (m.type === "state") {
           const first = !this.replica.current,
             previousTick = this.replica.current?.tick,
-            arrivedAt = this.now(),
-            previousArrival = this.receivedAt;
+            arrivedAt = this.now();
           const result = this.replica.receive(m);
           if (!result.ok) throw new Error(result.reason);
           this.stableState = this.replica.current;
           this.receivedAt = arrivedAt;
+          const snapshot = this.replica.current;
+          if (this.snapshots.at(-1)?.tick === snapshot.tick)
+            this.snapshots[this.snapshots.length - 1] = snapshot;
+          else this.snapshots.push(snapshot);
+          if (this.snapshots.length > 32) this.snapshots.shift();
+          if (first) {
+            // Two snapshot intervals absorb ordinary packet jitter. The render clock
+            // advances independently of arrivals and never resets on a new packet.
+            this.renderTick = snapshot.tick - 6;
+            this.renderAt = arrivedAt;
+          }
           if (
             first ||
             this.replica.current.tick > previousTick ||
             this.replica.current.status !== "playing"
           ) {
-            if (!first && this.replica.current.tick > previousTick) {
-              const tickGap =
-                  ((this.replica.current.tick - previousTick) / 60) * 1000,
-                arrivalGap = Math.max(1, arrivedAt - previousArrival),
-                observed = Math.max(
-                  tickGap,
-                  Math.min(tickGap * 2, arrivalGap),
-                );
-              // Follow real packet cadence gradually, so a late packet is not
-              // rushed through the whole snapshot in the next 50 ms.
-              this.snapshotGap = this.snapshotGap * 0.75 + observed * 0.25;
-            }
             this.progressAt = this.receivedAt;
             const recovered = this.stale;
             this.stale = false;
@@ -260,21 +275,36 @@
     advance(seconds, input) {
       this.checkState();
       this.input(input);
+      const now = this.now();
+      if (!this.stopped && !this.stale && !this.suspended && now - this.lastPing >= 2000) {
+        this.pendingPing = now;
+        if (this.send({ type: "ping", sentAt: now })) this.lastPing = now;
+        else this.pendingPing = null;
+      }
       return this.events.splice(0);
     }
     state() {
       if (!this.replica.current) return this.stableState;
-      const gap = this.replica.previous
-        ? Math.max(
-            ((this.replica.current.tick - this.replica.previous.tick) / 60) *
-              1000,
-            this.snapshotGap,
-          )
-        : 50;
-      return this.replica.renderState(
-        Math.min(1.5, (this.now() - this.receivedAt) / Math.max(1, gap)),
-      );
+      const latest = this.replica.current;
+      if (latest.status !== "playing") return C.clone(latest);
+      const now = this.now();
+      const elapsed = Math.max(0, Math.min(250, now - this.renderAt));
+      this.renderAt = now;
+      const lead = latest.tick - this.renderTick;
+      // Correct clock drift gently; never rewind or extrapolate through a wall.
+      const rate = lead > 9 ? 1.1 : lead < 3 ? 0.9 : 1;
+      this.renderTick = Math.min(latest.tick, this.renderTick + elapsed * C.TICK_RATE / 1000 * rate);
+      // A suspended tab or prolonged outage may overrun the bounded buffer.
+      this.renderTick = Math.max(this.renderTick, this.snapshots[0].tick - 6);
+      while (this.snapshots.length > 2 && this.snapshots[1].tick <= this.renderTick)
+        this.snapshots.shift();
+      const previous = this.snapshots[0];
+      const current = this.snapshots[1] || previous;
+      const alpha = current.tick === previous.tick ? 1 :
+        Math.max(0, Math.min(1, (this.renderTick - previous.tick) / (current.tick - previous.tick)));
+      return this.replica.renderState(alpha, previous, current);
     }
+
     current() {
       return this.replica.current || this.stableState;
     }

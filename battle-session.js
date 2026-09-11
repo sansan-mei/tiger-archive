@@ -468,16 +468,16 @@
         return { ok: false, reason: error.message, events: [] };
       }
     }
-    renderState(alpha = 1) {
-      if (!this.current) return null;
-      const state = C.clone(this.current);
-      if (!this.previous) return state;
-      // A short, visual-only extrapolation keeps rendering fluid when a 20 Hz
-      // packet arrives a little late. Authoritative state remains untouched.
+    renderState(alpha = 1, previous = this.previous, current = this.current) {
+      if (!current) return null;
+      const state = C.clone(current);
+      if (!previous) return state;
+      // Render only a copy. Network playback supplies buffered endpoints and alpha
+      // in [0, 1]; legacy/local callers retain the bounded extrapolation API.
       const t = Math.max(0, Math.min(1.5, alpha));
       for (const e of state.entities) {
-        const before = this.previous.entities.find((p) => p.id === e.id);
-        if (!before || before.alive !== e.alive) continue;
+        const before = previous.entities.find((p) => p.id === e.id);
+        if (!before || before.alive !== e.alive || before.respawnAt !== e.respawnAt) continue;
         // Interpolate continuous slope height with planar movement.
         for (const axis of ["x", "y", "z"])
           e[axis] = before[axis] + (e[axis] - before[axis]) * t;
@@ -489,7 +489,7 @@
           );
       }
       for (const b of state.bullets) {
-        const before = this.previous.bullets.find((p) => p.id === b.id);
+        const before = previous.bullets.find((p) => p.id === b.id);
         if (!before || before.owner !== b.owner) continue;
         for (const axis of ["x", "y", "z"])
           b[axis] = before[axis] + (b[axis] - before[axis]) * t;

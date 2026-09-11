@@ -258,7 +258,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.match(nodes.get("weapon-description").textContent, /0\/2/);
   for (const heading of [0, Math.PI / 2, -Math.PI / 2, Math.PI - 0.01]) {
     driver.heading = heading;
-    advance(6);
+    // Allow the 100 ms playout buffer and angular interpolation to settle.
+    advance(15);
     const forward = { x: -Math.cos(heading), z: Math.sin(heading) };
     assert.ok(
       renderedCamera.position.y - driver.y > 4 &&
@@ -293,6 +294,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   for (const fn of windowEvents.keydown)
     fn({ code: "KeyW", preventDefault() {}, repeat: false });
   advance(210);
+  assert.equal(nodes.get("network-quality").hidden, false);
+  assert.match(nodes.get("network-quality").textContent, /FPS · 延迟 .* ms · 距收包/);
   assert.equal(e.floor, 1);
   for (const fn of windowEvents.keyup)
     fn({ code: "KeyW", preventDefault() {} });
@@ -332,7 +335,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     rampDir: 0,
     speed: 0,
   });
-  advance(6);
+  advance(15);
   const canvas = nodes.get("battle-canvas");
   canvas.emit("pointerdown", {
     pointerType: "mouse",

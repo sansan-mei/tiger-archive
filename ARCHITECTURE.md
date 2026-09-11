@@ -123,3 +123,7 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 ## 开火后坐表现
 
 client/recoil.js 保存武器视觉参数及有上限的冲量、按时间指数衰减函数。battle.js 复用权威 shot 事件触发；units.js 消费为炮管、炮座、机体姿态；camera.js 不参与后坐处理，保持视角稳定。逻辑输入和快照均不受影响，无需协议或 Redis 前缀变更。
+
+## 网络播放时间线
+
+network-session.js 用有界快照队列和单调 renderTick 播放服务端 tick，收包只补充队列而不重置插值。battle-session.js 的 renderState 可接收选定的两个快照，输出副本，保持最新权威状态不被渲染修改。客户端每 2 秒通过已有 ping/pong 测量 RTT，战斗 HUD 显示帧率和收包年龄用于线上诊断。

@@ -449,12 +449,14 @@
     };
   }
   let last = 0,
-    hudTime = 0;
+    hudTime = 0,
+    frameSeconds = 1 / 60;
   function frame(time) {
     requestAnimationFrame(frame);
     const seconds = Math.max(0, (time - last) / 1000),
       dt = Math.min(seconds, 0.05);
     last = time;
+    frameSeconds += (Math.min(1, seconds) - frameSeconds) * 0.1;
     if (document.hidden) return;
     roomBrowser.update(time, !$("game-overlay").hidden && !network?.room);
     const before = session.current(),
@@ -639,6 +641,15 @@
     if (hudTime > 0.08) {
       hudTime = 0;
       hud.update({ truth, p, state, target });
+      const quality = $("network-quality");
+      if (quality) {
+        quality.hidden = !session.online;
+        quality.textContent = session.online
+          ? Math.round(1 / Math.max(0.001, frameSeconds)) + " FPS · 延迟 " +
+            (session.rtt === null ? "测量中" : Math.round(session.rtt) + " ms") +
+            " · 距收包 " + Math.round(Math.max(0, performance.now() - session.receivedAt)) + " ms"
+          : "";
+      }
     }
     renderer.render(scene, camera);
   }

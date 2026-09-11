@@ -423,23 +423,60 @@ function stalledClient() {
     },
   };
 }
-test("network rendering adapts to delayed snapshot cadence and caps extrapolation", () => {
+test("jittered snapshots never rewind the render clock or teleport on packet arrival", () => {
   const t = stalledClient();
-  for (let i = 0; i < 3; i++) t.authority.step();
-  t.time(100);
+  let lastX = 0;
+  const beforeTruth = C.clone(t.n.current());
+  const packets = [];
+  for (let tick = 3; tick <= 120; tick += 3) {
+    for (let i = 0; i < 3; i++) t.authority.step();
+    t.authority.battle.entities[0].x = tick * 0.1;
+    packets.push({ at: tick / 60 * 1000 + (tick % 6 ? 0 : 25), packet: t.authority.statePacket() });
+  }
+  let delivered = 0, maxStep = 0;
+  for (let now = 0; now <= 2200; now += 5) {
+    t.time(now);
+    const before = t.n.state().entities[0].x;
+    while (packets[delivered]?.at <= now) {
+      t.n.message(packets[delivered++].packet);
+      const after = t.n.state().entities[0].x;
+      assert.ok(Math.abs(after - before) < 1e-8, "arrival must not reset interpolation");
+    }
+    const x = t.n.state().entities[0].x;
+    assert.ok(x >= lastX - 1e-8, "forward motion must not snap backward");
+    maxStep = Math.max(maxStep, x - lastX);
+    lastX = x;
+    assert.ok(x <= t.n.current().entities[0].x + 1e-8, "no overshoot past authority");
+  }
+  assert.ok(maxStep < 0.04, "bounded visual speed under jitter");
+  assert.equal(t.n.current().entities[0].x, 12);
+  assert.equal(beforeTruth.entities[0].x, 0);
+  assert.ok(t.n.snapshots.length <= 32);
+  t.n.close();
+});
+test("batched packets retain interpolation history and a stopped stream freezes without extrapolation", () => {
+  const t = stalledClient();
+  for (let batch = 1; batch <= 10; batch++) {
+    for (let frame = 0; frame < 20; frame++) {
+      t.time((batch - 1) * 100 + frame * 5);
+      t.n.state();
+    }
+    t.time(batch * 100);
+    const before = t.n.state().entities[0].x;
+    for (let packet = 0; packet < 2; packet++) {
+      for (let tick = 0; tick < 3; tick++) t.authority.step();
+      t.authority.battle.entities[0].x = t.authority.battle.tick * 0.1;
+      t.deliver();
+    }
+    assert.ok(Math.abs(t.n.state().entities[0].x - before) < 1e-8);
+  }
+  for (let now = 1100; now <= 2500; now += 50) { t.time(now); t.n.state(); }
+  assert.equal(t.n.state().entities[0].x, t.n.current().entities[0].x);
+  t.n.message(t.authority.attach("peer", "p1"));
+  assert.equal(t.n.snapshots.length, 0);
+  assert.equal(t.n.renderTick, null);
   t.deliver();
-  assert.equal(t.n.snapshotGap, 62.5);
-  let alpha = 0;
-  t.n.replica.renderState = (value) => {
-    alpha = value;
-    return t.n.replica.current;
-  };
-  t.time(162.5);
-  t.n.state();
-  assert.equal(alpha, 1);
-  t.time(1000);
-  t.n.state();
-  assert.equal(alpha, 1.5);
+  assert.ok(Number.isFinite(t.n.state().entities[0].x));
   t.n.close();
 });
 test("stale snapshots pause held inputs once, block resume and recover only on newer state", () => {
@@ -526,7 +563,7 @@ test("browser timers retain the Window receiver during connect, reconnect and cl
   const vm = require("node:vm"),
     fs = require("node:fs"),
     path = require("node:path");
-  const context = vm.createContext({ TankBattle: C, TankSession: S });
+  const context = vm.createContext({ TankBattle: C, TankSession: S, performance: { now: () => 0 } });
   vm.runInContext(
     `
     window = globalThis;
@@ -587,4 +624,16 @@ test("browser timers retain the Window receiver during connect, reconnect and cl
   client.close();
   assert.equal(context.pending.length, 1);
   assert.ok(context.cleared.includes(1));
+});
+
+test("network quality measures round-trip only from its outstanding ping", () => {
+  const t = stalledClient();
+  for (let i = 0; i < 3; i++) t.authority.step();
+  t.time(2000); t.deliver(); t.n.advance(0, {});
+  assert.equal(t.sent.at(-1).type, "ping");
+  t.time(2120); t.n.message({ type: "pong", sentAt: 2000 });
+  assert.equal(t.n.rtt, 120);
+  t.n.message({ type: "pong", sentAt: 1999 });
+  assert.equal(t.n.rtt, 120);
+  t.n.close();
 });
