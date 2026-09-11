@@ -5,12 +5,12 @@
   registry.register({
     kind: "tank",
     id: "light",
-    version: "2.1.1",
+    version: "2.2.0",
     apiVersion: 1,
     spec: {
       name: "游隼 · 轻型机甲",
       hp: 140,
-      shield: 60,
+      shield: 0,
       ability: "dash",
       speed: 14,
       reverse: 7,

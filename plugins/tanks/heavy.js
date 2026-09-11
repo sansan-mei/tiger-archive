@@ -5,12 +5,12 @@
   registry.register({
     kind: "tank",
     id: "heavy",
-    version: "2.1.1",
+    version: "2.2.0",
     apiVersion: 1,
     spec: {
       name: "堡垒 · 重型机甲",
       hp: 280,
-      shield: 120,
+      shield: 0,
       ability: "deploy",
       speed: 8,
       reverse: 4,

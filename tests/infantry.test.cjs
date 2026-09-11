@@ -84,7 +84,8 @@ test("rocket direct hit applies 20 followed by full 80 explosion to the same tar
     damage.map((e) => e.amount),
     [20, 80],
   );
-  assert.equal(h.hp + h.shield, 300);
+  assert.equal(h.hp, 180);
+  assert.equal(h.shield, 0);
   assert.equal(b.bullets.length, 0);
 });
 test("blast falls off with distance, has a six metre radius and ignores other bodies as cover", () => {
@@ -107,11 +108,13 @@ test("walls and floor slabs block blast propagation", () => {
   put(b.entities[1], 6, 0);
   b.map.obstacles = [{ id: "wall", floor: 0, x: 3, z: 0, w: 1, d: 8, h: 4 }];
   impact(b);
-  assert.equal(b.entities[1].shield, 90);
+  assert.equal(b.entities[1].shield, 0);
+  assert.equal(b.entities[1].hp, 210);
   b.map.obstacles = [];
   put(b.entities[1], 0, 0, 1);
   impact(b, 0, 7.8, 0);
-  assert.equal(b.entities[1].shield, 90);
+  assert.equal(b.entities[1].shield, 0);
+  assert.equal(b.entities[1].hp, 210);
 });
 test("rocket self damage kills an unshielded human without awarding a self kill", () => {
   const b = battle();
@@ -143,4 +146,18 @@ test("human rocket loadout and explosion events pass authority replication and r
   const copy = new C.Battle();
   copy.restore(packet.snapshot);
   assert.deepEqual(copy.snapshot(), packet.snapshot);
+});
+
+test("two full rocket direct hits kill light armour without passive shield regeneration", () => {
+  const b = battle(["human", "light"]), [a, target] = b.entities;
+  put(a, 0, 20); put(target, 0, 0);
+  assert.deepEqual([target.hp, target.shield], [140, 0]);
+  for (let shot = 0; shot < 2; shot++) {
+    assert.equal(b.shoot(a), true);
+    for (let tick = 0; tick < 90 && b.bullets.length; tick++) b.step();
+    assert.equal(target.hp, shot ? 0 : 40);
+    assert.equal(target.alive, shot === 0);
+    if (!shot) for (let tick = 0; tick < 360; tick++) b.step();
+  }
+  assert.equal(target.shield, 0);
 });

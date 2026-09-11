@@ -222,11 +222,9 @@
         for (const [mesh, material] of view.originals) mesh.material = material;
       }
       view.shield.visible =
-        e.alive && (e.protectedUntil > truth.tick || e.barrier > 0);
-      view.frontShield.visible =
-        e.alive &&
-        C.TANKS[e.tankType].ability === "deploy" &&
-        e.abilityUntil > truth.tick;
+        e.alive && e.barrier > 0;
+      // Heavy deployment is armour reduction, not an energy shield.
+      view.frontShield.visible = false;
       view.warning.visible = e.alive && view.tank.visible && e.charge > 0;
       if (view.warning.visible) {
         const start = new T.Vector3(e.x, e.y + 2.2, e.z),

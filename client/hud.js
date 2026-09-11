@@ -63,13 +63,11 @@
     const weapon = C.WEAPONS[p.weaponType],
       tank = C.TANKS[p.tankType];
     $("hp-number").textContent = Math.ceil(p.hp);
-    $("shield-number").textContent =
-      Math.ceil(p.shield) +
-      " / " +
-      tank.shield +
-      (p.barrier ? " + " + Math.ceil(p.barrier) + " 临时" : "");
-    $("shield-bar").max = tank.shield || 1;
-    $("shield-bar").value = p.shield;
+    $("shield-readout").hidden = p.barrier <= 0;
+    $("shield-bar").hidden = p.barrier <= 0;
+    $("shield-number").textContent = Math.ceil(p.barrier);
+    $("shield-bar").max = C.ABILITIES.barrier.barrier;
+    $("shield-bar").value = p.barrier;
     const ability = C.ABILITIES[tank.ability];
     $("ability-status").textContent =
       "Shift · " +

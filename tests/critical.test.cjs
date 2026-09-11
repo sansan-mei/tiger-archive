@@ -50,7 +50,7 @@ test("standard cannon cycles 35,35,70; enhanced hit never charges the next cycle
     a = b.entities[0];
   const actual = [];
   for (let i = 0; i < 9; i++) {
-    Object.assign(b.entities[1], { hp: 280, shield: 120 });
+    Object.assign(b.entities[1], { hp: 280, shield: 0 });
     const shot = fire(b);
     actual.push(shot.damage);
     hit(b, shot);
@@ -85,12 +85,16 @@ test("walls and protected targets do not charge; a missed enhanced shot consumes
   hit(b, enhanced, "cover");
   assert.equal(fire(b).damage, 35);
 });
-test("shield hits count, cancelled fire does not consume readiness, and death clears progress", () => {
+test("temporary barrier hits count, cancelled fire does not consume readiness, and death clears progress", () => {
   const b = setup(),
     a = b.entities[0],
     target = b.entities[1];
+  target.tankType = "medium";
+  target.hp = target.maxHp = 210;
+  b.step({ b: { ability: true } });
   hit(b, fire(b));
-  assert.equal(target.hp, 280);
+  assert.equal(target.hp, 210);
+  assert.equal(target.barrier, 25);
   assert.equal(a.criticalProgress, 1);
   hit(b, fire(b));
   b.releaseControl("a");

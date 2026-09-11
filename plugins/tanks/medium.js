@@ -5,12 +5,12 @@
   registry.register({
     kind: "tank",
     id: "medium",
-    version: "2.1.1",
+    version: "2.2.0",
     apiVersion: 1,
     spec: {
       name: "先锋 · 中型机甲",
       hp: 210,
-      shield: 90,
+      shield: 0,
       ability: "barrier",
       speed: 11,
       reverse: 5.5,

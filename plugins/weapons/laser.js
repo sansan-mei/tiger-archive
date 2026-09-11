@@ -6,12 +6,12 @@
   registry.register({
     kind: "weapon",
     id: "laser",
-    version: "2.3.1",
+    version: "2.4.0",
     apiVersion: 1,
     spec: {
       name: "延时激光炮",
       damage: 100,
-      cooldown: 126,
+      cooldown: 102,
       speed: 0,
       life: 0,
       charge: 90,

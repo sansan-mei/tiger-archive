@@ -28,27 +28,18 @@ function make(tankType = "medium") {
   b.start();
   return b;
 }
-test("shields absorb overflow before armour, regen after five quiet seconds and pause freezes regen", () => {
-  const b = make(),
-    a = b.entities[0];
-  b.damage(a, 110, "b", a);
-  assert.equal(a.shield, 0);
-  assert.equal(a.hp, 190);
-  for (let i = 0; i < 299; i++) b.step();
-  assert.equal(a.shield, 0);
-  b.pause();
-  b.step();
-  assert.equal(a.shield, 0);
-  b.start();
-  b.step();
-  assert.ok(a.shield > 0);
-  b.damage(a, 1, "b", a);
-  const shield = a.shield;
-  for (let i = 0; i < 299; i++) b.step();
-  assert.equal(a.shield, shield);
-  for (let i = 0; i < 361; i++) b.step();
-  assert.equal(a.shield, 90);
-  assert.ok(a.hp < 190);
+test("all units start without passive shields and never regenerate them", () => {
+  for (const type of Object.keys(C.TANKS)) {
+    const b = make(type), a = b.entities[0];
+    assert.equal(a.shield, 0);
+    b.damage(a, 20, "b", a);
+    const hp = a.hp;
+    for (let i = 0; i < 700; i++) b.step();
+    assert.deepEqual([a.hp, a.shield, a.barrier], [hp, 0, 0]);
+    b.step({ a: { ability: true } });
+    assert.equal(a.barrier, type === "medium" ? 60 : 0);
+    assert.equal(a.shield, 0);
+  }
 });
 test("dash moves about thirteen metres, can fire and respects a wall and ramp sides", () => {
   const b = make("light"),
@@ -78,8 +69,8 @@ test("held skill does not retrigger, barrier absorbs damage then expires and coo
   b.step({ a: { ability: true } });
   assert.equal(a.barrier, 60);
   b.damage(a, 80, "b", a);
-  assert.equal(a.shield, 70);
-  assert.equal(a.hp, 210);
+  assert.equal(a.shield, 0);
+  assert.equal(a.hp, 190);
   let events = [];
   for (let i = 0; i < 750; i++)
     events.push(...b.step({ a: { ability: true } }));
@@ -95,12 +86,13 @@ test("deploy reduces only frontal damage, follows turret and slows movement", ()
   b.step({ a: { ability: true, forward: true } });
   a.aim = 0;
   b.damage(a, 30, "b", a, { x: 1, z: 0 });
-  assert.equal(a.shield, 111);
+  assert.equal(a.shield, 0);
+  assert.equal(a.hp, 271);
   b.damage(a, 30, "b", a, { x: -1, z: 0 });
-  assert.equal(a.shield, 81);
+  assert.equal(a.hp, 241);
   a.aim = Math.PI / 2;
   b.damage(a, 30, "b", a, { x: 0, z: -1 });
-  assert.equal(a.shield, 72);
+  assert.equal(a.hp, 232);
   for (let i = 0; i < 60; i++) b.step({ a: { forward: true } });
   assert.ok(a.speed <= C.TANKS.heavy.speed * 0.35 + 0.001);
 });
@@ -127,11 +119,11 @@ test("ability and shield state survives authority/replica and checkpoint continu
     assert.throws(() => C.normalizeInput({ ability: 1 }));
   }
 });
-test("continuous full-power weapon hits meet the 2/3/4 laser baseline and balanced cannon counts", () => {
+test("continuous full-power hits match armour-only kill counts", () => {
   const expected = {
-    laser: [2, 3, 4],
-    standard: [5, 7, 9],
-    rapid: [16, 24, 31],
+    laser: [2, 3, 3],
+    standard: [3, 5, 6],
+    rapid: [11, 17, 22],
   };
   for (const [weaponType, counts] of Object.entries(expected))
     for (const [i, tankType] of ["light", "medium", "heavy"].entries()) {

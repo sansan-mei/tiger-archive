@@ -5,7 +5,7 @@
   else (root.TankSystems ??= {}).movement = api;
 })(typeof window === "undefined" ? globalThis : window, function (C) {
   "use strict";
-  const { ABILITIES, RULES, TICK_RATE, DT, TANKS, WEAPONS, wrap, turn, clamp } =
+  const { ABILITIES, DT, TANKS, WEAPONS, wrap, turn, clamp } =
     C;
   function tickEntity(battle, body, input) {
     if (input.cancelFire) {
@@ -34,11 +34,6 @@
       battle.emit("ability", { id: body.id, ability: spec.ability });
     }
     body.abilityHeld = input.ability === true;
-    if (battle.tick - body.lastDamageTick >= RULES.shieldDelay)
-      body.shield = Math.min(
-        spec.shield,
-        body.shield + spec.shield / (6 * TICK_RATE),
-      );
     if (body.cooldown) body.cooldown--;
     if (!input.fire) body.needsRelease = false;
     if (!body.falling) {

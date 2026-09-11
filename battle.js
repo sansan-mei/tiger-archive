@@ -234,9 +234,7 @@
       tank.name +
       " · " +
       tank.hp +
-      " 装甲 + " +
-      tank.shield +
-      " 护盾 / " +
+      " 装甲 / " +
       Math.round(tank.speed * 3.6) +
       " km/h；" +
       weapon.name +
@@ -265,7 +263,7 @@
     $("loadout-summary").textContent +=
       "。Shift：" +
       C.describeAbility(tank.ability) +
-      "。停火且未受击 5 秒后恢复护盾。";
+      "。无常驻护盾；仅中型机甲技能提供临时屏障。";
   }
   for (const id of ["tank-select", "weapon-select"])
     $(id).addEventListener("change", updateLoadout);

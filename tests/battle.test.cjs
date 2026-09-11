@@ -92,7 +92,7 @@ test("reverse, braking, chassis turn and independent turret movement", () => {
   assert.equal(p.z, z2);
   assert.notEqual(p.heading, heading);
 });
-test("standard cannon has a server-enforced cooldown and nine hits defeat medium armour plus shield", () => {
+test("standard cannon has a server-enforced cooldown and sustained hits defeat medium armour", () => {
   const b = make(),
     p = b.entities[0],
     enemy = b.entities[1];
@@ -100,7 +100,9 @@ test("standard cannon has a server-enforced cooldown and nine hits defeat medium
   put(enemy, 0, -20);
   assert.equal(b.shoot(p), true);
   assert.equal(b.shoot(p), false);
-  const events = ticks(b, 620, { p1: { fire: true } });
+  const events = [];
+  for (let i = 0; i < 620 && enemy.alive; i++)
+    events.push(...b.step({ p1: { fire: true } }));
   assert.equal(enemy.hp, 0);
   assert.equal(p.kills, 1);
   assert.equal(b.status, "playing");
@@ -226,8 +228,8 @@ test("ramp allows stopping, aiming, charging, firing and damage; interact grants
   assert.ok(events.some((e) => e.type === "beam"));
   assert.notEqual(p.aim, p.heading);
   assert.equal(b.damage(p, 10, "p2", position), true);
-  assert.equal(p.hp, 210);
-  assert.equal(p.shield, 80);
+  assert.equal(p.hp, 200);
+  assert.equal(p.shield, 0);
 });
 test("ramps block sideways entry, departure and driving through another tank", () => {
   const b = make(),
@@ -297,8 +299,8 @@ test("FFA damage applies to any other participant; no hardcoded player/enemy imm
     b.damage(target, 20, a.id, { x: target.x, y: target.y, z: target.z }),
     true,
   );
-  assert.equal(target.hp, target.maxHp);
-  assert.equal(target.shield, C.TANKS[target.tankType].shield - 20);
+  assert.equal(target.hp, target.maxHp - 20);
+  assert.equal(target.shield, 0);
 });
 test("fixed-tick checkpoint restore produces an identical continuation", () => {
   const a = make();
@@ -404,5 +406,18 @@ test("laser warm-up survives snapshot restore without restarting or early releas
   for (let i = 0; i < 45; i++) assert.deepEqual(restored.step({}), b.step({}));
   assert.deepEqual(restored.snapshot(), b.snapshot());
   assert.equal(b.entities[0].charge, 0);
-  assert.equal(b.entities[0].cooldown, 126);
+  assert.equal(b.entities[0].cooldown, 102);
+});
+
+test("laser reload is 102 ticks and the next shot still requires 90 ticks of warm-up", () => {
+  const b = make({ weapon: "laser" }), p = b.entities[0];
+  ticks(b, 90, { p1: { fire: true } });
+  assert.equal(p.cooldown, 102);
+  ticks(b, 101);
+  assert.deepEqual([p.cooldown, p.charge], [1, 0]);
+  b.step();
+  assert.equal(p.cooldown, 0);
+  const events = ticks(b, 89, { p1: { fire: true } });
+  assert.equal(events.some(e => e.type === "beam"), false);
+  assert.equal(b.step().some(e => e.type === "beam"), true);
 });

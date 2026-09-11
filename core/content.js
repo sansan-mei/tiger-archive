@@ -41,7 +41,6 @@
       protection: 120,
       boost: 360,
       pickupCooldown: 1200,
-      shieldDelay: 300,
       repair: 40,
     });
     const PLUGIN_MANIFEST = JSON.stringify({
