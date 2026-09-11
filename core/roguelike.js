@@ -225,6 +225,8 @@
     const bosses = s.entities.filter(e=>["boss","titan"].includes(e.zombieType)),
       active = bosses.filter(e=>e.alive);
     if(active.length!==(boss.spawned&&!boss.defeated?1:0)||active.some(e=>e.zombieType!==(boss.stage===1?"boss":"titan"))||
+      (boss.stage===1&&boss.spawned&&v.wave!==8)||
+      (boss.stage===1&&!boss.spawned&&!bosses.some(e=>e.zombieType==="boss"&&!e.alive))||
       (boss.defeated&&!bosses.some(e=>e.zombieType==="titan"&&!e.alive)))throw Error("Inconsistent boss state");
     if(s.entities.some(e=>e.tankType==="zombie"&&!int(e.slowUntil)))throw Error('Invalid slow status');
   }

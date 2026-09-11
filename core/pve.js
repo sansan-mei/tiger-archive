@@ -6,7 +6,7 @@
   else (root.TankSystems ??= {}).pve = api;
 })(typeof window === "undefined" ? globalThis : window, function (C, R) {
   "use strict";
-  const MAX_ZOMBIES = 16;
+  const MAX_REGULAR_ZOMBIES = 16, MAX_ZOMBIES = 17;
   const rewards = Object.freeze({
     ...R.rewards,
     medkit: { name: "急救补给", description: "立即恢复 60 生命" },
@@ -181,7 +181,8 @@
       pve.nextSpawnAt = b.tick;
     }
     if (pve.queue && b.tick >= pve.nextSpawnAt) {
-      const vacant = zombies(b).find((z) => !z.alive);
+      const regular = zombies(b).slice(0, MAX_REGULAR_ZOMBIES),
+        vacant = regular.find((z) => !z.alive);
       if (vacant && spawn(b, vacant)) pve.queue--;
       pve.nextSpawnAt = b.tick + 30;
     }
@@ -205,6 +206,8 @@
         Object.keys(p.upgrades).length !== players.length ||
         (s.status === "finished") !== (p.result !== null)) throw new Error("Invalid PvE state");
     R.validate(s);
+    if (p.result === "victory" && !(p.boss.stage === 2 && p.boss.spawned && p.boss.defeated))
+      throw Error("Invalid PvE victory");
     for (const [id, choices] of Object.entries(p.choices)) {
       if (!players.some((e) => e.id === id) || !Array.isArray(choices) || choices.length !== 3 ||
           new Set(choices).size !== 3 || choices.some((c) => !Object.hasOwn(rewards, c))) throw new Error("Invalid PvE choices");

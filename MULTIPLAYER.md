@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v23）
+# 多人接入边界（协议 v24）
 
 ## 已实现
 
@@ -57,12 +57,12 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 23, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 24, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 23, type: "input", matchId, epoch, connection,
+      version: 24, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state：
 
     {
-      version: 23, type: "state", matchId, epoch, snapshotSeq,
+      version: 24, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { kind: "network", version, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -107,7 +107,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v23 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3，握手拒绝旧清单。维修包随装甲数值调整为 40。
+协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v24 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
@@ -128,7 +128,7 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 23, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 24, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
 浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v14；需要重启 Node 服务加载接口。
 
@@ -212,6 +212,10 @@ PvE 权威升级表为五种武器增加专属依赖链：手枪的贯穿/弹射
 
 ## v23：16 波与双 Boss
 
-PvE 战役固定为 16 波。第 8 波生成 `boss`（零号感染体），击败后 `boss.stage` 保持 1、`spawned` 回落为 false，休整后继续第 9 波；第 16 波生成 `titan`（泰坦感染体），只有击败泰坦才设置 `defeated` 并结算胜利。第 9～15 波及第 16 波援军禁止生成 walker，重锤巨人从第 9 波解锁。
+PvE 战役固定为 16 波。第 8 波生成 `boss`（零号感染体），击败后 `boss.stage` 保持 1、`spawned` 回落为 false，休整后继续第 9 波；第 16 波生成 `titan`（泰坦感染体），只有击败泰坦才设置 `defeated` 并结算胜利。第 9～15 波及第 16 波援军禁止生成 walker，重锤巨人从第 9 波解锁。普通波预分配 16 个普通敌人槽位并保留 1 个专用 Boss 槽位。
 
 泰坦使用独立生命、速度、近战与红圈配置：基础生命 2200，普通/狂暴红圈为 9/11 米、60/70 伤害，75 tick 预警，等待 150/90 tick；零号感染体继续使用 6/7 米、45/50 伤害和 60 tick 预警。检查点新增 `boss.stage` 并校验波次、活跃 Boss 类型、胜利状态和允许的红圈半径；PvE 时限从 8 分钟扩为 16 分钟，FFA 仍保持 8 分钟，客户端根据模式显示对应倒计时。协议升级 v23，zombie 插件升级 1.4.0。
+
+## v24：双 Boss 检查点加固
+
+检查点不再只校验 `finished/result` 是否同时出现：`victory` 必须绑定 `boss.stage===2 && spawned && defeated`，并且必须存在已死亡泰坦。第 8 波 Boss 击败后，专用 Boss 槽位保留已死亡 `boss` 作为阶段历史；第 9～15 波拒绝仍处于活跃状态的中期 Boss。普通怪继续使用独立的 16 个槽位，因此后半程并发上限不降级。实体池结构变化使协议升级为 v24，v23 检查点按不兼容流程处理。

@@ -2,7 +2,7 @@
 
 三层战场的坦克战斗原型。支持本地训练（1 名玩家 + 7 AI）、WebSocket 自由混战（2–8 人）和僵尸合作生存（1–8 人），可使用现有 Redis 保存恢复检查点。
 
-当前协议 **v23**，十个内容插件（zombie 1.4.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
+当前协议 **v24**，十个内容插件（zombie 1.4.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
 
 ## 启动与操作
 
@@ -136,7 +136,7 @@
 
 ## 插件化版本
 
-车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v23 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
+车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v24 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
 
 ## 联机与部署文件
 
@@ -165,7 +165,7 @@
 
 开发源码保持可读，Docker 默认在构建阶段生成混淆后的前端；也可通过 `pnpm run build:client` 生成 public-dist，再用 `pnpm run start:release` 提供服务。发布模式不回退提供源码，Three.js 不混淆，不生成 source map。配置、调试开关和验证边界见 [OBFUSCATION.md](OBFUSCATION.md)。本次未执行发布构建或镜像构建。
 
-以下功能记录保留实现时的协议版本描述；当前统一使用 v23，以本文开头和「僵尸合作生存」部分为准。
+以下功能记录保留实现时的协议版本描述；当前统一使用 v24，以本文开头和「僵尸合作生存」部分为准。
 
 ## 坡道下穿
 
