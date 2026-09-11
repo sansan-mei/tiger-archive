@@ -55,6 +55,30 @@ test('a zombie pack spreads around one target instead of forming a single-file t
   assert.ok(attackers.size>=3,[...attackers].join(','));
   assert.ok(pack.filter(z=>Math.hypot(z.x-p.x,z.z-p.z)<2.2).length>=3);
 });
+test('high-numbered zombies and the boss do not wait outside melee range', () => {
+  for(const bossCase of [false,true]) {
+    const b=create(),p=b.entities[0],z=enemies(b)[bossCase?15:6];
+    Object.assign(p,{x:0,z:55,hp:10000,maxHp:10000,protectedUntil:0});
+    Object.assign(z,{x:bossCase?-8:8,z:55,y:0,floor:0,alive:true,protectedUntil:0,
+      zombieType:bossCase?'boss':'walker',hp:bossCase?1200:80,maxHp:bossCase?1200:80,
+      heading:bossCase?Math.PI:0,brain:{target:null,path:[],pathTick:0,blocked:0}});
+    b.pve.nextWaveAt=100000;b.pve.queue=0;b.pve.wave=6;
+    if(bossCase){b.pve.boss.spawned=true;b.pve.boss.nextAttackAt=100000;}
+    let hits=0;for(let i=0;i<600;i++)for(const event of b.step())
+      if(event.type==='damage'&&event.id===p.id&&event.owner===z.id)hits++;
+    assert.ok(hits>0,z.id);
+  }
+});
+test('simultaneously blocked zombies invalidate stale paths but spread A-star work across ticks', () => {
+  const b=create(),p=b.entities[0],pack=enemies(b),route=b.route.bind(b);
+  Object.assign(p,{x:0,z:55});b.tick=0;
+  for(const [i,z] of pack.entries())Object.assign(z,{x:20+i,z:55,y:0,floor:0,alive:true,
+    brain:{target:p.id,path:[{x:100,z:100}],pathTick:10000,blocked:12}});
+  let calls=0;b.route=(...args)=>{calls++;return route(...args);};
+  for(const z of pack)b.botInput(z);
+  assert.equal(calls,1);
+  assert.ok(pack.slice(1).every(z=>z.brain.path.length===0&&z.brain.pathTick===0));
+});
 test('wave rewards are validated once, persist and affect authority cooldown, healing and area damage', () => {
   const b=create(), p=b.entities[0]; clearWave(b);
   assert.equal(b.pve.choices[p.id].length,3);

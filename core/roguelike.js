@@ -130,9 +130,34 @@
     } else if(!state.telegraph && b.tick>=state.nextAttackAt) {
       const enraged=boss.hp<boss.maxHp/2,radius=enraged?7:6,lead=enraged?1:.75;
       state.telegraph={at:b.tick+60,zones:b.entities.filter(e=>e.tankType!=="zombie" && e.alive).map(e=>{
-        const bound=b.map.levels[e.floor].bound-1;
-        return {x:C.clamp(e.x-Math.cos(e.heading)*e.speed*lead,-bound,bound),y:e.y,
-          z:C.clamp(e.z+Math.sin(e.heading)*e.speed*lead,-bound,bound),radius};
+        const projected={...e,brain:e.brain},steps=Math.max(1,Math.round(lead*C.TICK_RATE)),
+          groundBound=b.map.levels[0].bound-C.TANKS[e.tankType].radius;
+        for(let i=0;i<steps;i++) {
+          if(projected.falling) {
+            projected.x=C.clamp(projected.x+projected.fallVX*C.DT,-groundBound,groundBound);
+            projected.z=C.clamp(projected.z+projected.fallVZ*C.DT,-groundBound,groundBound);
+            projected.fallVelocity=Math.max(-C.RULES.terminalFallSpeed,
+              projected.fallVelocity-C.RULES.gravity*C.DT);
+            const y=projected.y+projected.fallVelocity*C.DT,
+              landing=b.map.levels.filter(level=>level.y<=projected.y&&level.y>=y&&
+                C.deckRects(b.map,level).some(q=>projected.x>=q.x0&&projected.x<=q.x1&&
+                  projected.z>=q.z0&&projected.z<=q.z1)).sort((a,c)=>c.y-a.y)[0];
+            if(landing)Object.assign(projected,{y:landing.y,floor:landing.id,falling:false,
+              fallVelocity:0,fallVX:0,fallVZ:0,rampId:null,rampDir:0,speed:projected.speed*.35});
+            else projected.y=y;
+            continue;
+          }
+          const x=projected.x-Math.cos(projected.heading)*projected.speed*C.DT,
+            z=projected.z+Math.sin(projected.heading)*projected.speed*C.DT,
+            surface=b.surface(projected,x,z);
+          if(!surface||!b.valid(x,z,surface.floor,projected,
+            {surface,allowDrop:true,ignoreEntities:true}))break;
+          if(surface.falling)Object.assign(projected,{fallVelocity:0,
+            fallVX:-Math.cos(projected.heading)*projected.speed,
+            fallVZ:Math.sin(projected.heading)*projected.speed});
+          Object.assign(projected,{x,z,...surface});
+        }
+        return {x:projected.x,y:projected.y,z:projected.z,radius};
       })};
       boss.boostUntil=b.tick+120;
     }

@@ -186,19 +186,21 @@
         }
       }
     } else if (zombie && range > 1.8) {
-      const slot = zombieOrdinal % 6,
-        ring = 1.85 + Math.floor(zombieOrdinal / 6) * 1.7,
-        angle = (slot * Math.PI * 2) / 6,
-        attackPoint = {
-          id: `${target.id}:attack:${zombieOrdinal}`,
-          x: target.x + Math.cos(angle) * ring,
-          z: target.z + Math.sin(angle) * ring,
-        };
-      goal = battle.valid(attackPoint.x, attackPoint.z, target.floor, body, {
-        ignoreEntities: true,
-      })
-        ? attackPoint
-        : target;
+      if (body.zombieType === "boss") goal = target;
+      else {
+        const slot = zombieOrdinal % 6,
+          angle = (slot * Math.PI * 2) / 6,
+          attackPoint = {
+            id: `${target.id}:attack:${slot}`,
+            x: target.x + Math.cos(angle) * 1.85,
+            z: target.z + Math.sin(angle) * 1.85,
+          };
+        goal = battle.valid(attackPoint.x, attackPoint.z, target.floor, body, {
+          ignoreEntities: true,
+        })
+          ? attackPoint
+          : target;
+      }
       direct = los && !recovering && body.brain.blocked < 12 && !body.brain.path.length;
     } else if (!los || range > 31) {
       goal = target;
@@ -229,7 +231,7 @@
     if (goal) {
       if (
         !direct &&
-        (!zombie || recovering || battle.tick % 16 === zombieOrdinal) &&
+        (!zombie || battle.tick % 16 === zombieOrdinal) &&
         (battle.tick >= body.brain.pathTick || body.brain.target !== goalKey)
       ) {
         body.brain.path = battle.route(body, goal);

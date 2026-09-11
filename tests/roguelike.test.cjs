@@ -104,6 +104,29 @@ test('boss predicts movement with a faster wide strike and keeps summoning press
   for(let i=0;i<181;i++)b.step();
   assert.ok(zombies.filter(e=>e.alive&&e.zombieType!=='boss').length>=2);
 });
+test('predicted boss strikes follow the authoritative ramp height',()=>{
+  const b=make(),p=b.entities[0],ramp=b.map.ramps.find(r=>r.id==='west-01');
+  b.tick=C.RULES.duration-3601;b.step();
+  Object.assign(p,{x:ramp.a.x,z:16,y:C.rampHeight(b.map,ramp,16),floor:0,rampId:ramp.id,rampDir:1,
+    heading:-Math.PI/2,speed:9,hp:80,protectedUntil:0});
+  b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
+  const warning=b.pve.boss.telegraph,zone=warning.zones[0];
+  assert.ok(Math.abs(zone.z-9.25)<1e-6,String(zone.z));
+  assert.ok(Math.abs(zone.y-C.rampHeight(b.map,ramp,zone.z))<1e-6,String(zone.y));
+  Object.assign(p,{x:zone.x,y:zone.y,z:zone.z});b.tick=warning.at;R.bossAttack(b);
+  assert.equal(p.hp,35);
+});
+test('boss prediction stops at walls and lands airborne players on real decks',()=>{
+  const b=make(),p=b.entities[0],boss=b.entities.filter(e=>e.tankType==='zombie').at(-1);
+  b.tick=C.RULES.duration-3601;b.step();boss.hp=boss.maxHp/2-1;
+  b.map.obstacles.push({id:'prediction-wall',floor:0,x:5,z:55,w:1,d:8,h:4});
+  Object.assign(p,{x:10,z:55,y:0,floor:0,rampId:null,rampDir:0,falling:false,heading:0,speed:9});
+  b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
+  assert.ok(b.pve.boss.telegraph.zones[0].x>6,String(b.pve.boss.telegraph.zones[0].x));
+  Object.assign(p,{x:70,z:55,y:8,floor:1,falling:true,fallVelocity:0,fallVX:0,fallVZ:0,speed:0});
+  b.pve.boss.telegraph=null;b.pve.boss.nextAttackAt=b.tick;R.bossAttack(b);
+  assert.equal(b.pve.boss.telegraph.zones[0].y,0);
+});
 test('progression and boss state reject malformed checkpoints and stay within packet limits',()=>{
   const a=new S.Authority({mode:'pve',participants:Array.from({length:8},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'}))});
   const b=a.battle;b.start();R.addExperience(b,100,C.PVE.rewards);
