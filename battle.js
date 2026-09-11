@@ -470,7 +470,7 @@
       localBefore = before.entities.find((e) => e.id === playerId);
     input.state.activeAim = null;
     let targetedId = null;
-    if (input.state.mouseKnown) {
+    if (input.state.mouseKnown && !input.state.freeLook) {
       ray.setFromCamera(pointer, camera);
       const hit = units.aimHit(
         ray,
@@ -494,6 +494,7 @@
       time,
       inputRevision: input.state.aimRevision,
       enabled:
+        !input.state.freeLook &&
         input.state.mouseKnown &&
         localBefore.alive &&
         status() === "playing" &&
@@ -608,6 +609,7 @@
       : String(damageTime * 0.65);
     $("aim-reticle").style.display =
       !session.suspended &&
+      !input.state.freeLook &&
       input.state.mouseKnown &&
       truth.status === "playing" &&
       p.alive

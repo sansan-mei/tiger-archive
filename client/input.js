@@ -16,6 +16,28 @@
     plane = new T.Plane(new T.Vector3(0, 1, 0), -2.2),
     aimWorld = new T.Vector3();
   const state = {};
+  state.freeLook = false;
+  const isMac = /Mac|iPhone|iPad|iPod/i.test(globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "");
+  const lookKeys = new Set(isMac ? ["MetaLeft", "MetaRight"] : ["AltLeft", "AltRight"]);
+  const heldLookKeys = new Set();
+  let savedLook = null;
+  function freeLook(active) {
+    if (active === state.freeLook) return;
+    const player = getSession().current().entities.find(e => e.id === getPlayerId());
+    if (active) {
+      if (!player?.alive) return;
+      const aim = command(player);
+      savedLook = {yaw: cameraRig.viewYaw ?? player.heading, pitch: cameraRig.viewPitch,
+        aimYaw: aim.aimYaw ?? player.aim, aimPitch: aim.aimPitch ?? player.pitch};
+    } else if (savedLook) {
+      cameraRig.viewYaw = cameraRig.cameraHeading = savedLook.yaw;
+      cameraRig.viewPitch = cameraRig.cameraElevation = savedLook.pitch;
+    }
+    state.freeLook = active;
+    state.activeAim = null;
+    state.aimRevision++;
+    cameraRig.lastPointer = null;
+  }
   state.mouseKnown = false;
   state.activeAim = null;
   state.aimRevision = 0;
@@ -27,6 +49,8 @@
       ? "paused"
       : getSession().current().status;
   function clearInput() {
+    freeLook(false);
+    heldLookKeys.clear();
     state.aimRevision++;
     state.activeAim = null;
     cameraRig.lastPointer = null;
@@ -41,7 +65,8 @@
     const body = getSession()
       .current()
       .entities.find((e) => e.id === getPlayerId());
-    if (!body.alive) {
+    if (!body?.alive) {
+      freeLook(false);
       cameraRig.lastPointer = null;
       return;
     }
@@ -179,6 +204,12 @@
     ShiftRight: "ability",
   };
   window.addEventListener("keydown", (e) => {
+    if (lookKeys.has(e.code) && status() === "playing" && document.activeElement === canvas) {
+      e.preventDefault();
+      heldLookKeys.add(e.code);
+      freeLook(true);
+      return;
+    }
     if ((e.code === "Escape" || e.code === "KeyP") && !e.repeat) {
       e.preventDefault();
       if (status() === "playing") pause();
@@ -207,6 +238,13 @@
       );
   });
   window.addEventListener("keyup", (e) => {
+    if (lookKeys.has(e.code)) {
+      heldLookKeys.delete(e.code);
+      if (!heldLookKeys.size) freeLook(false);
+      // macOS can swallow keyup for keys released while Command was held.
+      if (isMac && !heldLookKeys.size) keys.clear();
+      return;
+    }
     keys.delete(e.code);
     if (getSession().online && bindings[e.code])
       getSession().input(
@@ -265,10 +303,15 @@
     const input = { fire: mouseFire };
     if (C.TANKS[player.tankType].movement === "strafe") {
       cameraRig.viewYaw ??= player.heading;
-      input.moveYaw = cameraRig.viewYaw;
+      input.moveYaw = state.freeLook ? savedLook.yaw : cameraRig.viewYaw;
     }
     for (const key of keys) input[bindings[key]] = true;
     for (const v of touch.values()) input[v] = true;
+    if (state.freeLook && savedLook) {
+      input.aimYaw = savedLook.aimYaw;
+      input.aimPitch = savedLook.aimPitch;
+      return input;
+    }
     if (state.activeAim) {
       const dx = state.activeAim.x - player.x,
         dz = state.activeAim.z - player.z;
