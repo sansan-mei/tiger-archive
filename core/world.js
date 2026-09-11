@@ -68,6 +68,7 @@
     body = null,
     {
       ignoreEntities = false,
+      ignoreAllies = false,
       margin = 0,
       surface = null,
       allowDrop = false,
@@ -123,7 +124,14 @@
     }
     if (!ignoreEntities)
       for (const other of battle.entities) {
-        if (other === body || !other.alive) continue;
+        if (
+          other === body ||
+          !other.alive ||
+          (ignoreAllies &&
+            body?.tankType === "zombie" &&
+            other.tankType === "zombie")
+        )
+          continue;
         if (
           Math.abs(other.y - y) < 3 &&
           Math.hypot(x - other.x, z - other.z) <

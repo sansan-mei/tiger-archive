@@ -123,7 +123,14 @@
   }
   function botInput(battle, body) {
     if (!body.alive) return {};
-    const zombie = battle.mode === "pve" && body.tankType === "zombie";
+    const zombie = battle.mode === "pve" && body.tankType === "zombie",
+      zombieOrdinal = zombie ? Number(body.id.slice(7)) || 0 : 0,
+      recovering = zombie && body.brain.blocked === 12;
+    if (recovering) {
+      body.brain.path = [];
+      body.brain.pathTick = 0;
+      body.brain.target = null;
+    }
     const targets = battle.entities.filter((e) => e.id !== body.id && e.alive && (!zombie || e.tankType !== "zombie"));
     targets.sort(
       (a, b) =>
@@ -141,7 +148,7 @@
     const aimYaw = Math.atan2(dz, -dx),
       aimPitch = Math.atan2(target.y - body.y, Math.max(1, range));
     const input = { aimYaw, aimPitch: clamp(aimPitch, -0.55, 0.55) };
-    if (zombie && range < 2.1 && Math.abs(target.y - body.y) < 1.5 && los) {
+    if (zombie && range < (C.unitSpec(body).meleeRange || 2.1) && Math.abs(target.y - body.y) < 1.5 && los) {
       if (!body.cooldown) {
         battle.damage(target, C.unitSpec(body).meleeDamage + Math.min(16, battle.pve.wave * 2), body.id, { x: target.x, y: target.y + 1, z: target.z });
         body.cooldown = C.unitSpec(body).meleeCooldown;
@@ -178,9 +185,23 @@
           direct = true;
         }
       }
-    } else if (!los || range > (zombie ? 1.8 : 31)) {
+    } else if (zombie && range > 1.8) {
+      const slot = zombieOrdinal % 6,
+        ring = 1.85 + Math.floor(zombieOrdinal / 6) * 1.7,
+        angle = (slot * Math.PI * 2) / 6,
+        attackPoint = {
+          id: `${target.id}:attack:${zombieOrdinal}`,
+          x: target.x + Math.cos(angle) * ring,
+          z: target.z + Math.sin(angle) * ring,
+        };
+      goal = battle.valid(attackPoint.x, attackPoint.z, target.floor, body, {
+        ignoreEntities: true,
+      })
+        ? attackPoint
+        : target;
+      direct = los && !recovering && body.brain.blocked < 12 && !body.brain.path.length;
+    } else if (!los || range > 31) {
       goal = target;
-      direct = zombie && los && body.brain.blocked < 12 && !body.brain.path.length;
     }
     const supply = battle.pickups
       .filter(
@@ -208,11 +229,11 @@
     if (goal) {
       if (
         !direct &&
-        (!zombie || battle.tick % 16 === Number(body.id.slice(7))) &&
+        (!zombie || recovering || battle.tick % 16 === zombieOrdinal) &&
         (battle.tick >= body.brain.pathTick || body.brain.target !== goalKey)
       ) {
         body.brain.path = battle.route(body, goal);
-        body.brain.pathTick = battle.tick + 240;
+        body.brain.pathTick = battle.tick + (zombie ? 90 : 240);
         body.brain.target = goalKey;
       }
       while (
@@ -233,8 +254,14 @@
       if (body.brain.blocked > 20) {
         input.forward = false;
         input.reverse = true;
-        input.left = true;
-        if (body.brain.blocked > 48) body.brain.blocked = 0;
+        input.left = !zombie || zombieOrdinal % 2 === 0;
+        input.right = zombie && zombieOrdinal % 2 === 1;
+        if (body.brain.blocked > 48) {
+          body.brain.path = [];
+          body.brain.pathTick = 0;
+          body.brain.target = null;
+          body.brain.blocked = 0;
+        }
       }
     }
     if (

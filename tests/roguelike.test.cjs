@@ -82,13 +82,27 @@ test('boss arrives at seven minutes, warns before damage, revives teammates and 
   assert.equal(b.pve.queue,0);assert.equal(b.pve.nextWaveAt,0);
   Object.assign(p,{x:0,z:55,protectedUntil:0});Object.assign(q,{x:1.8,z:55,protectedUntil:0});
   b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);const warning=C.clone(b.pve.boss.telegraph);
-  assert.equal(warning.at,b.tick+90);assert.equal(p.hp,80);
+  assert.equal(warning.at,b.tick+60);assert.equal(warning.zones[0].radius,6);assert.equal(p.hp,80);
   p.x=12;b.tick=warning.at-1;R.bossAttack(b);assert.equal(q.hp,80);
   const copy=make(2);copy.restore(b.snapshot());S.validateSnapshot(copy.snapshot());
   b.tick++;copy.tick++;R.bossAttack(b);R.bossAttack(copy);
-  assert.equal(p.hp,80);assert.equal(q.hp,40);assert.deepEqual(copy.snapshot(),b.snapshot());
+  assert.equal(p.hp,80);assert.equal(q.hp,35);assert.deepEqual(copy.snapshot(),b.snapshot());
   boss.protectedUntil=0;b.damage(boss,100000,p.id,boss);b.step();assert.equal(b.pve.result,'victory');
   const timed=make();timed.tick=C.RULES.duration-1;timed.step();assert.equal(timed.pve.result,'defeat');
+});
+test('boss predicts movement with a faster wide strike and keeps summoning pressure',()=>{
+  const b=make(),p=b.entities[0];b.tick=C.RULES.duration-3601;b.step();
+  Object.assign(p,{x:0,z:55,heading:0,speed:9,hp:10000,maxHp:10000,protectedUntil:0});
+  b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
+  let warning=b.pve.boss.telegraph;const zombies=b.entities.filter(e=>e.tankType==='zombie'),boss=zombies.find(e=>e.zombieType==='boss');
+  assert.equal(warning.at,b.tick+60);assert.equal(warning.zones[0].radius,6);
+  assert.ok(warning.zones[0].x<-5,String(warning.zones[0].x));
+  boss.hp=boss.maxHp/2-1;p.x=100;b.tick=warning.at;R.bossAttack(b);
+  assert.equal(b.pve.boss.nextAttackAt,b.tick+120);
+  b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);warning=b.pve.boss.telegraph;
+  assert.equal(warning.zones[0].radius,7);
+  for(let i=0;i<181;i++)b.step();
+  assert.ok(zombies.filter(e=>e.alive&&e.zombieType!=='boss').length>=2);
 });
 test('progression and boss state reject malformed checkpoints and stay within packet limits',()=>{
   const a=new S.Authority({mode:'pve',participants:Array.from({length:8},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'}))});
@@ -96,7 +110,8 @@ test('progression and boss state reject malformed checkpoints and stay within pa
   b.tick=C.RULES.duration-3601;a.step();b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));const packet=a.statePacket({network:true});
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);assert.equal(r.receive(packet).ok,true);
-  for(const mutate of [s=>s.pve.pending.p0=99,s=>s.pve.level=21,s=>s.pve.boss.telegraph.zones[0].x=Infinity,s=>s.pve.hazards=Array(13).fill({}),s=>s.pve.choiceIds.p0=s.pve.nextChoiceId]) {
+  for(const mutate of [s=>s.pve.pending.p0=99,s=>s.pve.level=21,s=>s.pve.boss.telegraph.zones[0].x=Infinity,
+    s=>s.pve.boss.telegraph.zones[0].radius=100,s=>s.pve.hazards=Array(13).fill({}),s=>s.pve.choiceIds.p0=s.pve.nextChoiceId]) {
     const invalid=b.snapshot();mutate(invalid);assert.throws(()=>S.validateSnapshot(invalid));
   }
 });
@@ -116,9 +131,9 @@ test('warning and fire visuals reuse rings and clear on return to PvP',()=>{
   const context=vm.createContext({window:{}});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../client/pve-effects.js'),'utf8'),context);
   const scene=new T.Scene(),fx=context.window.TankClient.createPveEffects({T,scene});
-  const b=make();b.pve.boss.telegraph={at:90,zones:[{x:0,y:0,z:0}]};
+  const b=make();b.pve.boss.telegraph={at:90,zones:[{x:0,y:0,z:0,radius:6}]};
   fx.update(b.snapshot(),0);assert.equal(scene.children.length,1);
-  const ring=scene.children[0];assert.equal(ring.scale.x,5);
+  const ring=scene.children[0];assert.equal(ring.scale.x,6);
   b.pve.boss.telegraph.zones[0].x=10;fx.update(b.snapshot(),0);
   assert.equal(scene.children[0],ring);assert.equal(ring.position.x,10);
   b.pve.hazards=[{id:1,x:4,y:.15,z:0,radius:3}];fx.update(b.snapshot(),0);

@@ -2,12 +2,12 @@
 (function (root) {
   const registry = typeof module === "object" && module.exports ? require("../registry.js") : root.TankPlugins;
   registry.register({
-    kind: "tank", id: "zombie", version: "1.2.0", apiVersion: 1,
+    kind: "tank", id: "zombie", version: "1.3.0", apiVersion: 1,
     spec: { name: "感染者", enemyOnly: true, hp: 80, shield: 0, ability: "dodge", movement: "strafe",
       height: 3, muzzleScale: 0.55, speed: 3.6, reverse: 2, accel: 20,
       turn: 3.5, radius: 0.7, scale: 1, mount: [0, 1.55, 0],
       variants: {
-        boss: { name: "零号感染体 · BOSS", hp: 1200, speed: 2.6, meleeDamage: 24, meleeCooldown: 72, wave: 1 },
+        boss: { name: "零号感染体 · BOSS", hp: 1200, speed: 3.4, meleeRange: 2.8, meleeDamage: 30, meleeCooldown: 60, wave: 1 },
         walker: { name: "普通感染者", hp: 80, speed: 3.6, meleeDamage: 8, meleeCooldown: 60, wave: 1 },
         cone: { name: "锥帽感染者", hp: 140, speed: 3.2, meleeDamage: 10, meleeCooldown: 60, wave: 2 },
         runner: { name: "疾跑感染者", hp: 60, speed: 6, meleeDamage: 6, meleeCooldown: 42, wave: 3 },

@@ -120,13 +120,21 @@
     if(state.telegraph && b.tick>=state.telegraph.at) {
       const hitPlayers = new Set();
       for(const zone of state.telegraph.zones) {
-        b.emit("explosion",{owner:boss.id,...zone,radius:5});
+        b.emit("explosion",{owner:boss.id,...zone});
         for(const p of b.entities.filter(e=>e.tankType!=="zombie" && e.alive))
-          if(!hitPlayers.has(p.id) && Math.abs(p.y-zone.y)<2 && Math.hypot(p.x-zone.x,p.z-zone.z)<5) { b.damage(p,40,boss.id,point(p));hitPlayers.add(p.id); }
+          if(!hitPlayers.has(p.id) && Math.abs(p.y-zone.y)<2 && Math.hypot(p.x-zone.x,p.z-zone.z)<zone.radius) {
+            b.damage(p,boss.hp<boss.maxHp/2?50:45,boss.id,point(p));hitPlayers.add(p.id);
+          }
       }
-      state.telegraph=null;state.nextAttackAt=b.tick+(boss.hp<boss.maxHp/2?150:270);
+      state.telegraph=null;state.nextAttackAt=b.tick+(boss.hp<boss.maxHp/2?120:180);
     } else if(!state.telegraph && b.tick>=state.nextAttackAt) {
-      state.telegraph={at:b.tick+90,zones:b.entities.filter(e=>e.tankType!=="zombie" && e.alive).map(e=>({x:e.x,y:e.y,z:e.z}))};
+      const enraged=boss.hp<boss.maxHp/2,radius=enraged?7:6,lead=enraged?1:.75;
+      state.telegraph={at:b.tick+60,zones:b.entities.filter(e=>e.tankType!=="zombie" && e.alive).map(e=>{
+        const bound=b.map.levels[e.floor].bound-1;
+        return {x:C.clamp(e.x-Math.cos(e.heading)*e.speed*lead,-bound,bound),y:e.y,
+          z:C.clamp(e.z+Math.sin(e.heading)*e.speed*lead,-bound,bound),radius};
+      })};
+      boss.boostUntil=b.tick+120;
     }
   }
   function validate(s) {
@@ -152,7 +160,7 @@
     if(!object(boss)||typeof boss.spawned!=="boolean"||typeof boss.defeated!=="boolean"||!int(boss.nextAttackAt)||
       (boss.defeated&&!boss.spawned))throw Error('Invalid boss');
     if(boss.telegraph!==null && (!object(boss.telegraph)||!int(boss.telegraph.at)||!Array.isArray(boss.telegraph.zones)||
-      boss.telegraph.zones.length>8||!boss.telegraph.zones.every(pos)))throw Error('Invalid boss warning');
+      boss.telegraph.zones.length>8||!boss.telegraph.zones.every(z=>pos(z)&&[6,7].includes(z.radius))))throw Error('Invalid boss warning');
     const bosses = s.entities.filter(e=>e.zombieType==="boss");
     if(bosses.length !== (boss.spawned ? 1 : 0) || (boss.spawned && boss.defeated === bosses[0].alive))throw Error("Inconsistent boss state");
     if(s.entities.some(e=>e.tankType==="zombie"&&!int(e.slowUntil)))throw Error('Invalid slow status');

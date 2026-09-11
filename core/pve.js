@@ -142,7 +142,23 @@
         resupply(b, players);
       }
     }
-    if (pve.boss.spawned) { R.bossAttack(b); return; }
+    if (pve.boss.spawned) {
+      R.bossAttack(b);
+      const boss = zombies(b).find((z) => z.zombieType === "boss" && z.alive),
+        support = zombies(b).filter((z) => z.zombieType !== "boss" && z.alive),
+        supportLimit = Math.min(6, players.length + 2);
+      if (boss && support.length < supportLimit && b.tick % 180 === 0) {
+        const vacant = zombies(b).find((z) => z.zombieType !== "boss" && !z.alive);
+        if (vacant) {
+          const type = pve.wave >= 3 &&
+              (b.tick / 180 + Number(vacant.id.slice(7))) % 3 === 0
+            ? "runner"
+            : "walker";
+          spawn(b, vacant, type);
+        }
+      }
+      return;
+    }
     if (pve.nextWaveAt) {
       if (b.tick < pve.nextWaveAt) return;
       pve.nextWaveAt = 0;

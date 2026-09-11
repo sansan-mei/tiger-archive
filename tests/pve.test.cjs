@@ -44,6 +44,17 @@ test('zombies close distance and melee at one-second intervals without projectil
   const hp=p.hp; for(let i=0;i<59;i++) b.step(); assert.ok(hp-p.hp<=10);
   S.validateSnapshot(b.networkSnapshot(),{network:true});
 });
+test('a zombie pack spreads around one target instead of forming a single-file traffic jam', () => {
+  const b=create(),p=b.entities[0],pack=enemies(b).slice(0,6),attackers=new Set();
+  Object.assign(p,{x:0,z:55,hp:10000,maxHp:10000,protectedUntil:0});
+  b.pve.nextWaveAt=100000;b.pve.queue=0;b.pve.wave=6;
+  for(const [i,z] of pack.entries())Object.assign(z,{x:8+i*1.7,z:55,y:0,floor:0,alive:true,hp:80,maxHp:80,
+    protectedUntil:0,heading:0,zombieType:'walker',brain:{target:null,path:[],pathTick:0,blocked:0}});
+  for(let i=0;i<600;i++)for(const event of b.step())
+    if(event.type==='damage'&&event.id===p.id)attackers.add(event.owner);
+  assert.ok(attackers.size>=3,[...attackers].join(','));
+  assert.ok(pack.filter(z=>Math.hypot(z.x-p.x,z.z-p.z)<2.2).length>=3);
+});
 test('wave rewards are validated once, persist and affect authority cooldown, healing and area damage', () => {
   const b=create(), p=b.entities[0]; clearWave(b);
   assert.equal(b.pve.choices[p.id].length,3);

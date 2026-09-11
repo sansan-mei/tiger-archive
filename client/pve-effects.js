@@ -7,7 +7,7 @@
     const zones=[];
     if(state.mode==='pve' && state.status==='playing') {
       for(const h of state.pve.hazards)zones.push({...h,key:'fire'+h.id,kind:'fire'});
-      state.pve.boss.telegraph?.zones.forEach((z,i)=>zones.push({...z,key:'warning'+i,radius:5,kind:'warning'}));
+      state.pve.boss.telegraph?.zones.forEach((z,i)=>zones.push({...z,key:'warning'+i,kind:'warning'}));
     }
     const ids=new Set(zones.map(z=>z.key));
     for(const [key,mesh] of rings)if(!ids.has(key)){scene.remove(mesh);rings.delete(key);}

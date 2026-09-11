@@ -88,7 +88,11 @@
       const surface = battle.surface(body, nx, nz);
       if (
         surface &&
-        battle.valid(nx, nz, surface.floor, body, { surface, allowDrop: true })
+        battle.valid(nx, nz, surface.floor, body, {
+          surface,
+          allowDrop: true,
+          ignoreAllies: battle.mode === "pve" && body.tankType === "zombie",
+        })
       ) {
         const wasFalling = body.falling;
         const oldRamp = body.rampId,
