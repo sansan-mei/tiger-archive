@@ -93,8 +93,8 @@
       !b.resolvingPveBurst && b.pve.bursts.length<16)b.pve.bursts.push({owner,...point(target)});
   }
   function onHit(b,hit,shot) {
-    const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),from=hit.point;
-    if(!u||!target)return;
+    const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),owner=b.getEntity(shot.owner),from=hit.point;
+    if(!u||!target||!owner||owner.weaponType!==shot.weaponType)return;
     if(shot.weaponType==="pistol") {
       const excluded=[hit.id];
       if(u.pierce) {
@@ -117,7 +117,8 @@
     }
   }
   function fireZone(b,hit,shot) {
-    if(!b.pve.upgrades[shot.owner]?.fire || shot.weaponType!=="rocket")return;
+    if(!b.pve.upgrades[shot.owner]?.fire || shot.weaponType!=="rocket" ||
+      b.getEntity(shot.owner)?.weaponType!=="rocket")return;
     if(b.pve.hazards.length>=12)b.pve.hazards.shift();
     b.pve.hazards.push({id:b.pve.nextHazard++,owner:shot.owner,x:hit.point.x-shot.dx*.04,y:(b.map.levels.filter(level=>level.y<=hit.point.y+.05).at(-1)?.y || 0)+.15,z:hit.point.z-shot.dz*.04,
       radius:3,until:b.tick+180,nextTick:b.tick+30});

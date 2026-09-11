@@ -66,13 +66,25 @@ test('piercing and arcs respect solid cover',()=>{
 });
 test('standard critical shells shock nearby enemies and execute elites',()=>{
   const b=make(),p=b.entities[0],elite=enemy(b,0,0,55),near=enemy(b,1,0,58);
-  Object.assign(p,{x:10,z:55,weaponType:'standard'});Object.assign(elite,{zombieType:'brute',hp:500,maxHp:500});
+  Object.assign(p,{weaponType:'standard'});Object.assign(elite,{zombieType:'brute',hp:500,maxHp:500});
   Object.assign(b.pve.upgrades[p.id],{heavyShell:1,execution:1});
   hit(b,p,elite,'standard',true);
   assert.equal(elite.hp,370);assert.equal(near.hp,50);
   assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
   b.pve.upgrades[p.id].chain=1;const doomed=enemy(b,2,4,55);b.damage(doomed,10000,p.id,doomed);
   assert.equal(b.pve.bursts.length,0);
+});
+test('in-flight shots keep base damage but lose exclusive procs after a weapon switch',()=>{
+  const b=make(),p=b.entities[0],elite=enemy(b,0,0,55),near=enemy(b,1,0,58.5);
+  Object.assign(p,{weaponType:'rapid'});Object.assign(elite,{zombieType:'brute',hp:140,maxHp:140});
+  Object.assign(b.pve.upgrades[p.id],{heavyShell:1,execution:1,blast:3,fire:1});
+  hit(b,p,elite,'standard',true);
+  assert.equal(elite.hp,70);assert.equal(near.hp,80);
+  assert.equal(b.events.filter(e=>e.type==='explosion').length,0);
+  b.events.length=0;const rocketTarget=enemy(b,2,8,55);Object.assign(rocketTarget,{hp:500,maxHp:500});
+  hit(b,p,rocketTarget,'rocket');
+  assert.equal(b.events.find(e=>e.type==='explosion').radius,6);
+  assert.equal(b.pve.hazards.length,0);
 });
 test('rapid suppression slows the primary target and crossfires a nearby enemy',()=>{
   const b=make(),p=b.entities[0],a=enemy(b,0,0,55),side=enemy(b,1,0,59);
