@@ -51,6 +51,7 @@ function createApp({
   publicOrigin = process.env.PUBLIC_ORIGIN || "",
   maxRooms = 16,
   assetMode = process.env.ASSET_MODE || "source",
+  compression = process.env.WS_COMPRESSION !== "false",
 } = {}) {
   if (!["source", "release"].includes(assetMode))
     throw new Error("Invalid ASSET_MODE");
@@ -147,7 +148,15 @@ function createApp({
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: 16384,
-    perMessageDeflate: false,
+    perMessageDeflate: compression
+      ? {
+          clientNoContextTakeover: true,
+          serverNoContextTakeover: true,
+          concurrencyLimit: 2,
+          threshold: 1024,
+          zlibDeflateOptions: { level: 3 },
+        }
+      : false,
   });
   server.on("upgrade", (req, socket, head) => {
     if (

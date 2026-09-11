@@ -142,6 +142,36 @@ test("replica copies cannot mutate authoritative or stored client state", () => 
   assert.equal(r.current.entities[0].hp, 210);
   assert.equal(a.battle.entities[0].hp, 210);
 });
+test("replica briefly extrapolates entities and interpolates projectiles", () => {
+  const { a, clients } = setup(),
+    r = clients[0].r,
+    owner = a.battle.entities[0],
+    weapon = C.WEAPONS[owner.weaponType];
+  a.battle.bullets = [
+    {
+      id: 1,
+      owner: owner.id,
+      weaponType: owner.weaponType,
+      critical: false,
+      ownerLife: owner.deaths,
+      damage: weapon.damage,
+      x: 0,
+      y: 2,
+      z: 0,
+      dx: 1,
+      dy: 0,
+      dz: 0,
+      life: weapon.life,
+    },
+  ];
+  assert.equal(r.receive(a.statePacket({ network: true })).ok, true);
+  a.battle.tick += 3;
+  a.battle.bullets[0].x = 2;
+  assert.equal(r.receive(a.statePacket({ network: true })).ok, true);
+  assert.equal(r.renderState(0.5).bullets[0].x, 1);
+  assert.equal(r.renderState(1.5).bullets[0].x, 3);
+  assert.equal(a.battle.bullets[0].x, 2, "rendering cannot mutate authority");
+});
 test("30, 60 and 120 fps local drivers yield identical 60 Hz world states", () => {
   const result = [];
   for (const fps of [30, 60, 120]) {
