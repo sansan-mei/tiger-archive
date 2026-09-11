@@ -119,3 +119,7 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 插件声明 criticalHits / criticalMultiplier；combat 在发射时锁定强化状态并消耗进度，在有效普通弹直接命中时累积。ownerLife 绑定发射生命，避免延迟弹丸给复活后的射手累积。初始化、死亡、复活、network-state 与副本验证共同维护 criticalProgress。HUD 和模型炮口光只读取副本，原有 damage 事件的 critical 标记控制强化提示。
 
 部署恢复策略更新：Redis 默认使用固定前缀 `tiger:rooms:production`，以后无需随协议更新改前缀。已有自定义前缀可保持原值。不兼容检查点备份到 `:checkpoint:previous`（24 小时、最近一份）后启动空大厅；损坏数据、Redis 故障与锁冲突仍报错。单文件构建命令为 `docker-compose build tank`，详见 [DEPLOY.md](DEPLOY.md)。
+
+## 开火后坐表现
+
+client/recoil.js 保存武器视觉参数及有上限的冲量、按时间指数衰减函数。battle.js 复用权威 shot 事件触发；units.js 消费为炮管、炮座、机体姿态；camera.js 不参与后坐处理，保持视角稳定。逻辑输入和快照均不受影响，无需协议或 Redis 前缀变更。

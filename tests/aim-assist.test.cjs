@@ -88,6 +88,7 @@ test("target highlighting restores paint and ignores invisible shields, walls an
     "plugins/tanks/common.js",
     ...require("../app-manifest.js").plugins,
     "tank-model.js",
+    "client/recoil.js",
     "client/units.js",
   ])
     vm.runInContext(

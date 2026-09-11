@@ -87,6 +87,13 @@
       view.paint.color.copy(view.basePaintColor);
       if (targeted) view.paint.color.setHex(0xe34848);
       if (view.label) view.label.dataset.targeted = String(targeted);
+      const recoil = window.TankClient.recoil;
+      const profile = recoil.profiles[e.weaponType] || recoil.profiles.standard;
+      if (!e.alive || (view.lastRespawnAt !== undefined && view.lastRespawnAt !== e.respawnAt))
+        view.recoil = 0;
+      view.lastRespawnAt = e.respawnAt;
+      const impulse = view.recoil * (reduced ? 0.2 : 1);
+      view.recoil = recoil.decay(view.recoil, dt, profile.recovery);
       view.tank.position.set(e.x, e.y, e.z);
       const ramp = e.rampId ? C.MAP.ramps.find((r) => r.id === e.rampId) : null;
       const slope = ramp
@@ -130,7 +137,11 @@
       if (moving) view.travel += Math.abs(e.speed) * dt;
       view.tank.quaternion.multiply(
         new T.Quaternion().setFromEuler(
-          new T.Euler(view.leanRoll, 0, view.leanPitch),
+          new T.Euler(
+            view.leanRoll - Math.sin(e.aim - e.heading) * impulse * profile.body,
+            0,
+            view.leanPitch - Math.cos(e.aim - e.heading) * impulse * profile.body,
+          ),
         ),
       );
       if (moving && !reduced)
@@ -183,12 +194,15 @@
           new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), e.aim),
         );
       view.gun.rotation.z = -e.pitch;
-      view.recoil = Math.max(
-        0,
-        view.recoil - (truth.status === "playing" ? dt * 5 : 0),
-      );
       view.gun.position.x =
-        (view.spec.movement === "strafe" ? -0.35 : -1.12) + view.recoil * 0.28;
+        (view.spec.movement === "strafe" ? -0.35 : -1.12) + impulse * profile.barrel;
+      // Recoil follows the weapon's direction in the hull's local coordinates.
+      // Infantry uses a smaller weapon stroke to match its scaled launcher.
+      if (view.spec.movement === "strafe")
+        view.gun.position.x -= impulse * profile.barrel * 0.45;
+      const mountKick = impulse * profile.barrel * 0.18;
+      view.turret.position.x = view.spec.mount[0] + Math.cos(e.aim - e.heading) * mountKick;
+      view.turret.position.z = view.spec.mount[2] - Math.sin(e.aim - e.heading) * mountKick;
       for (let i = 0; i < view.limbs.length; i++)
         view.limbs[i].rotation.z =
           e.alive && !reduced

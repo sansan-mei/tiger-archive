@@ -100,7 +100,7 @@
     for (const e of events) {
       if (e.type === "shot") {
         const view = views.get(e.id);
-        if (view) view.recoil = 1;
+        if (view) view.recoil = window.TankClient.recoil.kick(view.recoil, e.critical ? 1.15 : 1);
         puff(e, 0.5, 3);
         const me = session.current().entities.find((p) => p.id === playerId);
         sound(

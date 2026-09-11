@@ -37,6 +37,7 @@
     "tank-model.js",
     "client/environment.js",
     "client/scene.js",
+    "client/recoil.js",
     "client/camera.js",
     "client/input.js",
     "client/aim-assist.js",

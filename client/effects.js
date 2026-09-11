@@ -14,7 +14,7 @@
     o.type = laser ? "sine" : "triangle";
     o.frequency.setValueAtTime(laser ? 550 : 140, at);
     o.frequency.exponentialRampToValueAtTime(laser ? 100 : 28, at + 0.2);
-    g.gain.setValueAtTime(0.055 * volume, at);
+    g.gain.setValueAtTime(0.10 * Math.max(0, Math.min(1, volume)), at);
     g.gain.exponentialRampToValueAtTime(0.001, at + 0.23);
     o.connect(g);
     g.connect(audio.destination);

@@ -11,9 +11,9 @@
   let source = null,
     loading = null;
   const profiles = {
-    light: { rate: 1.04, volume: 0.024 },
-    medium: { rate: 0.94, volume: 0.028 },
-    heavy: { rate: 0.84, volume: 0.032 },
+    light: { rate: 1.04, volume: 0.036 },
+    medium: { rate: 0.94, volume: 0.042 },
+    heavy: { rate: 0.84, volume: 0.048 },
   };
   function load() {
     if (source) return Promise.resolve(true);

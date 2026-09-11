@@ -154,6 +154,7 @@ test("camera stays below the ramp ceiling", () => {
     { p } = setup("medium", r);
   p.x = r.a.x;
   const context = vm.createContext({ window: { innerWidth: 1280 } });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../client/recoil.js"), "utf8"), context);
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, "../client/camera.js"), "utf8"),
     context,

@@ -87,7 +87,7 @@ test("recorded motor loads once and reuses one looping voice with bounded speed 
     p.speed = C.TANKS[tankType].speed;
     engine.update(p, true);
     const full = output.gain.target;
-    assert.ok(full > slow && full <= 0.032);
+    assert.ok(full > slow && full <= 0.048);
     p.speed *= 10;
     engine.update(p, true);
     assert.equal(output.gain.target, full);
