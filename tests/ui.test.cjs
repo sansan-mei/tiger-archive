@@ -512,7 +512,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   nodes.get("start-room").emit("click");
   advance(360);
   const survival = coop.authority.battle;
-  assert.equal(nodes.get("weapon-label").textContent, "小手枪");
+  assert.equal(nodes.get("weapon-label").textContent, "小手枪 · 9/9");
   assert.match(nodes.get("mission-title").textContent, /CO-OP/);
   const live = survival.entities.find((e) => e.tankType === "zombie" && e.alive);
   assert.ok(live);

@@ -117,6 +117,11 @@
         )
           throw new Error("Invalid turret mount");
       } else {
+        if (s.magazineSize !== undefined || s.reloadTicks !== undefined)
+          if (!Number.isInteger(s.magazineSize) || s.magazineSize < 1 || s.magazineSize > 100 ||
+              !Number.isInteger(s.reloadTicks) || s.reloadTicks < 1 || s.reloadTicks > 3600 ||
+              s.delivery !== "projectile" || s.trigger !== "automatic")
+            throw new Error("Invalid magazine");
         if (
           s.beamRadius !== undefined &&
           (!Number.isFinite(s.beamRadius) ||

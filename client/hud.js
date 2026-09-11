@@ -86,9 +86,11 @@
     $("enemy-count").textContent = truth.entities.filter(
       (e) => e.id !== getPlayerId() && e.alive && (truth.mode !== "pve" || e.tankType === "zombie"),
     ).length;
-    $("weapon-label").textContent = weapon.name;
+    $("weapon-label").textContent = weapon.name +
+      (weapon.magazineSize ? ` · ${p.ammo}/${weapon.magazineSize}` : "");
+    const reloading = weapon.magazineSize && p.ammo === 0;
     $("reload-label").textContent = p.cooldown
-      ? "装填 " + (p.cooldown / 60).toFixed(1) + "s"
+      ? (reloading ? "换弹 " : weapon.magazineSize ? "射击间隔 " : "装填 ") + (p.cooldown / 60).toFixed(1) + "s"
       : p.charge
         ? (weapon.trigger === "delayed" ? "预热 " : "蓄力 ") +
           Math.round((p.charge / weapon.charge) * 100) +
@@ -100,7 +102,7 @@
             : "主炮就绪";
     $("reload-bar").value = p.charge
       ? p.charge / weapon.charge
-      : 1 - p.cooldown / weapon.cooldown;
+      : 1 - p.cooldown / (reloading ? weapon.reloadTicks : weapon.cooldown);
     $("weapon-description").textContent = weapon.splashDamage
       ? "直击 " +
         weapon.damage +
@@ -115,7 +117,9 @@
           " 基础伤害"
         : weapon.charge
           ? "蓄满自动发射；也可松开提前发射"
-          : "按住连续开火 · 弹药无限";
+          : weapon.magazineSize
+            ? `${weapon.magazineSize} 发弹匣 · 打空自动换弹 ${(weapon.reloadTicks / 60).toFixed(1)} 秒`
+            : "按住连续开火 · 弹药无限";
     if (weapon.criticalHits)
       $("weapon-description").textContent =
         p.criticalProgress >= weapon.criticalHits

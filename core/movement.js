@@ -35,6 +35,8 @@
     }
     body.abilityHeld = input.ability === true;
     if (body.cooldown) body.cooldown--;
+    if (weapon.magazineSize && body.ammo === 0 && !body.cooldown)
+      body.ammo = weapon.magazineSize;
     if (!input.fire) body.needsRelease = false;
     if (!body.falling) {
       const strafe = spec.movement === "strafe" && body.controller === "human";

@@ -34,7 +34,7 @@
     const template = b.entities[0];
     for (let i = 0; i < MAX_ZOMBIES; i++) b.entities.push({
       ...C.clone(template), id: "zombie_" + i, controller: "bot", tankType: "zombie",
-      slowUntil: 0, weaponType: "standard", zombieType: "walker", alive: false, hp: 0, maxHp: healthFor("walker", b.pve.teamSize),
+      slowUntil: 0, ammo: 0, weaponType: "standard", zombieType: "walker", alive: false, hp: 0, maxHp: healthFor("walker", b.pve.teamSize),
       protectedUntil: 0, respawnAt: 0,
     });
   }
@@ -47,6 +47,7 @@
     else if (Object.hasOwn(upgrades, choice)) upgrades[choice] = Math.min(R.caps[choice], upgrades[choice] + 1);
     else {
       p.weaponType = choice;
+      p.ammo = C.WEAPONS[choice].magazineSize || 0;
       p.cooldown = 0;
       p.charge = 0;
       p.criticalProgress = 0;

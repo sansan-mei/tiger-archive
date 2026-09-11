@@ -29,6 +29,7 @@
     "abilityHeld",
     "alive",
     "speed",
+    "ammo",
     "cooldown",
     "charge",
     "criticalProgress",

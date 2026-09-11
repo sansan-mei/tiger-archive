@@ -165,6 +165,7 @@
   function shoot(battle, body, power = 1) {
     if (battle.status !== "playing" || !body.alive || body.cooldown)
       return false;
+    if (WEAPONS[body.weaponType].magazineSize && body.ammo <= 0) return false;
     body.protectedUntil = 0;
     body.lastDamageTick = battle.tick;
     const spec = WEAPONS[body.weaponType],
@@ -186,6 +187,10 @@
     };
     if (spec.trigger === "delayed") power = 1;
     body.cooldown = Math.round(spec.cooldown * (1 - 0.1 * (battle.pve?.upgrades[body.id]?.haste || 0)));
+    if (spec.magazineSize) {
+      body.ammo--;
+      if (body.ammo === 0) body.cooldown = spec.reloadTicks;
+    }
     body.charge = 0;
     const critical =
       !!spec.criticalHits && body.criticalProgress >= spec.criticalHits;

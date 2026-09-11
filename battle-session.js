@@ -98,7 +98,8 @@
         !number(e.heading, -Math.PI, Math.PI) ||
         !number(e.aim, -Math.PI, Math.PI) ||
         !number(e.pitch, -0.55, 0.55) ||
-        !integer(e.cooldown, 0, weapon.cooldown) ||
+        !integer(e.ammo, 0, weapon.magazineSize || 0) ||
+        !integer(e.cooldown, 0, weapon.magazineSize && e.ammo === 0 ? weapon.reloadTicks : weapon.cooldown) ||
         !integer(e.charge, 0, weapon.charge) ||
         !integer(e.criticalProgress, 0, weapon.criticalHits || 0) ||
         (!e.alive && e.criticalProgress !== 0) ||

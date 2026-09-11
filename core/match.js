@@ -53,6 +53,7 @@
             fallVZ: 0,
             rampId: null,
             rampDir: 0,
+            ammo: WEAPONS[body.weaponType].magazineSize || 0,
             cooldown: 0,
             charge: 0,
             criticalProgress: 0,

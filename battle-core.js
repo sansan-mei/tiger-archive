@@ -102,6 +102,7 @@
           abilityHeld: false,
           alive: true,
           speed: 0,
+          ammo: WEAPONS[p.weaponType].magazineSize || 0,
           cooldown: 0,
           charge: 0,
           criticalProgress: 0,
