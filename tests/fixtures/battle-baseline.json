@@ -1,5 +1,5 @@
 {
-  "mapId": "summer-crossfire-v3",
+  "mapId": "woodland-crossfire-v4",
   "matchId": "local",
   "epoch": 1,
   "tick": 900,
@@ -8,6 +8,38 @@
   "nextBullet": 57,
   "nextEvent": 185,
   "pickups": [
+    {
+      "id": "repair-west",
+      "kind": "repair",
+      "floor": 0,
+      "x": -102,
+      "z": 0,
+      "readyAt": 0
+    },
+    {
+      "id": "repair-east",
+      "kind": "repair",
+      "floor": 0,
+      "x": 102,
+      "z": 0,
+      "readyAt": 0
+    },
+    {
+      "id": "boost-north",
+      "kind": "boost",
+      "floor": 0,
+      "x": 0,
+      "z": -106,
+      "readyAt": 0
+    },
+    {
+      "id": "boost-south",
+      "kind": "boost",
+      "floor": 0,
+      "x": 0,
+      "z": 106,
+      "readyAt": 0
+    },
     {
       "id": "repair-0",
       "kind": "repair",

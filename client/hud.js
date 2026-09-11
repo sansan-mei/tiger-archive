@@ -7,7 +7,8 @@
     mc.fillRect(0, 0, 260, 260);
     mc.save();
     mc.translate(130, 130);
-    mc.scale(1.8, 1.8);
+    const mapScale = 116 / C.MAP.levels[floor].bound;
+    mc.scale(mapScale, mapScale);
     const b = C.MAP.levels[floor].bound;
     mc.strokeStyle = floor > 0 ? "#e79e35" : "#718974";
     mc.lineWidth = 1;
@@ -39,6 +40,7 @@
       mc.save();
       mc.translate(e.x, e.z);
       mc.rotate(Math.PI - e.heading);
+      mc.scale(1.5 / mapScale, 1.5 / mapScale);
       mc.fillStyle = e.rampId
         ? "#9bffff"
         : !e.alive

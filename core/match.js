@@ -105,8 +105,8 @@
       Object.assign(shot, end);
       if (
         shot.life > 0 &&
-        Math.abs(shot.x) < 80 &&
-        Math.abs(shot.z) < 80 &&
+        Math.abs(shot.x) < battle.map.worldLimit &&
+        Math.abs(shot.z) < battle.map.worldLimit &&
         shot.y > -2 &&
         shot.y < 50
       )

@@ -133,7 +133,7 @@
     const v=s.pve, players=s.entities.filter(e=>e.tankType!=="zombie"), ids=new Set(players.map(e=>e.id));
     const int=(n,max=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
     const object=o=>o && typeof o==="object"&&!Array.isArray(o);
-    const pos=o=>object(o)&&['x','y','z'].every(k=>Number.isFinite(o[k])&&Math.abs(o[k])<=90);
+    const pos=o=>object(o)&&['x','y','z'].every(k=>Number.isFinite(o[k])&&Math.abs(o[k])<=(k==='y'?90:C.MAP.worldLimit));
     if(!int(v.level,20)||v.level<1||!int(v.xp,xpNeeded(v.level)-1)||!int(v.rng,4294967295)||!v.rng||
        !int(v.nextChoiceId)||!object(v.pending)||!object(v.choiceIds)||!object(v.hits)||!int(v.nextHazard)||
        !Array.isArray(v.hazards)||v.hazards.length>12||!Array.isArray(v.bursts)||v.bursts.length>16)throw Error('Invalid run progression');

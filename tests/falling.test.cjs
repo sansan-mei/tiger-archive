@@ -60,7 +60,7 @@ test("all units descend from both marked exits on both upper decks without fall 
         assert.equal(p.hp, hp);
         assert.equal(p.shield, shield);
         assert.ok(Math.abs(p.z) > 46);
-        assert.ok(Math.abs(p.z) <= 64 - C.TANKS[type].radius);
+        assert.ok(Math.abs(p.z) <= C.MAP.levels[0].bound - C.TANKS[type].radius);
       }
 });
 test("all outer deck edges allow departure; navigation and ramp rails remain conservative", () => {
@@ -215,7 +215,7 @@ test("edge overhang stays supported until the center leaves; ground boundary and
   assert.equal(p.falling, false);
   assert.equal(p.y, 16);
   assert.equal(b.surface(p, 46.01, 38).falling, true);
-  assert.equal(b.valid(64, 38, 0, p, { allowDrop: true }), false);
+  assert.equal(b.valid(C.MAP.levels[0].bound, 38, 0, p, { allowDrop: true }), false);
   assert.equal(b.valid(0, 0, 2, p, { allowDrop: true }), false);
 });
 test("landing near an intermediate deck edge does not snap the unit inward", () => {

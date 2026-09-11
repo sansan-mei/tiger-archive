@@ -341,7 +341,7 @@ test("input schema rejects direct health, loadout changes, NaN and invalid flags
 test("map boundaries, cover and same-floor vehicle collision are authoritative", () => {
   const b = new C.Battle();
   const p = b.entities[0];
-  assert.equal(b.valid(64, 0, 0, p), false);
+  assert.equal(b.valid(C.MAP.levels[0].bound, 0, 0, p), false);
   assert.equal(b.valid(-17, 11, 0, p), false);
   const other = b.entities[1];
   assert.equal(b.valid(other.x, other.z, other.floor, p), false);

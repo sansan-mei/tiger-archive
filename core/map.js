@@ -4,13 +4,24 @@
   else root.TankMap = api;
 })(typeof window === "undefined" ? globalThis : window, function () {
   const MAP = Object.freeze({
-    id: "summer-crossfire-v3",
+    id: "woodland-crossfire-v4",
+    // Ground is 256 × 256; upper decks preserve the existing ramp connections.
+    worldLimit: 144,
     levels: [
-      { id: 0, y: 0, bound: 64 },
+      { id: 0, y: 0, bound: 128 },
       { id: 1, y: 8, bound: 46 },
       { id: 2, y: 16, bound: 46 },
     ],
     obstacles: [
+      // Outer loops remain open between woodland islands and rock cover.
+      ...[-1, 1].flatMap(side => [-94, -62, 0, 62, 94].flatMap((along, i) => [
+        { id: `wood-rock-x-${side}-${i}`, floor: 0, x: side * 82, z: along, w: 6, d: 8, h: 2.8 },
+        { id: `wood-rock-z-${side}-${i}`, floor: 0, x: along, z: side * 82, w: 8, d: 6, h: 2.8 },
+      ])),
+      ...[-1, 1].flatMap(side => [-110, -92, -74, -56, -38, -20, 22, 40, 58, 76, 94, 112].flatMap((along, i) => [
+        { id: `tree-x-${side}-${i}`, kind: "tree", floor: 0, x: side * (i % 2 ? 112 : 66), z: along, w: 1.4, d: 1.4, h: 5 },
+        { id: `tree-z-${side}-${i}`, kind: "tree", floor: 0, x: along, z: side * (i % 2 ? 68 : 114), w: 1.4, d: 1.4, h: 5 },
+      ])),
       { id: "g1", floor: 0, x: -17, z: 11, w: 13, d: 8, h: 4 },
       { id: "g2", floor: 0, x: 18, z: 9, w: 11, d: 9, h: 4 },
       { id: "g3", floor: 0, x: 0, z: -12, w: 17, d: 8, h: 4 },
@@ -68,6 +79,10 @@
       { floor: 2, side: 1, x: 30, width: 12 },
     ],
     pickups: [
+      { id: "repair-west", kind: "repair", floor: 0, x: -102, z: 0 },
+      { id: "repair-east", kind: "repair", floor: 0, x: 102, z: 0 },
+      { id: "boost-north", kind: "boost", floor: 0, x: 0, z: -106 },
+      { id: "boost-south", kind: "boost", floor: 0, x: 0, z: 106 },
       { id: "repair-0", kind: "repair", floor: 0, x: 0, z: 0 },
       { id: "boost-0", kind: "boost", floor: 0, x: 0, z: -38 },
       { id: "repair-1", kind: "repair", floor: 1, x: 0, z: 0 },

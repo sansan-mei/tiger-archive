@@ -10,6 +10,7 @@
 })(typeof window === "undefined" ? globalThis : window, function (C) {
   "use strict";
   const VERSION = C.VERSION,
+    WORLD_LIMIT = C.MAP.worldLimit,
     MAX_BYTES = 65536,
     INPUT_TIMEOUT = 18;
   const plain = (o) =>
@@ -74,8 +75,8 @@
         maxHp = e.tankType === "zombie" ? C.PVE.healthFor(e.zombieType, s.pve.teamSize) : tank.hp,
         weapon = C.WEAPONS[e.weaponType];
       if (
-        !number(e.x, -80, 80) ||
-        !number(e.z, -80, 80) ||
+        !number(e.x, -WORLD_LIMIT, WORLD_LIMIT) ||
+        !number(e.z, -WORLD_LIMIT, WORLD_LIMIT) ||
         !number(e.y, 0, 20) ||
         !integer(e.floor, 0, 2) ||
         !number(e.hp, 0, maxHp) ||
@@ -168,7 +169,7 @@
           !Array.isArray(e.brain.path) ||
           e.brain.path.length > 1100 ||
           !e.brain.path.every(
-            (p) => plain(p) && number(p.x, -64, 64) && number(p.z, -64, 64),
+            (p) => plain(p) && number(p.x, -C.MAP.levels[0].bound, C.MAP.levels[0].bound) && number(p.z, -C.MAP.levels[0].bound, C.MAP.levels[0].bound),
           ))
       )
         throw new Error("Invalid path");
@@ -201,8 +202,8 @@
         !integer(b.id, 1) ||
         !owners.has(b.owner) ||
         !Object.hasOwn(C.WEAPONS, b.weaponType) ||
-        !number(b.x, -80, 80) ||
-        !number(b.z, -80, 80) ||
+        !number(b.x, -WORLD_LIMIT, WORLD_LIMIT) ||
+        !number(b.z, -WORLD_LIMIT, WORLD_LIMIT) ||
         !number(b.y, -2, 50) ||
         !number(b.dx, -1, 1) ||
         !number(b.dy, -1, 1) ||

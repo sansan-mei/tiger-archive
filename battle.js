@@ -23,7 +23,6 @@
     camera,
     sun,
     floorGroups,
-    foliage,
     clouds,
     mat,
     block,
@@ -580,7 +579,6 @@
     );
     if (!reduced) {
       clouds.rotation.y = time * 0.000004;
-      foliage.rotation.z = Math.sin(time * 0.0004) * 0.0015;
     }
     if (truth.status !== "paused") {
       for (let i = effects.length - 1; i >= 0; i--) {

@@ -8,7 +8,7 @@ const C = require("../battle-core.js"),
   manifest = require("../app-manifest.js"),
   { assetPath } = require("../server.js");
 const ROOT = path.resolve(__dirname, "..");
-test("the simulation matches the armour-only, 1.7-second laser 900 tick baseline", () => {
+test("the woodland map preserves the 900 tick combat baseline", () => {
   const b = new C.Battle();
   b.start();
   for (let i = 0; i < 900; i++)

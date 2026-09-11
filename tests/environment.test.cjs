@@ -1,151 +1,92 @@
-const { test } = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const vm = require("node:vm");
-const T = require("three");
-const C = require("../battle-core.js");
-const data = require("../client/environment/maintenance-kit.json");
-const context = vm.createContext({
-  window: {},
-  AbortController,
-  setTimeout,
-  clearTimeout,
-});
-vm.runInContext(
-  fs.readFileSync(require.resolve("../client/environment.js"), "utf8"),
-  context,
-);
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), vm = require('node:vm'), T = require('three');
+const C = require('../battle-core.js'), S = require('../battle-session.js');
+const data = require('../client/environment/nature-kit.json');
+// Geometry tests do not emulate browser image decoding (covered by the browser preview).
+const untextured = structuredClone(data); delete untextured.images; delete untextured.textures;
+for (const material of untextured.materials) delete material.map;
+const context = vm.createContext({window: {}, AbortController, setTimeout, clearTimeout});
+vm.runInContext(fs.readFileSync(require.resolve('../client/environment.js'), 'utf8'), context);
 function setup(fetchImpl) {
   const floorGroups = C.MAP.levels.map(() => new T.Group());
-  const covers = new Map(
-    C.MAP.obstacles.map((o) => {
-      const cover = new T.Group();
-      cover.add(new T.Mesh(new T.BoxGeometry(), new T.MeshBasicMaterial()));
-      floorGroups[o.floor].add(cover);
-      return [o.id, cover];
-    }),
-  );
+  const covers = new Map(C.MAP.obstacles.map(o => {
+    const group = new T.Group(); group.add(new T.Mesh(new T.BoxGeometry(), new T.MeshBasicMaterial()));
+    floorGroups[o.floor].add(group); return [o.id, group];
+  }));
   const errors = [];
-  const env = context.window.TankClient.createEnvironment({
-    T,
-    C,
-    floorGroups,
-    covers,
-    fetchImpl,
-    onError: (e) => errors.push(e),
-  });
-  return { ...env, floorGroups, covers, errors };
+  return {...context.window.TankClient.createEnvironment({T,C,floorGroups,covers,fetchImpl,onError:e=>errors.push(e)}),floorGroups,covers,errors};
 }
-test("Blender kit stays within normalized cover bounds and a small untextured geometry budget", () => {
-  const kit = new T.ObjectLoader().parse(data);
-  assert.deepEqual(
-    kit.children.map((m) => m.name),
-    ["workshop", "cargo", "power"],
-  );
-  let triangles = 0,
-    meshes = 0;
-  for (const model of kit.children) {
+test('selected public nature kit has shared embedded textures, finite geometry and normalized rocks', () => {
+  assert.equal(data.metadata.generator, 'Quaternius Stylized Nature MegaKit');
+  assert.equal(data.object.children.length, 8);
+  assert.ok(data.images.length <= 7 && data.images.every(i=>i.url.startsWith('data:image/png;base64,')));
+  assert.ok(fs.statSync(require.resolve('../client/environment/nature-kit.json')).size < 6*1024*1024);
+  const kit = new T.ObjectLoader().parse(untextured);
+  for(const model of kit.children) {
     const box = new T.Box3().setFromObject(model);
-    for (const [axis, lo, hi] of [
-      ["x", -0.5, 0.5],
-      ["y", 0, 1],
-      ["z", -0.5, 0.5],
-    ]) {
-      assert.ok(
-        box.min[axis] >= lo - 0.001 && box.max[axis] <= hi + 0.001,
-        model.name + axis,
-      );
-      assert.ok(box.max[axis] - box.min[axis] > 0.99);
+    assert.ok(Math.abs(box.min.y)<1e-5 && Math.abs(box.max.y-1)<1e-5);
+    if(model.name.startsWith('Rock_')) for(const axis of ['x','z']) {
+      assert.ok(Math.abs(box.min[axis]+.5)<1e-5 && Math.abs(box.max[axis]-.5)<1e-5);
     }
-    model.traverse((m) => {
-      if (!m.isMesh) return;
-      meshes++;
-      triangles += m.geometry.index.count / 3;
-      assert.ok(
-        [
-          ...m.geometry.attributes.position.array,
-          ...m.geometry.attributes.normal.array,
-        ].every(Number.isFinite),
-      );
-      assert.equal(m.material.map, null);
-      assert.ok(m.castShadow && m.receiveShadow);
-    });
+    model.traverse(m=>{if(m.isMesh) assert.ok([...m.geometry.attributes.position.array].every(Number.isFinite));});
   }
-  assert.ok(triangles <= 7000 && meshes <= 20);
-  assert.equal(data.images, undefined);
 });
-test("scenery fits authoritative obstacles, keeps closed door fronts and shares cloned geometry", async () => {
-  const before = JSON.stringify(C.MAP);
-  const s = setup(async () => ({ ok: true, json: async () => data }));
-  assert.equal(await s.ready, true);
-  for (const o of C.MAP.obstacles) {
-    if (o.h < 2 || Math.min(o.w, o.d) < 4) continue;
-    const cover = s.covers.get(o.id);
-    assert.equal(cover.parent, s.floorGroups[o.floor]);
-    const box = new T.Box3().setFromObject(cover);
-    const y = C.MAP.levels[o.floor].y;
-    for (const [axis, lo, hi] of [
-      ["x", o.x - o.w / 2, o.x + o.w / 2],
-      ["y", y, y + o.h],
-      ["z", o.z - o.d / 2, o.z + o.d / 2],
-    ]) {
-      assert.ok(
-        Math.abs(box.min[axis] - lo) < 0.015 &&
-          Math.abs(box.max[axis] - hi) < 0.015,
-        o.id + axis,
-      );
-    }
-    const ray = new T.Raycaster(
-      new T.Vector3(o.x, y + o.h * 0.4, o.z + o.d / 2 + 2),
-      new T.Vector3(0, 0, -1),
-    );
-    const hits = ray.intersectObject(cover, true);
-    assert.ok(hits.length && hits[0].distance < 2.3, "closed front " + o.id);
+test('nature replaces covers at their physical bounds and batches repeat vegetation deterministically', async () => {
+  const before = JSON.stringify(C.MAP), fetch = async()=>({ok:true,json:async()=>untextured});
+  const a=setup(fetch), b=setup(fetch); assert.ok(await a.ready); assert.ok(await b.ready);
+  for(const o of C.MAP.obstacles.filter(o=>o.kind!=='tree')) {
+    const box=new T.Box3().setFromObject(a.covers.get(o.id));
+    for(const [axis,lo,hi] of [['x',o.x-o.w/2,o.x+o.w/2],['y',C.MAP.levels[o.floor].y,C.MAP.levels[o.floor].y+o.h],['z',o.z-o.d/2,o.z+o.d/2]])
+      assert.ok(Math.abs(box.min[axis]-lo)<.001 && Math.abs(box.max[axis]-hi)<.001,o.id+axis);
   }
-  assert.equal(
-    s.covers.get("g1").children[0].children[0].geometry,
-    s.covers.get("g3").children[0].children[0].geometry,
-  );
-  assert.equal(JSON.stringify(C.MAP), before);
+  const matrices=s=>s.floorGroups.flatMap(g=>g.getObjectByName('woodland-'+s.floorGroups.indexOf(g)).children.map(m=>({name:m.name,count:m.count,matrices:Array.from(m.instanceMatrix.array)})));
+  assert.deepEqual(matrices(a),matrices(b));
+  assert.ok(matrices(a).length<35,'vegetation uses bounded instanced draw calls');
+  assert.equal(JSON.stringify(C.MAP),before);
 });
-test("failed scenery request retains usable placeholder covers", async () => {
-  const s = setup(async () => ({ ok: false }));
-  const original = [...s.covers.values()].map((c) => c.children[0]);
-  assert.equal(await s.ready, false);
-  assert.equal(s.errors.length, 1);
-  assert.deepEqual(
-    [...s.covers.values()].map((c) => c.children[0]),
-    original,
-  );
-});
-test("instanced apron markings do not cross deck edges or ramp openings", async () => {
-  const s = setup(async () => ({ ok: false }));
-  await s.ready;
-  const matrix = new T.Matrix4();
-  for (const level of C.MAP.levels) {
-    for (const mesh of s.floorGroups[level.id].children.filter(
-      (m) => m.isInstancedMesh,
-    )) {
-      for (let i = 0; i < mesh.count; i++) {
-        mesh.getMatrixAt(i, matrix);
-        for (const x of [-0.5, 0.5])
-          for (const z of [-0.5, 0.5]) {
-            const p = new T.Vector3(x, 0, z).applyMatrix4(matrix);
-            assert.ok(
-              C.deckRects(C.MAP, level).some(
-                (q) => p.x >= q.x0 && p.x <= q.x1 && p.z >= q.z0 && p.z <= q.z1,
-              ),
-            );
-            assert.ok(
-              !C.MAP.ramps.some(
-                (r) =>
-                  Math.abs(p.x - r.a.x) < r.width / 2 &&
-                  p.z > Math.min(r.a.z, r.b.z) &&
-                  p.z < Math.max(r.a.z, r.b.z),
-              ),
-            );
-          }
-      }
-    }
+test('failed or incomplete nature kit preserves every usable fallback', async () => {
+  for(const fetch of [async()=>({ok:false}),async()=>({ok:true,json:async()=>({...untextured,object:{...untextured.object,children:[]}})})]) {
+    const s=setup(fetch), original=[...s.covers.values()].map(c=>c.children[0]);
+    assert.equal(await s.ready,false);assert.equal(s.errors.length,1);
+    assert.deepEqual([...s.covers.values()].map(c=>c.children[0]),original);
+    assert.ok(s.floorGroups.every(g=>!g.children.some(c=>c.name.startsWith('woodland-'))));
   }
+});
+test('expanded woodland has valid supplies, safe starts, solid trunks and reachable outer routes', () => {
+  const b = new C.Battle(), p=b.entities[0];
+  assert.equal(C.MAP.levels[0].bound,128);
+  for(const s of [...C.MAP.spawns,...C.MAP.pickups])
+    assert.ok(b.valid(s.x,s.z,s.floor,p,{ignoreEntities:true}),JSON.stringify(s));
+  for(const o of C.MAP.obstacles.filter(o=>o.kind==='tree')) {
+    assert.equal(b.valid(o.x,o.z,0,p,{ignoreEntities:true}),false,o.id);
+    const hit=b.collision({x:o.x-3,y:1,z:o.z},{x:o.x+3,y:1,z:o.z},p.id);
+    assert.ok(hit,o.id);
+  }
+  Object.assign(p,{x:0,z:110,y:0,floor:0});
+  const route=b.route(p,{x:110,z:0});
+  assert.ok(route.length>0 && route.some(p=>p.x>80));
+  for(const point of route) assert.ok(b.valid(point.x,point.z,0,p,{ignoreEntities:true}));
+  assert.equal(b.valid(128,0,0,p),false);
+});
+test('projectiles, authoritative checkpoints and replicas work beyond the old 80m limit', () => {
+  const b=new C.Battle({participants:C.defaultParticipants().map(p=>({...p,controller:'human'}))});
+  b.start(); const p=b.entities[0]; Object.assign(p,{x:0,z:110,y:0,floor:0,aim:Math.PI});
+  b.step({[p.id]:{fire:true,aimYaw:Math.PI}});
+  assert.ok(b.bullets.length && b.bullets[0].z>80);
+  p.brain.path=[{x:0,z:112},{x:100,z:112}];
+  const snapshot=b.snapshot(); S.validateSnapshot(snapshot);
+  const copy=new C.Battle(); copy.restore(snapshot); assert.deepEqual(copy.snapshot(),snapshot);
+  const a=new S.Authority();a.battle.restore(snapshot); const r=new S.Replica();r.welcome(a.attach('outer-peer',p.id)); assert.equal(r.receive(a.statePacket({network:true})).ok,true);
+  assert.equal(r.current.entities[0].z,110);
+  const bad=structuredClone(snapshot); bad.entities[0].x=C.MAP.worldLimit+1;
+  assert.throws(()=>S.validateSnapshot(bad),/Invalid entity state/);
+});
+test('PvE hazard positions accept the expanded arena but reject coordinates beyond it', () => {
+  const b=new C.Battle({mode:'pve',participants:[{id:'p1',controller:'human',tankType:'human',weaponType:'rocket'}]});
+  b.start(); const p=b.entities[0]; Object.assign(p,{x:100,z:110});
+  b.pve.boss.telegraph={at:b.tick+90,zones:[{x:100,y:0,z:110}]};
+  const s=b.snapshot();S.validateSnapshot(s);
+  s.pve.boss.telegraph.zones[0].x=C.MAP.worldLimit+1;
+  assert.throws(()=>S.validateSnapshot(s));
 });

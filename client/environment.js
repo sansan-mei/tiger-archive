@@ -1,141 +1,84 @@
-/* Blender-authored scenery skins. The shared map remains the collision authority. */
+/* Quaternius nature skins; the shared map owns solid rock and trunk collisions. */
 (window.TankClient ??= {}).createEnvironment = function ({
-  T,
-  C,
-  floorGroups,
-  covers,
-  fetchImpl = (...args) => globalThis.fetch(...args),
-  onError = () => {},
+  T, C, floorGroups, covers,
+  fetchImpl = (...args) => globalThis.fetch(...args), onError = () => {},
 }) {
-  // Flat markings use a handful of instanced draws, not hundreds of small meshes.
-  const boxGeometry = new T.BoxGeometry(1, 1, 1);
-  const colors = {
-    paint: 0xeee0b8,
-    seam: 0x80908a,
-    teal: 0x548c8c,
-    yellow: 0xe8af57,
-  };
-  const transform = new T.Object3D();
-  for (const level of C.MAP.levels) {
-    const batches = Object.fromEntries(Object.keys(colors).map((k) => [k, []]));
-    const onDeck = (x, z) =>
-      C.deckRects(C.MAP, level).some(
-        (q) => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1,
-      );
-    function mark(color, x, z, w, d) {
-      if (
-        ![
-          [x - w / 2, z - d / 2],
-          [x + w / 2, z + d / 2],
-        ].every(([px, pz]) => onDeck(px, pz))
-      )
-        return;
-      if (
-        C.MAP.ramps.some(
-          (r) =>
-            Math.abs(x - r.a.x) < r.width / 2 + w / 2 &&
-            z + d / 2 > Math.min(r.a.z, r.b.z) &&
-            z - d / 2 < Math.max(r.a.z, r.b.z),
-        )
-      )
-        return;
-      batches[color].push([x, z, w, d]);
-    }
-    for (let x = -level.bound + 6; x < level.bound; x += 12)
-      for (let z = -level.bound + 6; z < level.bound; z += 12) {
-        mark("seam", x, z, 10.5, 0.035);
-        mark("seam", x - 5.25, z + 5.25, 0.035, 10.5);
-      }
-    // Center lane and repair apron remain flat, with no new invisible barriers.
-    for (let z = -level.bound + 6; z < level.bound - 3; z += 8) {
-      mark("paint", 0, z, 0.25, 3);
-      for (const x of [-5.4, 5.4]) mark("paint", x, z, 0.12, 6);
-    }
-    for (const o of C.MAP.obstacles.filter(
-      (o) => o.floor === level.id && o.w >= 6 && o.d >= 5,
-    )) {
-      for (const side of [-1, 1]) {
-        mark("yellow", o.x + side * (o.w / 2 + 0.55), o.z, 0.16, o.d + 1);
-        mark("yellow", o.x, o.z + side * (o.d / 2 + 0.55), o.w + 1, 0.16);
-      }
-    }
-    if (level.id === 0) {
-      for (const x of [-23, -17, -11]) {
-        mark("paint", x, 21, 0.15, 7);
-        mark("paint", x + 2.5, 24.5, 5, 0.15);
-      }
-      for (let i = 0; i < 6; i++) mark("paint", -17 + i * 1.6 - 4, 16, 1, 0.8);
-      // Repair cross on the apron; no decal image or texture download.
-      mark("teal", -17, 29, 4, 4);
-      mark("paint", -17, 29, 0.55, 2.5);
-      mark("paint", -17, 29, 2.5, 0.55);
-    }
-    for (const [name, entries] of Object.entries(batches)) {
-      if (!entries.length) continue;
-      const mesh = new T.InstancedMesh(
-        boxGeometry,
-        new T.MeshToonMaterial({ color: colors[name] }),
-        entries.length,
-      );
-      mesh.name = "apron-" + name + "-" + level.id;
-      mesh.receiveShadow = true;
-      // Tiny layer separation keeps cross/paint above the colored floor patch.
-      entries.forEach(([x, z, w, d], i) => {
-        transform.position.set(
-          x,
-          level.y + (name === "paint" ? 0.044 : 0.025),
-          z,
-        );
-        transform.rotation.set(0, 0, 0);
-        transform.scale.set(w, 0.008, d);
-        transform.updateMatrix();
-        mesh.setMatrixAt(i, transform.matrix);
-      });
-      floorGroups[level.id].add(mesh);
-    }
-  }
   const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), 8000);
+  const timer = globalThis.setTimeout(() => controller.abort(), 15000);
   const ready = (async () => {
     try {
-      const response = await fetchImpl(
-        "client/environment/maintenance-kit.json",
-        { signal: controller.signal },
-      );
-      if (!response.ok) throw new Error("Maintenance scenery unavailable");
+      const response = await fetchImpl('client/environment/nature-kit.json', {signal: controller.signal});
+      if (!response.ok) throw Error('Nature scenery unavailable');
       const data = await response.json();
-      if (data.metadata?.generator !== "Blender maintenance kit")
-        throw new Error("Unexpected scenery data");
-      const kit = new T.ObjectLoader().parse(data);
-      const prototypes = new Map(
-        kit.children.map((model) => [model.name, model]),
-      );
-      for (const name of ["workshop", "cargo", "power"])
-        if (!prototypes.has(name)) throw new Error("Missing scenery model");
-      for (const o of C.MAP.obstacles) {
-        const cover = covers.get(o.id);
-        if (!cover || o.h < 2 || Math.min(o.w, o.d) < 4) continue;
-        const kind = ["g1", "g3", "t1"].includes(o.id)
-          ? "workshop"
-          : ["g4", "g5", "t3"].includes(o.id)
-            ? "power"
-            : "cargo";
-        const model = prototypes.get(kind).clone(true);
-        model.name = "cover-" + o.id + "-" + kind;
-        model.scale.set(o.w, o.h, o.d);
-        model.position.set(o.x, C.MAP.levels[o.floor].y, o.z);
-        model.userData.coverId = o.id;
-        // Remove only this cover's placeholder meshes; shared materials are reused elsewhere.
-        cover.clear();
-        cover.add(model);
+      if (data.metadata?.generator !== 'Quaternius Stylized Nature MegaKit') throw Error('Unexpected scenery data');
+      const kit = await new T.ObjectLoader().parseAsync(data);
+      const models = new Map(kit.children.map(model => [model.name, model]));
+      const names = ['CommonTree_3', 'CommonTree_5', 'Pine_5', 'Bush_Common_Flowers',
+        'Grass_Common_Short', 'Flower_3_Group', 'Rock_Medium_1', 'Rock_Medium_2'];
+      for (const name of names) if (!models.has(name)) throw Error('Missing nature model: ' + name);
+      const groups = C.MAP.levels.map(() => new T.Group()), replacements = new Map();
+      const batches = new Map(), matrix = new T.Object3D();
+      function plant(name, floor, x, y, z, size, rotation = 0) {
+        const key = floor + ':' + name;
+        if (!batches.has(key)) batches.set(key, {name, floor, entries: []});
+        matrix.position.set(x, y, z); matrix.scale.setScalar(size);
+        matrix.rotation.set(0, rotation, 0); matrix.updateMatrix();
+        batches.get(key).entries.push(matrix.matrix.clone());
       }
+      let seed = 8917;
+      const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+      for (const [i, o] of C.MAP.obstacles.entries()) {
+        const y = C.MAP.levels[o.floor].y;
+        if (o.kind === 'tree') {
+          plant(names[i % 3], o.floor, o.x, y, o.z, 10 + (i % 4), i * 2.4);
+          replacements.set(o.id, null);
+          continue;
+        }
+        const rock = models.get(i % 2 ? 'Rock_Medium_1' : 'Rock_Medium_2').clone(true);
+        rock.name = 'rock-' + o.id; rock.userData.coverId = o.id;
+        rock.position.set(o.x, y, o.z); rock.scale.set(o.w, o.h, o.d);
+        replacements.set(o.id, rock);
+        // Flowers grow beside solid cover; vegetation itself never blocks aiming.
+        if (i % 3 === 0) plant('Bush_Common_Flowers', o.floor, o.x + o.w * .35, y + o.h * .65, o.z, Math.min(1.7, o.w * .3), i);
+      }
+      for (const level of C.MAP.levels) {
+        const rects = C.deckRects(C.MAP, level);
+        for (let i = 0; i < (level.id ? 300 : 3200); i++) {
+          const x = (random() * 2 - 1) * (level.bound - 3), z = (random() * 2 - 1) * (level.bound - 3);
+          if (!rects.some(q => x > q.x0 + 1 && x < q.x1 - 1 && z > q.z0 + 1 && z < q.z1 - 1)) continue;
+          if (Math.abs(x) < 7 || (!level.id && (Math.abs(z) < 6 || Math.abs(Math.hypot(x,z) - 102) < 6))) continue;
+          if (C.MAP.ramps.some(r => Math.abs(x - r.a.x) < r.width/2 + 2 && z > Math.min(r.a.z,r.b.z) - 3 && z < Math.max(r.a.z,r.b.z) + 3)) continue;
+          if (C.MAP.obstacles.some(o => o.floor === level.id && Math.abs(x-o.x)<o.w/2+1.5 && Math.abs(z-o.z)<o.d/2+1.5)) continue;
+          plant(i % 5 === 0 ? 'Flower_3_Group' : 'Grass_Common_Short', level.id, x, level.y+.01, z, .35+random()*.6, random()*Math.PI*2);
+        }
+      }
+      // A distant forest forms the horizon, outside all playable collision bounds.
+      for (let i = 0; i < 96; i++) {
+        const side = i % 4, along = (random()*2-1)*153, distance = 139+random()*22;
+        const x = side < 2 ? (side ? -distance : distance) : along;
+        const z = side < 2 ? along : (side === 2 ? distance : -distance);
+        plant(names[i%3], 0, x, -.3, z, 11+random()*9, random()*Math.PI*2);
+      }
+      for (const {name, floor, entries} of batches.values()) {
+        for (const source of models.get(name).children) {
+          const mesh = new T.InstancedMesh(source.geometry, source.material, entries.length);
+          mesh.name = 'nature-' + name;
+          mesh.userData.aimIgnore = !/Bark/.test(source.material.name);
+          // Solid trunks are represented by shared-map collision; foliage is decorative.
+          mesh.castShadow = true; mesh.receiveShadow = true;
+          entries.forEach((m, i) => mesh.setMatrixAt(i, m));
+          mesh.computeBoundingSphere(); groups[floor].add(mesh);
+        }
+      }
+      // Commit only after the complete kit has decoded, preserving fallbacks on failure.
+      for (const [id, rock] of replacements) {
+        const cover = covers.get(id);
+        if (cover) { cover.clear(); if (rock) cover.add(rock); }
+      }
+      groups.forEach((g,i) => { g.name = 'woodland-' + i; floorGroups[i].add(g); });
       return true;
-    } catch (error) {
-      onError(error);
-      return false;
-    } finally {
-      globalThis.clearTimeout(timer);
-    }
+    } catch (error) { onError(error); return false; }
+    finally { globalThis.clearTimeout(timer); }
   })();
-  return { ready };
+  return {ready};
 };
