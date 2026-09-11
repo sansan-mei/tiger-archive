@@ -135,7 +135,7 @@
             " · 直接命中积攒";
     const remaining = Math.max(
       0,
-      Math.ceil((C.RULES.duration - truth.tick) / 60),
+      Math.ceil(((truth.mode === "pve" ? C.RULES.pveDuration : C.RULES.duration) - truth.tick) / 60),
     );
     $("battle-clock").textContent =
       String(Math.floor(remaining / 60)).padStart(2, "0") +

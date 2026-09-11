@@ -84,7 +84,8 @@ test('projectiles, authoritative checkpoints and replicas work beyond the old 80
 });
 test('PvE hazard positions accept the expanded arena but reject coordinates beyond it', () => {
   const b=new C.Battle({mode:'pve',participants:[{id:'p1',controller:'human',tankType:'human',weaponType:'rocket'}]});
-  b.start(); const p=b.entities[0]; Object.assign(p,{x:100,z:110});
+  b.start();b.tick=1;b.pve.wave=7;b.pve.nextWaveAt=1;b.step();
+  const p=b.entities[0]; Object.assign(p,{x:100,z:110});
   b.pve.boss.telegraph={at:b.tick+90,zones:[{x:100,y:0,z:110,radius:6}]};
   const s=b.snapshot();S.validateSnapshot(s);
   s.pve.boss.telegraph.zones[0].x=C.MAP.worldLimit+1;

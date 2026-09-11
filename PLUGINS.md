@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v22）
+# 机甲与武器插件（API v1，协议 v23）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种玩家单位 × 5 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -64,7 +64,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 联机一致性
 
-协议当前为 v22。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议当前为 v23。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -76,7 +76,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v22；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v23；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3。
 
 ## 卡通几何上下文
 
@@ -94,7 +94,7 @@ ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射�
 
 ## PvE 感染者与小手枪
 
-当前 zombie 1.3.0 / pistol 1.1.0，均为原创程序化外观。zombie 声明 enemyOnly: true，只能由 PvE 创建为 bot 实体；PLAYER_TANKS 排除它，TANKS 保留碰撞参数。感染者复用 standard 武器的冷却字段，但 AI 只做近战，不调用开火或 Shift 技能，模型不绘制枪械。
+当前 zombie 1.4.0 / pistol 1.1.0，均为原创程序化外观。zombie 声明 enemyOnly: true，只能由 PvE 创建为 bot 实体；PLAYER_TANKS 排除它，TANKS 保留碰撞参数。感染者复用 standard 武器的冷却字段，但 AI 只做近战，不调用开火或 Shift 技能，模型不绘制枪械。
 
 pistol 为 automatic/projectile，20 伤害、24 tick 冷却；玩家可在 FFA 自由组合，PvE 固定以 human/pistol 开局。PvE 被动和换装奖励由 core/pve.js 管理，不修改全局插件配置，因此不会影响同服务器的其他 PvP/PvE 房间。
 
@@ -103,3 +103,7 @@ pistol 为 automatic/projectile，20 伤害、24 tick 冷却；玩家可在 FFA 
 ## v17 Boss 与流派
 
 僵尸 variants 新增 boss（1200 基础生命），仅由最终阶段生成，不加入普通波次权重。原创 Boss 外观使用红色重装、冠饰和重锤。经验及流派配置位于 core/roguelike，武器插件基础数值保持冻结；火箭范围加成按玩家局内被动生成临时参数，不修改全局插件。
+
+## v23 双 Boss 与巨人阶段
+
+zombie 1.4.0 将 boss 调整为第 8 波中期 Boss，并新增第 16 波 titan 最终 Boss。titan 使用紫色重甲、双肩尖刺和发光冠饰，与红色零号感染体保持独立轮廓；brute 改名重锤巨人并从第 9 波解锁。两个 Boss 仍由同一可信 zombie 插件注册，核心根据 variant 合并生命、速度、近战范围、伤害和冷却。

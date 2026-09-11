@@ -186,7 +186,7 @@
         }
       }
     } else if (zombie && range > 1.8) {
-      if (body.zombieType === "boss") goal = target;
+      if (["boss", "titan"].includes(body.zombieType)) goal = target;
       else {
         const slot = zombieOrdinal % 6,
           angle = (slot * Math.PI * 2) / 6,

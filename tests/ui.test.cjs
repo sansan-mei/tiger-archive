@@ -514,6 +514,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   const survival = coop.authority.battle;
   assert.equal(nodes.get("weapon-label").textContent, "小手枪 · 9/9");
   assert.match(nodes.get("mission-title").textContent, /CO-OP/);
+  assert.match(nodes.get("battle-clock").textContent,/^15:/);
   const live = survival.entities.find((e) => e.tankType === "zombie" && e.alive);
   assert.ok(live);
   let zombieMesh;
@@ -539,11 +540,18 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(survival.entities[0].weaponType, "rocket");
   assert.equal(nodes.get("weapon-label").textContent, "火箭筒");
   assert.equal(nodes.get("pve-rewards").hidden, true);
-  survival.tick = C.RULES.duration - 3601;
+  survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;
   advance(12);
   const boss = survival.entities.find(e=>e.zombieType === "boss");
-  assert.ok(boss?.alive);
+  assert.ok(boss?.alive);assert.equal(nodes.get("mission-title").textContent,"CO-OP SURVIVAL / 16");
+  assert.match(nodes.get("pve-boss").textContent,/零号感染体/);
   boss.protectedUntil = 0; survival.damage(boss, 100000, survival.entities[0].id, boss);
+  advance(12);assert.notEqual(nodes.get("menu-title").textContent,"撤离成功");
+  survival.pve.wave = 15; survival.pve.nextWaveAt = survival.tick;
+  advance(12);
+  const titan=survival.entities.find(e=>e.zombieType === "titan");
+  assert.ok(titan?.alive);assert.match(nodes.get("pve-boss").textContent,/泰坦感染体/);
+  titan.protectedUntil=0;survival.damage(titan,100000,survival.entities[0].id,titan);
   advance(12);
   assert.equal(nodes.get("menu-title").textContent, "撤离成功");
   assert.equal(nodes.get("match-results").children.length, 1);

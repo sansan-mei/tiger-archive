@@ -33,7 +33,7 @@
     let seed = 2166136261;
     for (const ch of b.matchId + ":" + b.epoch) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
     Object.assign(b.pve, { level:1, xp:0, rng:seed || 1, pending:{}, choiceIds:{}, nextChoiceId:1, hits:{}, hazards:[], bursts:[], nextHazard:1,
-      boss:{ spawned:false, defeated:false, nextAttackAt:0, telegraph:null } });
+      boss:{ stage:0, spawned:false, defeated:false, nextAttackAt:0, telegraph:null } });
     for (const p of b.entities.filter(e=>e.tankType!=="zombie")) {
       b.pve.upgrades[p.id] = Object.fromEntries(Object.keys(caps).map(k=>[k,0]));
       b.pve.pending[p.id]=0; b.pve.hits[p.id]=0;
@@ -87,7 +87,12 @@
   }
   function onDeath(b,target,owner,allRewards) {
     if(target.tankType!=="zombie")return;
-    if(target.zombieType==="boss") { b.pve.boss.defeated=true;b.pve.boss.telegraph=null;return; }
+    if(["boss","titan"].includes(target.zombieType)) {
+      b.pve.boss.telegraph=null;
+      if(target.zombieType==="titan")b.pve.boss.defeated=true;
+      else b.pve.boss.spawned=false;
+      return;
+    }
     addExperience(b,{walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10,allRewards);
     if(b.pve.upgrades[owner]?.chain && b.getEntity(owner)?.weaponType==="rocket" &&
       !b.resolvingPveBurst && b.pve.bursts.length<16)b.pve.bursts.push({owner,...point(target)});
@@ -107,7 +112,7 @@
       if(u.lightning && !b.pve.hits[shot.owner])for(const shocked of nearby(b,from,12,[hit.id]).slice(0,3))arc(b,shot.owner,from,shocked,20);
     } else if(shot.weaponType==="standard" && shot.critical) {
       if(u.heavyShell)burst(b,shot.owner,point(target),4,30,[target.id]);
-      if(u.execution && target.alive && ["brute","boss"].includes(target.zombieType))
+      if(u.execution && target.alive && ["brute","boss","titan"].includes(target.zombieType))
         b.damage(target,60,shot.owner,point(target));
     } else if(shot.weaponType==="rapid") {
       if(u.suppression)target.slowUntil=Math.max(target.slowUntil,b.tick+120);
@@ -139,22 +144,25 @@
     }} finally {b.resolvingPveBurst=false;}
   }
   function bossAttack(b) {
-    const state=b.pve.boss, boss=b.entities.find(e=>e.zombieType==="boss" && e.alive);
+    const state=b.pve.boss, boss=b.entities.find(e=>["boss","titan"].includes(e.zombieType)&&e.alive);
     if(!boss || state.defeated)return;
+    const enraged=boss.hp<boss.maxHp/2, final=boss.zombieType==="titan",
+      attack=final
+        ? {warning:75,radius:enraged?11:9,lead:enraged?1.25:1,damage:enraged?70:60,wait:enraged?90:150}
+        : {warning:60,radius:enraged?7:6,lead:enraged?1:.75,damage:enraged?50:45,wait:enraged?120:180};
     if(state.telegraph && b.tick>=state.telegraph.at) {
       const hitPlayers = new Set();
       for(const zone of state.telegraph.zones) {
         b.emit("explosion",{owner:boss.id,...zone});
         for(const p of b.entities.filter(e=>e.tankType!=="zombie" && e.alive))
           if(!hitPlayers.has(p.id) && Math.abs(p.y-zone.y)<2 && Math.hypot(p.x-zone.x,p.z-zone.z)<zone.radius) {
-            b.damage(p,boss.hp<boss.maxHp/2?50:45,boss.id,point(p));hitPlayers.add(p.id);
+            b.damage(p,attack.damage,boss.id,point(p));hitPlayers.add(p.id);
           }
       }
-      state.telegraph=null;state.nextAttackAt=b.tick+(boss.hp<boss.maxHp/2?120:180);
+      state.telegraph=null;state.nextAttackAt=b.tick+attack.wait;
     } else if(!state.telegraph && b.tick>=state.nextAttackAt) {
-      const enraged=boss.hp<boss.maxHp/2,radius=enraged?7:6,lead=enraged?1:.75;
-      state.telegraph={at:b.tick+60,zones:b.entities.filter(e=>e.tankType!=="zombie" && e.alive).map(e=>{
-        const projected={...e,brain:e.brain},steps=Math.max(1,Math.round(lead*C.TICK_RATE)),
+      state.telegraph={at:b.tick+attack.warning,zones:b.entities.filter(e=>e.tankType!=="zombie" && e.alive).map(e=>{
+        const projected={...e,brain:e.brain},steps=Math.max(1,Math.round(attack.lead*C.TICK_RATE)),
           groundBound=b.map.levels[0].bound-C.TANKS[e.tankType].radius;
         for(let i=0;i<steps;i++) {
           if(projected.falling) {
@@ -181,9 +189,9 @@
             fallVZ:Math.sin(projected.heading)*projected.speed});
           Object.assign(projected,{x,z,...surface});
         }
-        return {x:projected.x,y:projected.y,z:projected.z,radius};
+        return {x:projected.x,y:projected.y,z:projected.z,radius:attack.radius};
       })};
-      boss.boostUntil=b.tick+120;
+      boss.boostUntil=b.tick+(final?90:120);
     }
   }
   function validate(s) {
@@ -207,12 +215,17 @@
     for(const h of v.hazards)if(!pos(h)||!ids.has(h.owner)||!int(h.id)||!int(h.until)||!int(h.nextTick)||h.radius!==3)throw Error('Invalid fire zone');
     for(const h of v.bursts)if(!pos(h)||!ids.has(h.owner))throw Error('Invalid burst');
     const boss=v.boss;
-    if(!object(boss)||typeof boss.spawned!=="boolean"||typeof boss.defeated!=="boolean"||!int(boss.nextAttackAt)||
-      (boss.defeated&&!boss.spawned))throw Error('Invalid boss');
-    if(boss.telegraph!==null && (!object(boss.telegraph)||!int(boss.telegraph.at)||!Array.isArray(boss.telegraph.zones)||
-      boss.telegraph.zones.length>8||!boss.telegraph.zones.every(z=>pos(z)&&[6,7].includes(z.radius))))throw Error('Invalid boss warning');
-    const bosses = s.entities.filter(e=>e.zombieType==="boss");
-    if(bosses.length !== (boss.spawned ? 1 : 0) || (boss.spawned && boss.defeated === bosses[0].alive))throw Error("Inconsistent boss state");
+    if(!object(boss)||!int(boss.stage,2)||typeof boss.spawned!=="boolean"||typeof boss.defeated!=="boolean"||!int(boss.nextAttackAt)||
+      (boss.stage===0&&(boss.spawned||boss.defeated))||(boss.stage===1&&boss.defeated)||
+      (boss.stage===2&&!boss.spawned)||(boss.defeated&&boss.stage!==2)||
+      (v.wave>=8)!==(boss.stage>=1)||(v.wave>=16)!==(boss.stage===2))throw Error('Invalid boss');
+    const expectedRadius=boss.stage===2?[9,11]:[6,7];
+    if(boss.telegraph!==null && (!boss.spawned||!object(boss.telegraph)||!int(boss.telegraph.at)||!Array.isArray(boss.telegraph.zones)||
+      boss.telegraph.zones.length>8||!boss.telegraph.zones.every(z=>pos(z)&&expectedRadius.includes(z.radius))))throw Error('Invalid boss warning');
+    const bosses = s.entities.filter(e=>["boss","titan"].includes(e.zombieType)),
+      active = bosses.filter(e=>e.alive);
+    if(active.length!==(boss.spawned&&!boss.defeated?1:0)||active.some(e=>e.zombieType!==(boss.stage===1?"boss":"titan"))||
+      (boss.defeated&&!bosses.some(e=>e.zombieType==="titan"&&!e.alive)))throw Error("Inconsistent boss state");
     if(s.entities.some(e=>e.tankType==="zombie"&&!int(e.slowUntil)))throw Error('Invalid slow status');
   }
   return Object.freeze({rewards,caps,xpNeeded,initialize,offer,addExperience,complete,onDeath,onHit,fireZone,tick,bossAttack,validate});

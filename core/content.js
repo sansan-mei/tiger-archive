@@ -28,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 22,
+    const VERSION = 23,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -37,6 +37,7 @@
       gravity: 20,
       terminalFallSpeed: 30,
       duration: 28800,
+      pveDuration: 57600,
       killLimit: 15,
       respawn: 240,
       protection: 120,

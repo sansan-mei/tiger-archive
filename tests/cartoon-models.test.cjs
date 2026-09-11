@@ -97,7 +97,7 @@ test("removed model assets are not published and weapon code is obfuscated", () 
   ))
     assert.equal(release.shouldObfuscate(file), true);
 });
-test('five original zombie variants have distinct silhouettes, bounded geometry and owned resources', () => {
+test('seven original zombie variants have distinct silhouettes, bounded geometry and owned resources', () => {
   const browser=context(), signatures=new Set();
   for(const zombieType of Object.keys(C.ZOMBIE_SPECS)) {
     const v=browser.createTankModel(T,{tankType:'zombie',weaponType:'standard',zombieType});
@@ -115,5 +115,5 @@ test('five original zombie variants have distinct silhouettes, bounded geometry 
     for(const resource of resources) resource.addEventListener('dispose',()=>resource.disposed=true);
     v.dispose();assert.ok([...resources].every(r=>r.disposed));
   }
-  assert.equal(signatures.size,6);
+  assert.equal(signatures.size,7);
 });

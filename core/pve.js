@@ -20,12 +20,15 @@
   });
   const survivors = (b) => b.entities.filter((e) => e.tankType !== "zombie");
   const zombies = (b) => b.entities.filter((e) => e.tankType === "zombie");
-  const composition = ["walker", "walker", "cone", "walker", "runner", "cone", "bucket", "runner", "brute", "walker"];
+  const earlyComposition = ["walker", "walker", "cone", "walker", "runner", "cone", "bucket", "runner", "walker", "cone"],
+    lateComposition = ["brute", "runner", "bucket", "brute", "cone", "runner", "brute", "bucket"];
+  const bossTypes = new Set(["boss", "titan"]);
   function healthFor(type, teamSize) {
     return Math.round(C.ZOMBIE_SPECS[type].hp * (1 + C.RULES.pveHealthPerPlayer * (teamSize - 1)));
   }
   function typeFor(wave, ordinal) {
-    const type = composition[(wave * 3 + ordinal) % composition.length];
+    const pool = wave > 8 ? lateComposition : earlyComposition,
+      type = pool[(wave * 3 + ordinal) % pool.length];
     return C.ZOMBIE_SPECS[type].wave <= wave ? type : "walker";
   }
   function initialize(b) {
@@ -96,6 +99,18 @@
 
       }
   }
+  function startBoss(b, players, stage) {
+    const boss = zombies(b).at(-1), type = stage === 1 ? "boss" : "titan";
+    if (!spawn(b, boss, type)) return false;
+    Object.assign(b.pve.boss, { stage, spawned: true, defeated: false,
+      nextAttackAt: b.tick + (stage === 1 ? 180 : 150), telegraph: null });
+    b.pve.queue = 0; b.pve.nextWaveAt = 0;
+    for (const z of zombies(b)) if (z !== boss) {
+      z.alive = false; z.hp = 0; z.speed = 0; z.criticalProgress = 0;
+    }
+    resupply(b, players);
+    return true;
+  }
   function step(b) {
     const pve = b.pve, players = survivors(b).filter((p) => !p.forfeited);
     const teamSize = Math.max(1, players.length);
@@ -109,7 +124,7 @@
     }
     for (const id of Object.keys(pve.choices))
       if (!players.some((p) => p.id === id)) { delete pve.choices[id]; delete pve.choiceIds[id]; pve.pending[id] = 0; }
-    if (!players.some((p) => p.alive) || pve.boss.defeated || b.tick >= C.RULES.duration) {
+    if (!players.some((p) => p.alive) || pve.boss.defeated || b.tick >= C.RULES.pveDuration) {
       pve.result = players.some((p) => p.alive) && pve.boss.defeated ? "victory" : "defeat";
       b.status = "finished";
       b.winnerId = null;
@@ -134,27 +149,18 @@
         }
       }
     }
-    if (b.tick >= C.RULES.duration - 3600 && !pve.boss.spawned) {
-      const boss = zombies(b).at(-1);
-      if (spawn(b, boss, "boss")) {
-        pve.boss.spawned = true; pve.boss.nextAttackAt = b.tick + 180;
-        pve.queue = 0; pve.nextWaveAt = 0;
-        for (const z of zombies(b)) if (z !== boss) { z.alive = false; z.hp = 0; z.speed = 0; z.criticalProgress = 0; }
-        resupply(b, players);
-      }
-    }
     if (pve.boss.spawned) {
       R.bossAttack(b);
-      const boss = zombies(b).find((z) => z.zombieType === "boss" && z.alive),
-        support = zombies(b).filter((z) => z.zombieType !== "boss" && z.alive),
+      const boss = zombies(b).find((z) => bossTypes.has(z.zombieType) && z.alive),
+        support = zombies(b).filter((z) => !bossTypes.has(z.zombieType) && z.alive),
         supportLimit = Math.min(6, players.length + 2);
       if (boss && support.length < supportLimit && b.tick % 180 === 0) {
-        const vacant = zombies(b).find((z) => z.zombieType !== "boss" && !z.alive);
+        const vacant = zombies(b).find((z) => !bossTypes.has(z.zombieType) && !z.alive);
         if (vacant) {
-          const type = pve.wave >= 3 &&
-              (b.tick / 180 + Number(vacant.id.slice(7))) % 3 === 0
-            ? "runner"
-            : "walker";
+          const late = pve.wave > 8,
+            type = late
+              ? ((b.tick / 180 + Number(vacant.id.slice(7))) % 3 === 0 ? "runner" : "brute")
+              : ((b.tick / 180 + Number(vacant.id.slice(7))) % 3 === 0 ? "runner" : "cone");
           spawn(b, vacant, type);
         }
       }
@@ -164,6 +170,13 @@
       if (b.tick < pve.nextWaveAt) return;
       pve.nextWaveAt = 0;
       pve.wave++;
+      if (pve.wave === 8 || pve.wave === 16) {
+        const stage = pve.wave === 8 ? 1 : 2;
+        if (!startBoss(b, players, stage)) {
+          pve.wave--; pve.nextWaveAt = b.tick + 1;
+        }
+        return;
+      }
       pve.queue = Math.min(64, 4 + pve.wave * 2 + (players.length - 1) * 3);
       pve.nextSpawnAt = b.tick;
     }
@@ -183,12 +196,12 @@
     const int = (n, max = Number.MAX_SAFE_INTEGER) => Number.isSafeInteger(n) && n >= 0 && n <= max;
     const plain = (o) => o && typeof o === "object" && !Array.isArray(o);
     const players = survivors(s), enemies = zombies(s);
-    if (!plain(p) || !int(p.teamSize, C.MAX_PLAYERS) || p.teamSize < 1 || !int(p.wave, 1000) || !int(p.queue, 64) || !int(p.nextWaveAt) || !int(p.nextSpawnAt) ||
+    if (!plain(p) || !int(p.teamSize, C.MAX_PLAYERS) || p.teamSize < 1 || !int(p.wave, 16) || !int(p.queue, 64) || !int(p.nextWaveAt) || !int(p.nextSpawnAt) ||
         ![null, "victory", "defeat"].includes(p.result) || !plain(p.choices) || !plain(p.upgrades) ||
         p.teamSize > players.length || players.length < 1 || players.length > C.MAX_PLAYERS || enemies.length !== MAX_ZOMBIES ||
         players.some((e) => e.controller !== "human" || e.tankType !== "human") ||
         enemies.some((e, i) => e.id !== "zombie_" + i || e.controller !== "bot" || e.weaponType !== "standard" || !Object.hasOwn(C.ZOMBIE_SPECS, e.zombieType) ||
-          C.ZOMBIE_SPECS[e.zombieType].wave > Math.max(1, p.wave)) ||
+          C.ZOMBIE_SPECS[e.zombieType].wave > Math.max(1, p.wave) || (e.alive && p.wave > 8 && e.zombieType === "walker")) ||
         Object.keys(p.upgrades).length !== players.length ||
         (s.status === "finished") !== (p.result !== null)) throw new Error("Invalid PvE state");
     R.validate(s);

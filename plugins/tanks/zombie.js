@@ -2,29 +2,36 @@
 (function (root) {
   const registry = typeof module === "object" && module.exports ? require("../registry.js") : root.TankPlugins;
   registry.register({
-    kind: "tank", id: "zombie", version: "1.3.0", apiVersion: 1,
+    kind: "tank", id: "zombie", version: "1.4.0", apiVersion: 1,
     spec: { name: "感染者", enemyOnly: true, hp: 80, shield: 0, ability: "dodge", movement: "strafe",
       height: 3, muzzleScale: 0.55, speed: 3.6, reverse: 2, accel: 20,
       turn: 3.5, radius: 0.7, scale: 1, mount: [0, 1.55, 0],
       variants: {
-        boss: { name: "零号感染体 · BOSS", hp: 1200, speed: 3.4, meleeRange: 2.8, meleeDamage: 30, meleeCooldown: 60, wave: 1 },
+        boss: { name: "零号感染体 · 中期 BOSS", hp: 1200, speed: 3.4, meleeRange: 2.8, meleeDamage: 30, meleeCooldown: 60, wave: 8 },
+        titan: { name: "泰坦感染体 · 最终 BOSS", hp: 2200, speed: 3, meleeRange: 3.4, meleeDamage: 42, meleeCooldown: 72, wave: 16 },
         walker: { name: "普通感染者", hp: 80, speed: 3.6, meleeDamage: 8, meleeCooldown: 60, wave: 1 },
         cone: { name: "锥帽感染者", hp: 140, speed: 3.2, meleeDamage: 10, meleeCooldown: 60, wave: 2 },
         runner: { name: "疾跑感染者", hp: 60, speed: 6, meleeDamage: 6, meleeCooldown: 42, wave: 3 },
         bucket: { name: "铁盔感染者", hp: 240, speed: 2.8, meleeDamage: 12, meleeCooldown: 72, wave: 4 },
-        brute: { name: "重锤感染者", hp: 400, speed: 2.2, meleeDamage: 24, meleeCooldown: 72, wave: 6 },
+        brute: { name: "重锤巨人感染者", hp: 400, speed: 2.2, meleeDamage: 24, meleeCooldown: 72, wave: 9 },
       } },
     buildVisual({ T, block, cylinder, paint, edge, rubber, ink, accent, glow, tank, turret, limbs, zombieType = "walker" }) {
       paint.color.setHex(0x8eaf61);
-      rubber.color.setHex(zombieType === "runner" ? 0xb15342 : ["brute", "boss"].includes(zombieType) ? 0x4d6270 : 0x5c5471);
-      if (["brute", "boss"].includes(zombieType)) paint.color.setHex(0x74965a);
+      rubber.color.setHex(zombieType === "runner" ? 0xb15342 : ["brute", "boss", "titan"].includes(zombieType) ? 0x4d6270 : 0x5c5471);
+      if (["brute", "boss", "titan"].includes(zombieType)) paint.color.setHex(0x74965a);
       if (zombieType === "boss") {
         paint.color.setHex(0xac535c); accent.color.setHex(0xff755d);
         for (const side of [-1, 1]) block(0.2, 0.4, 0.22, 0, 1.15, side * 0.34, ink, turret);
+      } else if (zombieType === "titan") {
+        paint.color.setHex(0x4f477f); accent.color.setHex(0xc48cff); glow.color.setHex(0xf2bdff);
+        for (const side of [-1, 1]) {
+          block(0.28, 0.72, 0.3, -0.02, 1.15, side * 0.52, accent, turret);
+          block(0.2, 0.34, 0.2, -0.28, 1.55, side * 0.3, glow, turret);
+        }
       }
-      glow.color.setHex(0xffcc70);
-      glow.emissive.setHex(0x8b320f);
-      block(["brute", "boss"].includes(zombieType) ? 1.02 : 0.75, 0.84, ["brute", "boss"].includes(zombieType) ? 1.2 : 0.95, 0.05, -0.04, 0, rubber, turret);
+      glow.color.setHex(zombieType === "titan" ? 0xf2bdff : 0xffcc70);
+      glow.emissive.setHex(zombieType === "titan" ? 0x6d278b : 0x8b320f);
+      block(["brute", "boss", "titan"].includes(zombieType) ? 1.02 : 0.75, 0.84, ["brute", "boss", "titan"].includes(zombieType) ? 1.2 : 0.95, 0.05, -0.04, 0, rubber, turret);
       block(0.82, 0.72, 0.9, -0.16, 0.7, 0, paint, turret);
       for (const side of [-1, 1]) {
         block(0.08, 0.16, 0.19, -0.6, 0.75, side * 0.23, glow, turret);
@@ -57,7 +64,7 @@
           block(0.17, 0.12, 0.28, -0.69, 0.76, side * 0.23, glow, turret);
           block(0.2, 0.46, 0.12, -0.37, -0.07, side * 0.32, accent, turret);
         }
-      } else if (["brute", "boss"].includes(zombieType)) {
+      } else if (["brute", "boss", "titan"].includes(zombieType)) {
         block(0.65, 0.35, 1.25, 0, 0.29, 0, edge, turret);
         cylinder(0.09, 1.28, -1, 0.04, 0.65, ink, turret);
         block(0.72, 0.43, 0.61, -1, 0.74, 0.65, edge, turret);

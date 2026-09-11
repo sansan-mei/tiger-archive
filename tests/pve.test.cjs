@@ -13,15 +13,17 @@ function clearWave(b) {
   b.step();
   if (!b.pve.choices[b.entities[0].id]) C.PVE.progression.addExperience(b, C.PVE.progression.xpNeeded(b.pve.level), C.PVE.rewards);
 }
-test('rounds last eight minutes; solo PvE starts as human+pistol and never wins at 15 kills', () => {
+test('PvP lasts eight minutes while the sixteen-wave PvE campaign lasts sixteen minutes', () => {
   assert.equal(C.RULES.duration, 8 * 60 * C.TICK_RATE);
+  assert.equal(C.RULES.pveDuration,16*60*C.TICK_RATE);
   assert.throws(() => new C.Battle({participants:participants()}));
   const b=create(), p=b.entities[0];
   assert.equal(p.tankType, 'human'); assert.equal(p.weaponType,'pistol'); assert.equal(p.hp,80);
   assert.equal(enemies(b).length,16); assert.ok(enemies(b).every(e=>!e.alive));
   p.kills=15; b.step(); assert.equal(b.status,'playing');
   assert.throws(()=>new C.Battle({participants:[{...participants()[0],tankType:'zombie'},...participants(2).slice(1)]}));
-  b.tick = C.RULES.duration-1; b.step(); assert.equal(b.pve.result,'defeat');
+  b.tick=C.RULES.duration-1;b.step();assert.equal(b.status,'playing');S.validateSnapshot(b.snapshot());
+  b.tick = C.RULES.pveDuration-1; b.step(); assert.equal(b.pve.result,'defeat');
   assert.equal(b.status,'finished'); S.validateSnapshot(b.snapshot());
 });
 test('PvE prevents direct, self and splash friendly fire while retaining zombie damage', () => {
@@ -55,18 +57,18 @@ test('a zombie pack spreads around one target instead of forming a single-file t
   assert.ok(attackers.size>=3,[...attackers].join(','));
   assert.ok(pack.filter(z=>Math.hypot(z.x-p.x,z.z-p.z)<2.2).length>=3);
 });
-test('high-numbered zombies and the boss do not wait outside melee range', () => {
-  for(const bossCase of [false,true]) {
-    const b=create(),p=b.entities[0],z=enemies(b)[bossCase?15:6];
+test('high-numbered zombies and both bosses do not wait outside melee range', () => {
+  for(const type of ['walker','boss','titan']) {
+    const elite=['boss','titan'].includes(type),b=create(),p=b.entities[0],z=enemies(b)[elite?15:6],spec=C.ZOMBIE_SPECS[type];
     Object.assign(p,{x:0,z:55,hp:10000,maxHp:10000,protectedUntil:0});
-    Object.assign(z,{x:bossCase?-8:8,z:55,y:0,floor:0,alive:true,protectedUntil:0,
-      zombieType:bossCase?'boss':'walker',hp:bossCase?1200:80,maxHp:bossCase?1200:80,
-      heading:bossCase?Math.PI:0,brain:{target:null,path:[],pathTick:0,blocked:0}});
-    b.pve.nextWaveAt=100000;b.pve.queue=0;b.pve.wave=6;
-    if(bossCase){b.pve.boss.spawned=true;b.pve.boss.nextAttackAt=100000;}
+    Object.assign(z,{x:elite?-8:8,z:55,y:0,floor:0,alive:true,protectedUntil:0,
+      zombieType:type,hp:spec.hp,maxHp:spec.hp,
+      heading:elite?Math.PI:0,brain:{target:null,path:[],pathTick:0,blocked:0}});
+    b.pve.nextWaveAt=100000;b.pve.queue=0;b.pve.wave=type==='titan'?16:type==='boss'?8:6;
+    if(elite)Object.assign(b.pve.boss,{stage:type==='titan'?2:1,spawned:true,nextAttackAt:100000});
     let hits=0;for(let i=0;i<600;i++)for(const event of b.step())
       if(event.type==='damage'&&event.id===p.id&&event.owner===z.id)hits++;
-    assert.ok(hits>0,z.id);
+    assert.ok(hits>0,type);
   }
 });
 test('simultaneously blocked zombies invalidate stale paths but spread A-star work across ticks', () => {
@@ -107,7 +109,7 @@ test('clear waves revive teammates; all dead loses and never uses PvP respawn', 
 test('eight players and sixteen zombies stay within packet bounds and pass replica validation', () => {
   const a=new S.Authority({mode:'pve', participants:participants(8)}), b=a.battle;
   const replica=new S.Replica();replica.welcome(a.attach('peer','p0'));b.start();
-  b.pve.nextWaveAt=1; b.pve.wave=10;
+  b.pve.nextWaveAt=1; b.pve.wave=10;b.pve.boss.stage=1;
   for(let i=0;i<660;i++){
     a.step();
     if(i%3===0){const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
@@ -183,33 +185,60 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   const dead=enemies(b)[1];assert.equal(dead.hp,0);assert.equal(dead.alive,false);
   S.validateSnapshot(b.snapshot());
 });
-test('wave composition progressively unlocks all five enemies with distinct movement and attacks', () => {
-  const seen=new Set();
-  for (let wave=1;wave<=6;wave++) {
+test('wave composition unlocks four early enemies and giants only after the mid boss', () => {
+  const seen=new Set(),bossTypes=new Set(['boss','titan']);
+  for (let wave=1;wave<=15;wave++) {
     for(let ordinal=0;ordinal<20;ordinal++) {
       const type=C.PVE.typeFor(wave,ordinal);seen.add(type);
       assert.ok(C.ZOMBIE_SPECS[type].wave<=wave);
       if(wave===1) assert.equal(type,'walker');
+      if(wave>8)assert.notEqual(type,'walker');
     }
   }
-  assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).filter(k=>k!=="boss").sort());
-  for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS).filter(([k])=>k!=="boss")) {
-    const b=create(), p=b.entities[0], z=enemies(b)[0];
-    b.pve.wave=6;b.pve.nextWaveAt=10000;
+  assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).filter(k=>!bossTypes.has(k)).sort());
+  for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS).filter(([k])=>!bossTypes.has(k))) {
+    const b=create(), p=b.entities[0], z=enemies(b)[0],wave=Math.max(1,spec.wave);
+    b.pve.wave=wave;b.pve.nextWaveAt=10000;if(wave>=8)b.pve.boss.stage=1;
     Object.assign(p,{x:0,z:55});
     Object.assign(z,{zombieType:type,maxHp:spec.hp,hp:spec.hp,alive:true,x:8,z:55,y:0,floor:0,heading:0});
     for(let i=0;i<30;i++) b.step();
     assert.ok(Math.abs(z.speed-spec.speed)<0.001,type);
     Object.assign(z,{x:1.9,z:55,speed:0,cooldown:0});
-    b.step();assert.equal(p.hp,80-(spec.meleeDamage+12));
+    b.step();assert.equal(p.hp,80-(spec.meleeDamage+Math.min(16,wave*2)),type);
     assert.equal(z.cooldown,spec.meleeCooldown-1);
     S.validateSnapshot(b.snapshot());
   }
 });
+test('sixteen-wave campaign removes walkers after wave eight and uses different mid and final bosses',()=>{
+  for(let wave=1;wave<=7;wave++)for(let i=0;i<40;i++)assert.notEqual(C.PVE.typeFor(wave,i),'brute');
+  const late=Array.from({length:80},(_,i)=>C.PVE.typeFor(9+(i%7),i));
+  assert.equal(late.includes('walker'),false);assert.equal(late.includes('brute'),true);
+  assert.equal(C.ZOMBIE_SPECS.boss.wave,8);assert.equal(C.ZOMBIE_SPECS.titan.wave,16);
+  const b=create(2),[p,q]=b.entities;b.damage(q,10000,null,q);
+  b.tick=1;b.pve.wave=7;b.pve.nextWaveAt=1;b.step();
+  const mid=enemies(b).find(z=>z.zombieType==='boss');
+  assert.equal(b.pve.wave,8);assert.equal(b.pve.boss.stage,1);assert.ok(mid?.alive);assert.equal(q.alive,true);
+  const midHp=mid.maxHp;mid.protectedUntil=0;b.damage(mid,100000,p.id,mid);b.step();
+  assert.equal(b.status,'playing');assert.equal(b.pve.boss.spawned,false);assert.equal(b.pve.boss.defeated,false);
+  S.validateSnapshot(b.snapshot());
+  b.pve.wave=15;b.pve.nextWaveAt=b.tick;b.step();
+  const final=enemies(b).find(z=>z.zombieType==='titan');
+  assert.equal(b.pve.wave,16);assert.equal(b.pve.boss.stage,2);assert.ok(final?.alive);
+  assert.notEqual(final.maxHp,midHp);
+  b.tick=b.pve.boss.nextAttackAt;C.PVE.progression.bossAttack(b);
+  assert.equal(b.pve.boss.telegraph.at,b.tick+75);assert.equal(b.pve.boss.telegraph.zones[0].radius,9);
+  const first=b.pve.boss.telegraph,z=first.zones[0];Object.assign(p,{x:z.x,y:z.y,z:z.z,hp:80,protectedUntil:0});
+  b.tick=first.at;C.PVE.progression.bossAttack(b);assert.equal(p.hp,20);
+  final.hp=final.maxHp/2-1;b.tick=b.pve.boss.nextAttackAt;C.PVE.progression.bossAttack(b);
+  assert.equal(b.pve.boss.telegraph.at,b.tick+75);assert.equal(b.pve.boss.telegraph.zones[0].radius,11);
+  S.validateSnapshot(b.snapshot());
+  final.protectedUntil=0;b.damage(final,100000,p.id,final);b.step();assert.equal(b.pve.result,'victory');
+  S.validateSnapshot(b.snapshot());
+});
 test('scaled variants survive replica and checkpoint replay; forged health/type/team size are rejected', () => {
   const a=new S.Authority({mode:'pve',participants:participants(8)}), b=a.battle;
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));b.start();
-  b.pve.wave=6;b.pve.nextWaveAt=1;
+  b.pve.wave=8;b.pve.boss.stage=1;b.pve.nextWaveAt=1;
   for(let i=0;i<500;i++) a.step();
   assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===1100));
   const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
