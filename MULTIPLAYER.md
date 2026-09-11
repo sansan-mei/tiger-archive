@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v21）
+# 多人接入边界（协议 v22）
 
 ## 已实现
 
@@ -57,12 +57,12 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 21, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 22, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 21, type: "input", matchId, epoch, connection,
+      version: 22, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state：
 
     {
-      version: 21, type: "state", matchId, epoch, snapshotSeq,
+      version: 22, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { kind: "network", version, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -107,7 +107,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v21 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.0、rapid 2.1.3、laser 2.5.0、rocket 1.0.2，握手拒绝旧清单。维修包随装甲数值调整为 40。
+协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v22 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
@@ -128,7 +128,7 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 21, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 22, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
 浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v14；需要重启 Node 服务加载接口。
 
@@ -203,3 +203,9 @@ PvE 状态新增 teamSize（1–8），僵尸实体新增 zombieType（walker/co
 感染者权威 AI 为同一目标复用六方向近战攻击位，Boss 独立直接追击；移动时忽略其他感染者的硬碰撞，但玩家与地形继续阻挡。连续受阻 12 tick 会立即废弃旧路径，并按感染者编号在随后最多 16 tick 内分帧重算，每个 tick 最多执行一次全图 A*；PvE 路径缓存从 240 tick 缩短为 90 tick，持续受阻时按编号选择不同倒车转向。该行为不增加网络输入字段，位置仍由服务端 60 Hz 模拟并通过既有快照广播。
 
 Boss 红圈的 zone 新增服务端 radius，普通阶段为 6 米、半血狂暴为 7 米；预警统一为 60 tick，并按权威移动与地形规则逐 tick 预测玩家落点，包括坡面高度、墙体截停和下落惯性。范围伤害分别为 45/50，下一次预警等待分别为 180/120 tick。Boss 战每 180 tick 尝试补充一只普通或疾跑感染者，援军上限 `min(6, teamSize+2)`，沿用 16 个敌人槽位。Boss 移速、近战距离和伤害同步增强。协议升级 v21，zombie 插件 1.3.0，旧客户端及检查点按不兼容流程拒绝或归档。
+
+## v22：武器专属成长路线
+
+PvE 权威升级表为五种武器增加专属依赖链：手枪的贯穿/弹射/雷电、标准炮的震荡重弹/处决弹、快速炮的压制弹链/交叉火力、激光炮的广角透镜/等离子爆发、火箭筒的扩爆/燃烧/连锁殉爆。通用脉冲路线保留。
+
+升级选项仍由服务端生成并用 offerId 防重放；完整检查点严格校验节点上限及前置依赖，不能伪造跳级。专属效果只在当前装备对应武器时触发，切换后保留已选节点但暂停生效。激光广角透镜会把权威 beam radius 从 0.45 增至 0.75；等离子爆发每次发射最多触发一次，避免穿透多目标时产生平方级事件。协议升级 v22，旧客户端及 v21 检查点按既有不兼容流程处理。

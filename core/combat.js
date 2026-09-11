@@ -168,7 +168,11 @@
     if (WEAPONS[body.weaponType].magazineSize && body.ammo <= 0) return false;
     body.protectedUntil = 0;
     body.lastDamageTick = battle.tick;
-    const spec = WEAPONS[body.weaponType],
+    const base = WEAPONS[body.weaponType],
+      upgrades = battle.mode === "pve" ? battle.pve.upgrades[body.id] : null,
+      spec = upgrades?.wideBeam && body.weaponType === "laser"
+        ? { ...base, beamRadius: base.beamRadius + 0.3 }
+        : base,
       c = Math.cos(body.pitch),
       dir = {
         x: -Math.cos(body.aim) * c,

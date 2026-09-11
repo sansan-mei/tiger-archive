@@ -10,6 +10,12 @@
     pierce: { name: "贯穿弹", description: "手枪命中后穿透至前方 12 米内另一名敌人", weapon: "pistol" },
     ricochet: { name: "弹射弹", description: "手枪额外弹射至 7 米内另一敌人，造成 15 伤害", requires: "pierce", weapon: "pistol" },
     lightning: { name: "雷电弹匣", description: "每 3 次手枪命中，对附近最多 3 名敌人各造成 20 电击", requires: "ricochet", weapon: "pistol" },
+    heavyShell: { name: "震荡重弹", description: "标准炮暴击在命中点震荡 4 米，对附近敌人造成 30 伤害", weapon: "standard" },
+    execution: { name: "处决弹", description: "标准炮暴击对巨型与 Boss 感染者追加 60 伤害", requires: "heavyShell", weapon: "standard" },
+    suppression: { name: "压制弹链", description: "快速炮命中使感染者减速 45%，持续 2 秒", weapon: "rapid" },
+    crossfire: { name: "交叉火力", description: "快速炮命中后对 6 米内另一敌人追加 10 伤害", requires: "suppression", weapon: "rapid" },
+    wideBeam: { name: "广角透镜", description: "激光束半径从 0.45 米提升至 0.75 米", weapon: "laser" },
+    plasmaBurst: { name: "等离子爆发", description: "激光每次发射首次命中时，对目标周围 3 米敌人造成 25 伤害", requires: "wideBeam", weapon: "laser" },
     blast: { name: "扩爆弹头", description: "火箭爆炸半径 +1 米，最多 3 级", weapon: "rocket" },
     fire: { name: "燃烧弹头", description: "火箭留下 3 秒燃烧区，每半秒造成 8 伤害", requires: "blast", weapon: "rocket" },
     chain: { name: "连锁殉爆", description: "击杀感染者触发 4 米、35 伤害次爆；次爆不会继续引爆", requires: "fire", weapon: "rocket" },
@@ -17,7 +23,9 @@
     frost: { name: "寒霜脉冲", description: "脉冲使命中敌人减速 45%，持续 5 秒", requires: "novaRange" },
     shatter: { name: "碎冰共振", description: "脉冲对已减速的敌人造成双倍伤害", requires: "frost" },
   });
-  const caps = Object.freeze({ haste:3, regen:3, nova:3, pierce:1, ricochet:1, lightning:1, blast:3, fire:1, chain:1, novaRange:3, frost:1, shatter:1 });
+  const caps = Object.freeze({ haste:3, regen:3, nova:3, pierce:1, ricochet:1, lightning:1,
+    heavyShell:1, execution:1, suppression:1, crossfire:1, wideBeam:1, plasmaBurst:1,
+    blast:3, fire:1, chain:1, novaRange:3, frost:1, shatter:1 });
   const xpNeeded = level => 40 + (level - 1) * 20;
   const point = e => ({x:e.x,y:e.y+1.5,z:e.z});
   const enemies = b => b.entities.filter(e => e.tankType === "zombie" && e.alive);
@@ -73,25 +81,40 @@
     b.damage(target,damage,owner,point(target));
     b.emit("beam",{id:owner,from,to:point(target),radius:0.1,power:0.5});
   }
+  function burst(b,owner,from,radius,damage,exclude=[]) {
+    b.emit("explosion",{owner,...from,radius});
+    for(const target of nearby(b,from,radius,exclude))b.damage(target,damage,owner,point(target));
+  }
   function onDeath(b,target,owner,allRewards) {
     if(target.tankType!=="zombie")return;
     if(target.zombieType==="boss") { b.pve.boss.defeated=true;b.pve.boss.telegraph=null;return; }
     addExperience(b,{walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10,allRewards);
-    if(b.pve.upgrades[owner]?.chain && !b.resolvingPveBurst && b.pve.bursts.length<16)
-      b.pve.bursts.push({owner,...point(target)});
+    if(b.pve.upgrades[owner]?.chain && b.getEntity(owner)?.weaponType==="rocket" &&
+      !b.resolvingPveBurst && b.pve.bursts.length<16)b.pve.bursts.push({owner,...point(target)});
   }
   function onHit(b,hit,shot) {
-    const u=b.pve.upgrades[shot.owner];
-    if(!u || shot.weaponType!=="pistol")return;
-    const from=hit.point, excluded=[hit.id];
-    if(u.pierce) {
-      const end={x:from.x+shot.dx*12,y:from.y+shot.dy*12,z:from.z+shot.dz*12};
-      const next=b.collision(from,end,shot.owner,{ignoreIds:excluded});
-      if(next?.kind==="tank") { const target=b.getEntity(next.id);arc(b,shot.owner,from,target,20);excluded.push(target.id); }
+    const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),from=hit.point;
+    if(!u||!target)return;
+    if(shot.weaponType==="pistol") {
+      const excluded=[hit.id];
+      if(u.pierce) {
+        const end={x:from.x+shot.dx*12,y:from.y+shot.dy*12,z:from.z+shot.dz*12};
+        const next=b.collision(from,end,shot.owner,{ignoreIds:excluded});
+        if(next?.kind==="tank") { const pierced=b.getEntity(next.id);arc(b,shot.owner,from,pierced,20);excluded.push(pierced.id); }
+      }
+      if(u.ricochet) {const ricochet=nearby(b,from,7,excluded)[0];if(ricochet){arc(b,shot.owner,from,ricochet,15);excluded.push(ricochet.id);}}
+      b.pve.hits[shot.owner]=(b.pve.hits[shot.owner]+1)%3;
+      if(u.lightning && !b.pve.hits[shot.owner])for(const shocked of nearby(b,from,12,[hit.id]).slice(0,3))arc(b,shot.owner,from,shocked,20);
+    } else if(shot.weaponType==="standard" && shot.critical) {
+      if(u.heavyShell)burst(b,shot.owner,point(target),4,30,[target.id]);
+      if(u.execution && target.alive && ["brute","boss"].includes(target.zombieType))
+        b.damage(target,60,shot.owner,point(target));
+    } else if(shot.weaponType==="rapid") {
+      if(u.suppression)target.slowUntil=Math.max(target.slowUntil,b.tick+120);
+      if(u.crossfire) {const side=nearby(b,from,6,[target.id])[0];if(side)arc(b,shot.owner,from,side,10);}
+    } else if(shot.weaponType==="laser" && u.plasmaBurst && !shot.pvePlasmaBurst) {
+      shot.pvePlasmaBurst=true;burst(b,shot.owner,point(target),3,25,[target.id]);
     }
-    if(u.ricochet) {const target=nearby(b,from,7,excluded)[0];if(target){arc(b,shot.owner,from,target,15);excluded.push(target.id);}}
-    b.pve.hits[shot.owner]=(b.pve.hits[shot.owner]+1)%3;
-    if(u.lightning && !b.pve.hits[shot.owner]) for(const target of nearby(b,from,12,[hit.id]).slice(0,3))arc(b,shot.owner,from,target,20);
   }
   function fireZone(b,hit,shot) {
     if(!b.pve.upgrades[shot.owner]?.fire || shot.weaponType!=="rocket")return;
@@ -174,6 +197,7 @@
     for(const p of players) {
       const u=v.upgrades[p.id];
       if(!object(u)||Object.keys(u).length!==Object.keys(caps).length||Object.entries(caps).some(([k,max])=>!int(u[k],max))||
+         Object.entries(rewards).some(([key,r])=>r.requires&&u[key]>0&&!u[r.requires])||
          !int(v.pending[p.id],19)||!int(v.hits[p.id],2))throw Error('Invalid run upgrade');
       if(Boolean(v.choices[p.id])!==Boolean(v.pending[p.id]) && !p.forfeited && s.status!=="finished")throw Error('Missing reward');
     }

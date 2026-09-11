@@ -2,8 +2,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const C=require('../battle-core.js'),S=require('../battle-session.js'),R=C.PVE.progression;
 function make(n=1) {const b=new C.Battle({mode:'pve',participants:Array.from({length:n},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'}))});b.start();b.pve.nextWaveAt=100000;return b;}
 function enemy(b,i,x=0,z=55) {const e=b.entities.filter(e=>e.tankType==='zombie')[i];Object.assign(e,{x,z,y:0,floor:0,hp:e.maxHp,alive:true,protectedUntil:0});return e;}
-function hit(b,p,target,weapon='pistol') {b.resolveHit({kind:'tank',id:target.id,point:{x:target.x+.6,y:1.5,z:target.z}},
-  {owner:p.id,ownerLife:p.deaths,weaponType:weapon,damage:C.WEAPONS[weapon].damage,critical:false,dx:-1,dy:0,dz:0});}
+function hit(b,p,target,weapon='pistol',critical=false) {b.resolveHit({kind:'tank',id:target.id,point:{x:target.x+.6,y:1.5,z:target.z}},
+  {owner:p.id,ownerLife:p.deaths,weaponType:weapon,damage:C.WEAPONS[weapon].damage*(critical?(C.WEAPONS[weapon].criticalMultiplier||1):1),critical,dx:-1,dy:0,dz:0});}
 test('kills share experience while reward choices are independent, queued and replay protected',()=>{
   const b=make(2), [p,q]=b.entities;
   for(let i=0;i<10;i++){const z=enemy(b,0);b.damage(z,10000,p.id,z);}
@@ -35,6 +35,19 @@ test('offers enforce evolution prerequisites and stop increasing capped passives
   R.addExperience(b,100,C.PVE.rewards);R.addExperience(copy,100,C.PVE.rewards);
   assert.deepEqual(copy.pve.choices,b.pve.choices);
 });
+test('every weapon has a gated exclusive evolution route',()=>{
+  const routes=Object.groupBy(Object.entries(R.rewards).filter(([,r])=>r.weapon),([,r])=>r.weapon);
+  for(const weapon of ['pistol','standard','rapid','laser','rocket'])assert.ok(routes[weapon]?.length>=2,weapon);
+  const b=make(),p=b.entities[0];
+  for(const [weapon,first,second] of [['standard','heavyShell','execution'],['rapid','suppression','crossfire'],['laser','wideBeam','plasmaBurst']]) {
+    p.weaponType=weapon;b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
+    assert.ok(b.pve.choices[p.id].includes(first),weapon);
+    assert.ok(!b.pve.choices[p.id].includes(second),weapon);
+    b.pve.upgrades[p.id][first]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
+    assert.ok(b.pve.choices[p.id].includes(second),weapon);
+  }
+  assert.ok(Object.hasOwn(C.PVE.rewards,'standard'));
+});
 test('pistol pierces, ricochets and triggers lightning without friendly fire',()=>{
   const b=make(),p=b.entities[0];Object.assign(p,{x:10,z:55});
   const a=enemy(b,0,0),second=enemy(b,1,-3),third=enemy(b,2,-6);
@@ -50,6 +63,31 @@ test('piercing and arcs respect solid cover',()=>{
   const a=enemy(b,0,25,9),hidden=enemy(b,1,10,9);
   Object.assign(b.pve.upgrades[p.id],{pierce:1,ricochet:1,lightning:1});b.pve.hits[p.id]=2;
   hit(b,p,a);assert.equal(hidden.hp,80);
+});
+test('standard critical shells shock nearby enemies and execute elites',()=>{
+  const b=make(),p=b.entities[0],elite=enemy(b,0,0,55),near=enemy(b,1,0,58);
+  Object.assign(p,{x:10,z:55,weaponType:'standard'});Object.assign(elite,{zombieType:'brute',hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{heavyShell:1,execution:1});
+  hit(b,p,elite,'standard',true);
+  assert.equal(elite.hp,370);assert.equal(near.hp,50);
+  assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
+  b.pve.upgrades[p.id].chain=1;const doomed=enemy(b,2,4,55);b.damage(doomed,10000,p.id,doomed);
+  assert.equal(b.pve.bursts.length,0);
+});
+test('rapid suppression slows the primary target and crossfires a nearby enemy',()=>{
+  const b=make(),p=b.entities[0],a=enemy(b,0,0,55),side=enemy(b,1,0,59);
+  Object.assign(p,{x:10,z:55,weaponType:'rapid'});Object.assign(b.pve.upgrades[p.id],{suppression:1,crossfire:1});
+  hit(b,p,a,'rapid');
+  assert.equal(a.hp,67);assert.equal(a.slowUntil,120);assert.equal(side.hp,70);
+});
+test('laser wide lens catches near misses and emits one plasma burst per penetrating shot',()=>{
+  const b=make(),p=b.entities[0],a=enemy(b,0,0,55),line=enemy(b,1,-4,55),side=enemy(b,2,0,57.9);
+  Object.assign(p,{x:10,z:56.3,weaponType:'laser',aim:0,pitch:0,cooldown:0});
+  for(const z of [a,line])Object.assign(z,{hp:200,maxHp:200});
+  Object.assign(b.pve.upgrades[p.id],{wideBeam:1,plasmaBurst:1});b.shoot(p);
+  assert.equal(a.hp,100);assert.equal(line.hp,100);assert.equal(side.hp,55);
+  assert.equal(b.events.find(e=>e.type==='beam').radius,.75);
+  assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===3).length,1);
 });
 test('rocket build expands blast, burns over time, and bounds nonrecursive secondary explosions',()=>{
   const b=make(),p=b.entities[0];Object.assign(p,{x:20,z:55,weaponType:'rocket'});
@@ -134,7 +172,8 @@ test('progression and boss state reject malformed checkpoints and stay within pa
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));const packet=a.statePacket({network:true});
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);assert.equal(r.receive(packet).ok,true);
   for(const mutate of [s=>s.pve.pending.p0=99,s=>s.pve.level=21,s=>s.pve.boss.telegraph.zones[0].x=Infinity,
-    s=>s.pve.boss.telegraph.zones[0].radius=100,s=>s.pve.hazards=Array(13).fill({}),s=>s.pve.choiceIds.p0=s.pve.nextChoiceId]) {
+    s=>s.pve.boss.telegraph.zones[0].radius=100,s=>s.pve.upgrades.p0.execution=1,
+    s=>s.pve.hazards=Array(13).fill({}),s=>s.pve.choiceIds.p0=s.pve.nextChoiceId]) {
     const invalid=b.snapshot();mutate(invalid);assert.throws(()=>S.validateSnapshot(invalid));
   }
 });

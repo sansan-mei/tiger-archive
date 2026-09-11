@@ -13,6 +13,7 @@
     haste: { name: "快速装填", description: "装填时间减少 10%，最多叠加 3 次" },
     regen: { name: "自愈因子", description: "每秒恢复 1 生命，最多叠加 3 次" },
     nova: { name: "电磁脉冲", description: "每 4 秒对 5 米内可见僵尸造成 20 伤害，最多叠加 3 次" },
+    standard: { name: "标准炮", description: "替换当前武器，以暴击震荡和处决巨型感染者" },
     rapid: { name: "快速炮", description: "替换当前武器，适合持续压制尸群" },
     rocket: { name: "火箭筒", description: "替换当前武器，爆炸可伤害多只僵尸；合作模式无友伤" },
     laser: { name: "激光炮", description: "替换当前武器，固定 100 伤害，预热 1.5 秒并穿透直线上的敌人" },
