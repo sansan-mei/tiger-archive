@@ -2,7 +2,7 @@ FROM node:24-alpine AS client-release
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund
-COPY app-manifest.js battle-core.js battle-session.js network-session.js tank-model.js battle.js battle.css index.html battle.html manifest.webmanifest service-worker.js ./
+COPY app-manifest.js battle-core.js battle-session.js network-session.js tank-model.js battle.js battle.css index.html battle.html manifest.webmanifest service-worker.js offline.html ./
 COPY plugins ./plugins
 COPY core ./core
 COPY client ./client
@@ -15,7 +15,7 @@ ENV NODE_ENV=production PORT=8080 ASSET_MODE=release
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
-COPY --chown=node:node app-manifest.js server.js room-server.js redis-store.js battle-core.js battle-session.js network-session.js tank-model.js battle.js battle.css index.html battle.html manifest.webmanifest service-worker.js ./
+COPY --chown=node:node app-manifest.js server.js room-server.js redis-store.js battle-core.js battle-session.js network-session.js tank-model.js battle.js battle.css index.html battle.html manifest.webmanifest service-worker.js offline.html ./
 COPY --chown=node:node plugins ./plugins
 COPY --chown=node:node core ./core
 COPY --chown=node:node client ./client

@@ -227,3 +227,5 @@ up 会应用新增的 Nginx 端口和 tank 环境变量。只更新游戏和网�
 Nginx 代理保留带端口的 Host，处理 WebSocket Upgrade，使用 Docker DNS 跟随 tank 容器地址变化。独立游戏项目的 docker-compose.yaml 仍可直接提供 HTTP；本节描述的是统一配置的 HTTPS 部署。
 
 本轮未运行构建、推送、拉取或启动容器；仅通过 Compose 解析和静态代理配置检查，服务器 nginx -t、证书加载及真实 WSS 仍待部署验收。
+
+PWA 使用独立的 /service-worker.js 注册，遵循现有 CSP，不需要放开 inline script。offline.html、client/pwa.js 与安装图标已纳入资源清单和 Docker 复制步骤。更新后关闭所有游戏窗口再重新打开；当前仅支持在线游玩及离线提示页。

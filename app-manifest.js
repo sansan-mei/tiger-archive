@@ -46,7 +46,7 @@
     "client/units.js",
     "client/rooms.js",
     "battle.js",
-    "service-worker.js",
+    "client/pwa.js",
   ]);
   const assets = Object.freeze([
     "client/audio/tank-drive.mp3",
@@ -56,6 +56,8 @@
     "client/icons/icon-512x512.png",
     "client/icons/icon-maskable-512x512.png",
     "manifest.webmanifest",
+    "service-worker.js",
+    "offline.html",
   ]);
   return Object.freeze({ plugins, scripts, assets });
 });
