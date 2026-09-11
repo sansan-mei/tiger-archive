@@ -336,7 +336,6 @@
     if (document.pointerLockElement === canvas) document.exitPointerLock?.();
     $("aim-reticle").style.display = "none";
     $("garage").hidden = kind === "paused" || !!session.online;
-    $("menu-guide").hidden = true;
     $("restart-button").hidden = false;
     startButton.hidden = kind === "finished";
     if (kind !== "finished") $("match-results").hidden = true;
@@ -688,9 +687,9 @@
     $("room-lobby").hidden = true;
     $("garage").hidden = false;
     $("garage").disabled = false;
-    $("menu-title").textContent = "Summer Skirmish";
+    $("menu-title").textContent = "派萌大战僵尸";
     $("menu-description").textContent =
-      "选择配置，进入本地训练或创建多人房间。";
+      "选好装备，开始训练或加入联机大厅。";
     startButton.hidden = false;
     startButton.disabled = false;
     startButton.textContent = "进入本地训练 →";
@@ -699,6 +698,7 @@
     $("join-room").disabled = false;
   }
   function roomChanged(room) {
+    $("network-panel").open = true;
     $("network-entry").hidden = true;
     $("room-lobby").hidden = false;
     $("current-room-code").textContent = room.code;

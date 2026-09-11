@@ -1,7 +1,7 @@
 {
-  "name": "TIGER / FIELD TRIAL — 坦克战斗原型",
-  "short_name": "TIGER",
-  "description": "Eight-player authoritative tank battle with WebSocket rooms",
+  "name": "派萌大战僵尸",
+  "short_name": "派萌大战僵尸",
+  "description": "派萌的林地战场：僵尸合作生存与多人对战。",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
@@ -28,7 +28,10 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["games", "entertainment"],
+  "categories": [
+    "games",
+    "entertainment"
+  ],
   "lang": "zh-CN",
   "dir": "ltr"
 }
