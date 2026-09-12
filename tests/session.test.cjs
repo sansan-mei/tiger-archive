@@ -109,6 +109,18 @@ test("snapshot packets cannot roll a replica backward, including equal-tick stat
   assert.equal(r.receive(old).ok, false);
   assert.equal(r.current.status, "paused");
 });
+test("authoritative delayed quake and chain explosions survive replica validation",()=>{
+  const a=new S.Authority({mode:"pve",matchId:"delayed-explosions",participants:[{id:"p0",controller:"human",tankType:"human",weaponType:"standard"}]});
+  a.battle.start();const r=new S.Replica();r.welcome(a.attach("peer","p0"));
+  a.battle.pve.bursts.push(
+    {kind:"quake",at:a.battle.tick+1,owner:"p0",x:0,y:1.5,z:0,radius:8,damage:60},
+    {kind:"chain",at:a.battle.tick+1,owner:"p0",x:4,y:1.5,z:0,radius:6,damage:80},
+  );
+  a.step();const result=r.receive(a.statePacket({network:true}));
+  assert.equal(result.ok,true);assert.equal(result.events.filter(e=>e.type==="explosion").length,2);
+  for(const e of result.events.filter(e=>e.type==="explosion"))
+    assert.deepEqual(Object.keys(e).sort(),["epoch","eventId","owner","radius","tick","type","x","y","z"]);
+});
 test("tier-five beam and explosion events enforce authoritative radii and fields",()=>{
   const {a,clients}=setup(),owner=a.battle.entities[0].id;
   a.battle.emit("beam",{id:owner,radius:1.5,power:1,from:{x:0,y:2,z:0},to:{x:10,y:2,z:0}});
