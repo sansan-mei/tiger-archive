@@ -76,7 +76,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v25；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v25；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4。
 
 ## 卡通几何上下文
 

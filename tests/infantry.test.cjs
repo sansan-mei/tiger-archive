@@ -88,11 +88,11 @@ test("rocket direct hit applies 20 followed by full 80 explosion to the same tar
   assert.equal(h.shield, 0);
   assert.equal(b.bullets.length, 0);
 });
-test("blast falls off with distance, has a six metre radius and ignores other bodies as cover", () => {
+test("blast falls off with distance, has an eight metre radius and ignores other bodies as cover", () => {
   const b = battle(["medium", "medium", "medium", "medium"]);
   put(b.entities[0], 0, 20);
   put(b.entities[1], 2, 0);
-  put(b.entities[2], 7, 0);
+  put(b.entities[2], 9, 0);
   put(b.entities[3], 12, 0);
   impact(b);
   const losses = b.entities

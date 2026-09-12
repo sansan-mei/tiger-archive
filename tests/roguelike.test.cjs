@@ -91,7 +91,7 @@ test('in-flight shots keep base damage but lose exclusive procs after a weapon s
   assert.equal(b.events.filter(e=>e.type==='explosion').length,0);
   b.events.length=0;const rocketTarget=enemy(b,2,8,55);Object.assign(rocketTarget,{hp:500,maxHp:500});
   hit(b,p,rocketTarget,'rocket');
-  assert.equal(b.events.find(e=>e.type==='explosion').radius,6);
+  assert.equal(b.events.find(e=>e.type==='explosion').radius,8);
   assert.equal(b.pve.hazards.length,0);
 });
 test('rapid suppression slows the primary target and crossfires a nearby enemy',()=>{
@@ -113,7 +113,7 @@ test('rocket build expands blast, burns over time, and bounds nonrecursive secon
   const b=make(),p=b.entities[0];Object.assign(p,{x:20,z:55,weaponType:'rocket'});
   Object.assign(b.pve.upgrades[p.id],{blast:3,fire:1,chain:1});
   const near=enemy(b,0,0), far=enemy(b,1,-7);
-  hit(b,p,near,'rocket');assert.ok(far.hp<80);assert.ok(b.pve.hazards.length===1);assert.ok(b.pve.bursts.length>0);
+  hit(b,p,near,'rocket');assert.equal(b.events.find(e=>e.type==='explosion').radius,11);assert.ok(far.hp<80);assert.ok(b.pve.hazards.length===1);assert.ok(b.pve.bursts.length>0);
   const z=enemy(b,2,2);const before=z.hp;b.tick=30;R.tick(b);assert.ok(z.hp<before);
   assert.equal(b.pve.bursts.length,0);
   for(let i=0;i<20;i++)R.fireZone(b,{point:{x:0,y:1,z:55}}, {owner:p.id,weaponType:'rocket',dx:-1,dy:0,dz:0});
