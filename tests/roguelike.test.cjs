@@ -191,7 +191,7 @@ test('overload counts five direct hits across weapons and arcs to at most four t
 });
 test('a spread module reuses the original burner owner across players',()=>{
   const b=make(2),[burner,spreader]=b.entities,z=enemy(b,0,0,55),side=enemy(b,1,2,55);
-  Object.assign(z,{hp:100,maxHp:100});b.pve.upgrades[burner.id].modEmber=1;
+  b.pve.upgrades[burner.id].modEmber=1;
   b.pve.upgrades[spreader.id].modSpread=1;
   hit(b,burner,z);b.damage(z,1000,spreader.id,{x:z.x,y:1.5,z:z.z});
   assert.equal(b.pve.moduleStatus[side.id].burnOwner,burner.id);
@@ -385,13 +385,36 @@ test('removed pulse never auto-damages or slows nearby zombies',()=>{
   assert.ok(!b.events.some(e=>e.type==='beam'));
   S.validateSnapshot(b.snapshot());
 });
+test('both bosses warn every living player for 96 ticks in solo and co-op, including enrage',()=>{
+  for(const count of [1,2,8]){
+    const b=make(count),p=b.entities[0],mid=enterBossWave(b,8);
+    function check(boss){
+      b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
+      assert.equal(b.pve.boss.telegraph.at,b.tick+96);
+      assert.equal(b.pve.boss.telegraph.zones.length,count);
+      S.validateSnapshot(b.snapshot());
+      boss.hp=boss.maxHp/2-1;b.pve.boss.telegraph=null;
+      b.tick++;b.pve.boss.nextAttackAt=b.tick;R.bossAttack(b);
+      assert.equal(b.pve.boss.telegraph.at,b.tick+96);
+      assert.equal(b.pve.boss.telegraph.zones.length,count);
+      S.validateSnapshot(b.snapshot());
+    }
+    check(mid);
+    b.pve.boss.telegraph=null;mid.protectedUntil=0;b.damage(mid,100000,p.id,mid);b.step();
+    b.pve.wave=15;b.pve.nextWaveAt=b.tick;b.step();
+    const final=b.entities.find(e=>e.zombieType==='titan'&&e.alive);
+    assert.ok(final);
+    check(final);
+  }
+});
 test('wave-eight boss warns before damage, revives teammates and does not end the campaign',()=>{
   const b=make(2),[p,q]=b.entities;b.damage(q,10000,null,q);
   const boss=enterBossWave(b,8);assert.ok(boss.alive);assert.equal(q.alive,true);
   assert.equal(b.pve.queue,0);assert.equal(b.pve.nextWaveAt,0);
   Object.assign(p,{x:0,z:55,protectedUntil:0});Object.assign(q,{x:1.8,z:55,protectedUntil:0});
   b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);const warning=C.clone(b.pve.boss.telegraph);
-  assert.equal(warning.at,b.tick+60);assert.equal(warning.zones[0].radius,6);assert.equal(p.hp,80);
+  assert.equal(warning.at,b.tick+96);assert.equal(warning.zones[0].radius,6);
+  assert.equal(warning.zones.length,2);assert.equal(p.hp,80);
   p.x=12;b.tick=warning.at-1;R.bossAttack(b);assert.equal(q.hp,80);
   const copy=make(2);copy.restore(b.snapshot());S.validateSnapshot(copy.snapshot());
   b.tick++;copy.tick++;R.bossAttack(b);R.bossAttack(copy);
@@ -405,7 +428,7 @@ test('boss predicts movement with a faster wide strike and keeps summoning press
   Object.assign(p,{x:0,z:55,heading:0,speed:9,hp:10000,maxHp:10000,protectedUntil:0});
   b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
   let warning=b.pve.boss.telegraph;const zombies=b.entities.filter(e=>e.tankType==='zombie'),boss=zombies.find(e=>e.zombieType==='boss');
-  assert.equal(warning.at,b.tick+60);assert.equal(warning.zones[0].radius,6);
+  assert.equal(warning.at,b.tick+96);assert.equal(warning.zones[0].radius,6);
   assert.ok(warning.zones[0].x<-5,String(warning.zones[0].x));
   boss.hp=boss.maxHp/2-1;p.x=100;b.tick=warning.at;R.bossAttack(b);
   assert.equal(b.pve.boss.nextAttackAt,b.tick+120);

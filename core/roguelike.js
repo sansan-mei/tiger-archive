@@ -242,8 +242,8 @@
     if(!boss || state.defeated)return;
     const enraged=boss.hp<boss.maxHp/2, final=boss.zombieType==="titan",
       attack=final
-        ? {warning:75,radius:enraged?11:9,lead:enraged?1.25:1,damage:enraged?70:60,wait:enraged?90:150}
-        : {warning:60,radius:enraged?7:6,lead:enraged?1:.75,damage:enraged?50:45,wait:enraged?120:180};
+        ? {warning:96,radius:enraged?11:9,lead:enraged?1.25:1,damage:enraged?70:60,wait:enraged?90:150}
+        : {warning:96,radius:enraged?7:6,lead:enraged?1:.75,damage:enraged?50:45,wait:enraged?120:180};
     if(state.telegraph && b.tick>=state.telegraph.at) {
       const hitPlayers = new Set();
       for(const zone of state.telegraph.zones) {

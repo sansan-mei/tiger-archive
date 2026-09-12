@@ -63,6 +63,28 @@ function setup() {
     },
   };
 }
+test("PvE room gets sixteen wall-clock minutes without extending the PvP watchdog", () => {
+  const pve = setup(), host = pve.peer();
+  pve.send(host, "create", { mode: "pve" });
+  const room = pve.rooms.rooms.get(host.last("joined").code);
+  pve.send(host, "ready", { ready: true });
+  pve.send(host, "start");
+  assert.equal(room.phase, "playing");
+  pve.setNow(room.startedAt + 900001);
+  pve.rooms.advance(1 / 60);
+  assert.equal(room.phase, "playing", "PvE must not fail at the old fifteen-minute watchdog");
+  assert.equal(room.authority.battle.status, "playing");
+  pve.setNow(room.startedAt + C.RULES.pveDuration * C.DT * 1000 + 1);
+  pve.rooms.advance(1 / 60);
+  assert.equal(room.phase, "finished");
+  assert.equal(room.authority.battle.pve.result, "defeat");
+  S.validateSnapshot(room.authority.battle.snapshot());
+
+  const pvp = setup(), { room: versus } = pvp.match();
+  pvp.setNow(versus.startedAt + 900001);
+  pvp.rooms.advance(1 / 60);
+  assert.equal(versus.phase, "finished", "PvP room watchdog must remain fifteen minutes");
+});
 test("8-player ready room starts one authority and rejects a ninth player", () => {
   const t = setup(),
     peers = Array.from({ length: 9 }, t.peer);

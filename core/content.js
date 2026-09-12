@@ -28,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 28,
+    const VERSION = 29,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -44,7 +44,7 @@
       boost: 360,
       pickupCooldown: 1200,
       repair: 40,
-      pveHealthPerPlayer: 0.25,
+      pveHealthPerPlayer: 0.7,
       pveHealthPerWave: 0.05,
     });
     const PLUGIN_MANIFEST = JSON.stringify({

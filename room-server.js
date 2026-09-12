@@ -500,7 +500,8 @@ class RoomServer {
           this.send(client, { type: "left" });
         }
       }
-      if (room.phase === "playing" && now - room.startedAt > 900000) {
+      if (room.phase === "playing" && now - room.startedAt >
+          (room.mode === "pve" ? C.RULES.pveDuration * C.DT * 1000 : 900000)) {
         const b = room.authority.battle;
         b.status = "finished";
         if (b.pve) b.pve.result = "defeat";

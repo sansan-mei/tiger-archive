@@ -193,7 +193,7 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   for (let n=1;n<=8;n++) {
     const b=create(n), z=enemies(b)[0];
     assert.equal(b.pve.teamSize,n);
-    assert.equal(z.maxHp,80*(1+0.25*(n-1)));
+    assert.equal(z.maxHp,Math.round(80*(1+0.7*(n-1))));
     b.pve.nextWaveAt=1;b.step();
     const spawned=enemies(b).find(e=>e.alive);
     assert.equal(spawned.hp,spawned.maxHp);
@@ -204,16 +204,46 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   b.pve.nextWaveAt=10000;
   Object.assign(z,{alive:true,hp:70});
   b.damage(b.entities[1],1000,null,b.entities[1]);b.step();
-  assert.equal(b.pve.teamSize,4);assert.equal(z.maxHp,140);assert.equal(z.hp,70);
+  assert.equal(b.pve.teamSize,4);assert.equal(z.maxHp,248);assert.equal(z.hp,70);
   b.entities[1].forfeited=true;b.step();
-  assert.equal(b.pve.teamSize,3);assert.equal(z.maxHp,120);assert.equal(z.hp,60);
+  assert.equal(b.pve.teamSize,3);assert.equal(z.maxHp,192);assert.equal(z.hp,55);
   const dead=enemies(b)[1];assert.equal(dead.hp,0);assert.equal(dead.alive,false);
   S.validateSnapshot(b.snapshot());
+});
+test('every PvE enemy gains seventy percent health per additional player', () => {
+  const cases=[
+    {players:1,mid:1620,final:3850},
+    {players:2,mid:2754,final:6545},
+    {players:4,mid:5022,final:11935},
+    {players:8,mid:9558,final:22715},
+  ];
+  for(const {players,mid,final} of cases){
+    assert.equal(C.PVE.healthFor('boss',players,8),mid);
+    assert.equal(C.PVE.healthFor('titan',players,16),final);
+    for(const type of ['walker','cone','runner','bucket','brute']){
+      const wave=C.ZOMBIE_SPECS[type].wave;
+      assert.equal(C.PVE.healthFor(type,players,wave),
+        Math.round(C.ZOMBIE_SPECS[type].hp*(1+0.7*(players-1))*(1+0.05*(wave-1))),
+        type+' at '+players+' players');
+    }
+  }
+  const mid=create(4);mid.pve.wave=7;mid.pve.nextWaveAt=1;mid.step();
+  const boss=enemies(mid).at(-1);
+  assert.equal(boss.zombieType,'boss');assert.equal(boss.maxHp,5022);
+  S.validateSnapshot(mid.snapshot());
+  mid.entities[3].forfeited=true;mid.step();
+  assert.equal(mid.pve.teamSize,3);assert.equal(boss.maxHp,C.PVE.healthFor('boss',3,8));
+  S.validateSnapshot(mid.snapshot());
+  const final=create(8);final.pve.wave=15;markMidBossDefeated(final);
+  final.pve.nextWaveAt=1;final.step();
+  assert.equal(enemies(final).at(-1).zombieType,'titan');
+  assert.equal(enemies(final).at(-1).maxHp,22715);
+  S.validateSnapshot(final.snapshot());
 });
 test('zombie health gains five percent per wave on top of team scaling', () => {
   assert.equal(C.PVE.healthFor('walker',1,1),80);
   assert.equal(C.PVE.healthFor('walker',1,8),108);
-  assert.equal(C.PVE.healthFor('titan',8,16),10588);
+  assert.equal(C.PVE.healthFor('titan',8,16),22715);
   const b=create();
   b.pve.wave=7;b.pve.nextWaveAt=1;b.step();
   const boss=enemies(b).find(z=>z.alive&&z.zombieType==='boss');
@@ -273,12 +303,16 @@ test('sixteen-wave campaign removes walkers after wave eight and uses different 
   assert.equal(support.some(z=>z.zombieType==='walker'),false);
   b.pve.boss.nextAttackAt=b.tick;
   C.PVE.progression.bossAttack(b);
-  assert.equal(b.pve.boss.telegraph.at,b.tick+75);assert.equal(b.pve.boss.telegraph.zones[0].radius,9);
+  assert.equal(b.pve.boss.telegraph.at,b.tick+96);assert.equal(b.pve.boss.telegraph.zones[0].radius,9);
+  assert.equal(b.pve.boss.telegraph.zones.length,2);
   const first=b.pve.boss.telegraph,z=first.zones[0];Object.assign(p,{x:z.x,y:z.y,z:z.z,hp:80,protectedUntil:0});
+  b.tick=first.at-1;C.PVE.progression.bossAttack(b);assert.equal(p.hp,80);
   b.tick=first.at;C.PVE.progression.bossAttack(b);assert.equal(p.hp,20);assert.equal(b.pve.boss.nextAttackAt,b.tick+150);
   final.hp=final.maxHp/2-1;b.tick=b.pve.boss.nextAttackAt;C.PVE.progression.bossAttack(b);
-  assert.equal(b.pve.boss.telegraph.at,b.tick+75);assert.equal(b.pve.boss.telegraph.zones[0].radius,11);
+  assert.equal(b.pve.boss.telegraph.at,b.tick+96);assert.equal(b.pve.boss.telegraph.zones[0].radius,11);
+  assert.equal(b.pve.boss.telegraph.zones.length,2);
   const rage=b.pve.boss.telegraph,rz=rage.zones[0];Object.assign(p,{x:rz.x,y:rz.y,z:rz.z,hp:80,protectedUntil:0});
+  b.tick=rage.at-1;C.PVE.progression.bossAttack(b);assert.equal(p.hp,80);
   b.tick=rage.at;C.PVE.progression.bossAttack(b);assert.equal(p.hp,10);assert.equal(b.pve.boss.nextAttackAt,b.tick+90);
   S.validateSnapshot(b.snapshot());
   final.protectedUntil=0;b.damage(final,100000,p.id,final);b.step();assert.equal(b.pve.result,'victory');
@@ -311,7 +345,7 @@ test('scaled variants survive replica and checkpoint replay; forged health/type/
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));b.start();
   b.pve.wave=8;markMidBossDefeated(b);b.pve.nextWaveAt=1;
   for(let i=0;i<500;i++) a.step();
-  assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===1540));
+  assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===C.PVE.healthFor('brute',8,9)));
   const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
   assert.equal(r.receive(packet).ok,true);
