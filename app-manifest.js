@@ -32,6 +32,7 @@
     "core/movement.js",
     "core/falling.js",
     "core/match.js",
+    "core/modules.js",
     "core/roguelike.js",
     "core/pve.js",
     "battle-core.js",

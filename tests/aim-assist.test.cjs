@@ -203,6 +203,12 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   assert.ok(zombieView.tank.quaternion.toArray().every(Number.isFinite));
   assert.ok(zombieView.tank.position.toArray().every(Number.isFinite));
   assert.ok(zombieView.limbs.every(limb=>Number.isFinite(limb.rotation.z)));
+  state.mode='pve';state.pve={moduleStatus:{zombie_0:{burnUntil:241,burnNext:61,burnOwner:'p1',fractureUntil:0}}};
+  update(null);assert.equal(zombieView.paint.color.getHex(),0xff8c44);
+  Object.assign(state.pve.moduleStatus.zombie_0,{burnUntil:0,fractureUntil:241});
+  update(null);assert.equal(zombieView.paint.color.getHex(),0xe7cc68);
+  update('zombie_0');assert.equal(zombieView.paint.color.getHex(),0xe34848);
+  state.mode='pvp';state.pve=undefined;
   const visibleWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial()),
     ignoredWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial()),
     hiddenParent=new T.Group(),hiddenWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial());

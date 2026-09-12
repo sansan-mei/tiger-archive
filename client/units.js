@@ -106,6 +106,9 @@
       const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();
       view.paint.color.copy(view.basePaintColor);
       if (e.slowUntil > truth.tick) view.paint.color.setHex(0x75c9e2);
+      const moduleStatus=truth.mode==="pve"?truth.pve.moduleStatus?.[e.id]:null;
+      if(moduleStatus?.fractureUntil>truth.tick)view.paint.color.setHex(0xe7cc68);
+      if(moduleStatus?.burnUntil>truth.tick)view.paint.color.setHex(0xff8c44);
       if (targeted) view.paint.color.setHex(0xe34848);
       if (view.label) view.label.dataset.targeted = String(targeted);
       const recoil = window.TankClient.recoil;

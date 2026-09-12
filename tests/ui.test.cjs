@@ -540,6 +540,17 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(survival.entities[0].weaponType, "rocket");
   assert.equal(nodes.get("weapon-label").textContent, "火箭筒");
   assert.equal(nodes.get("pve-rewards").hidden, true);
+  const modulePlayer=survival.entities[0];
+  survival.pve.pending[modulePlayer.id]=1;
+  survival.pve.choices[modulePlayer.id]=["modEmber","haste","regen"];
+  survival.pve.choiceIds[modulePlayer.id]=survival.pve.nextChoiceId++;
+  advance(12);
+  assert.match(nodes.get("pve-choices").children[0].children[0].textContent,/通用模块/);
+  for(const fn of documentEvents.keydown || [])fn({code:"Digit1",preventDefault(){},repeat:false});
+  advance(12);
+  assert.equal(survival.pve.upgrades[modulePlayer.id].modEmber,1);
+  assert.match(nodes.get("pve-build").textContent,/通用模块.*燃烧弹芯/);
+  assert.equal(modulePlayer.weaponType,"rocket");
   survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;
   advance(12);
   const boss = survival.entities.find(e=>e.zombieType === "boss");

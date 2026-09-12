@@ -25,6 +25,21 @@ test('kills share experience while reward choices are independent, queued and re
   assert.deepEqual(copy.pve,b.pve);S.validateSnapshot(saved);
   b.pve.nextWaveAt=1;b.step();assert.equal(b.pve.pending[p.id],1);
 });
+test('ten shared modules enter the existing upgrade pool and pulse is removed',()=>{
+  const keys=['modEmber','modFrost','modFracture','modCombustion','modCryo',
+    'modExploit','modSpread','modLeech','modOverload','modReprisal'];
+  assert.deepEqual(Object.keys(R.rewards).filter(k=>k.startsWith('mod')),keys);
+  for(const key of keys){assert.equal(R.caps[key],1);assert.ok(C.PVE.rewards[key]);}
+  for(const key of ['nova','novaRange','frost','shatter']){
+    assert.ok(!Object.hasOwn(C.PVE.rewards,key));assert.ok(!Object.hasOwn(R.caps,key));
+  }
+  const b=make(),p=b.entities[0];
+  for(const weapon of ['pistol','standard','rapid','laser','rocket']){
+    p.weaponType=weapon;b.pve.pending[p.id]=1;delete b.pve.choices[p.id];
+    R.offer(b,p,Object.fromEntries(keys.slice(0,3).map(k=>[k,C.PVE.rewards[k]])));
+    assert.deepEqual(new Set(b.pve.choices[p.id]),new Set(keys.slice(0,3)));
+  }
+});
 test('weapon evolution is favored but not guaranteed in randomized three-choice offers',()=>{
   const b=make(),p=b.entities[0],seen={pierce:0,medkit:0};let missed=false;
   for(let seed=1;seed<=256;seed++) {
@@ -84,6 +99,183 @@ test('every weapon has exactly five gated exclusive evolution tiers',()=>{
     }
   }
   assert.ok(Object.hasOwn(C.PVE.rewards,'standard'));
+});
+test('shared elemental modules apply across all five weapons and burn on authority ticks',()=>{
+  for(const weapon of ['pistol','standard','rapid','laser','rocket']) {
+    const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+    p.weaponType=weapon;Object.assign(z,{hp:500,maxHp:500});
+    Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFrost:1,modFracture:1});
+    hit(b,p,z,weapon);
+    assert.equal(z.slowUntil,b.tick+240,weapon);
+    assert.equal(b.pve.moduleStatus[z.id].burnUntil,b.tick+240,weapon);
+    assert.equal(b.pve.moduleStatus[z.id].fractureUntil,b.tick+240,weapon);
+    const hp=z.hp;b.tick=60;R.tick(b);
+    assert.equal(z.hp,hp-20,weapon);
+  }
+});
+test('rapid repeated hits refresh burn expiry without postponing scheduled damage',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  Object.assign(z,{hp:500,maxHp:500});b.pve.upgrades[p.id].modEmber=1;
+  for(let tick=1;tick<=200;tick++){
+    b.tick=tick;
+    if(tick%20===0)hit(b,p,z);
+    R.tick(b);
+  }
+  assert.equal(z.hp,240,'ten direct hits and three scheduled burn ticks');
+});
+test('spreading flames refreshes an already burning target without delaying its tick',()=>{
+  const b=make(),p=b.entities[0],source=enemy(b,0,0,55),near=enemy(b,1,2,55);
+  Object.assign(near,{hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modSpread:1});
+  hit(b,p,source);hit(b,p,near);
+  const before=near.hp;b.tick=20;
+  b.damage(source,1000,p.id,{x:source.x,y:1.5,z:source.z});
+  assert.equal(b.pve.moduleStatus[near.id].burnNext,60);
+  b.tick=60;R.tick(b);assert.equal(near.hp,before-20);
+});
+test('an in-flight old-weapon projectile retains shared modules after switching',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55),near=enemy(b,1,2,55);
+  Object.assign(z,{hp:500,maxHp:500});Object.assign(near,{hp:500,maxHp:500});
+  p.weaponType='rapid';Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modExploit:1,modOverload:1});
+  hit(b,p,z,'rapid');b.pve.moduleHits[p.id]=4;
+  b.shoot(p);const shot=b.bullets[0];assert.ok(shot&&shot.weaponType==='rapid');
+  const before=z.hp;p.weaponType='pistol';
+  b.resolveHit({kind:'tank',id:z.id,point:{x:z.x+.6,y:1.5,z:z.z}},shot);
+  assert.equal(z.hp,before-Math.round(shot.damage*1.5));
+  assert.equal(b.pve.moduleHits[p.id],0);
+  assert.ok(b.events.some(e=>e.type==='beam'));
+});
+test('shared burn and fracture modules combine across a weapon switch',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  for(const e of [z,side])Object.assign(e,{hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modCombustion:1,modExploit:1});
+  hit(b,p,z);assert.equal(side.hp,500);
+  p.weaponType='standard';const before=z.hp;
+  hit(b,p,z,'standard');
+  assert.equal(z.hp,before-53,'marked direct hit gains half damage but blast does not hit direct target');
+  assert.equal(side.hp,420,'burning target triggers one 5m secondary blast');
+  assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===5));
+});
+test('frost and cryo modules shatter slowed targets without double hitting the primary',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  for(const e of [z,side])Object.assign(e,{hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{modFrost:1,modCryo:1});
+  hit(b,p,z);assert.equal(side.hp,500);
+  p.weaponType='standard';hit(b,p,z,'standard');
+  assert.equal(z.hp,445);assert.equal(side.hp,430);
+  assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
+});
+test('shared kill modules spread burning, heal and burst fractured enemies',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  Object.assign(z,{hp:100,maxHp:100});Object.assign(side,{hp:300,maxHp:300});p.hp=10;
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modSpread:1,modLeech:1,modReprisal:1});
+  hit(b,p,z);b.damage(z,1000,p.id,{x:z.x,y:1.5,z:z.z});
+  assert.equal(p.hp,30);assert.equal(side.hp,240);
+  assert.equal(b.pve.moduleStatus[side.id].burnUntil,b.tick+240);
+  b.tick=60;R.tick(b);assert.equal(side.hp,220);
+  assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===5).length,1);
+});
+test('overload counts five direct hits across weapons and arcs to at most four targets',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  Object.assign(z,{hp:500,maxHp:500});
+  const nearby=Array.from({length:6},(_,i)=>enemy(b,i+1,2+i*.5,55));
+  nearby.forEach(e=>Object.assign(e,{hp:500,maxHp:500}));
+  b.pve.upgrades[p.id].modOverload=1;
+  for(let i=0;i<4;i++)hit(b,p,z);
+  assert.equal(b.pve.moduleHits[p.id],4);
+  assert.ok(nearby.every(e=>e.hp===500));
+  p.weaponType='standard';hit(b,p,z,'standard');
+  assert.equal(b.pve.moduleHits[p.id],0);
+  assert.equal(nearby.filter(e=>e.hp<500).length,4);
+  assert.ok(b.events.filter(e=>e.type==='beam').length<=4);
+});
+test('a spread module reuses the original burner owner across players',()=>{
+  const b=make(2),[burner,spreader]=b.entities,z=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  Object.assign(z,{hp:100,maxHp:100});b.pve.upgrades[burner.id].modEmber=1;
+  b.pve.upgrades[spreader.id].modSpread=1;
+  hit(b,burner,z);b.damage(z,1000,spreader.id,{x:z.x,y:1.5,z:z.z});
+  assert.equal(b.pve.moduleStatus[side.id].burnOwner,burner.id);
+  S.validateSnapshot(b.snapshot());
+});
+test('module secondary kills never trigger an in-flight rocket corpse chain',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  p.weaponType='rocket';Object.assign(b.pve.upgrades[p.id],{blast:1,fire:1,chain:1,modEmber:1,modCombustion:1});
+  Object.assign(z,{hp:500,maxHp:500});Object.assign(side,{hp:100,maxHp:100});
+  hit(b,p,z,'rocket');
+  b.pveChainBudget={owner:p.id,remaining:3};hit(b,p,z,'rocket');
+  assert.equal(side.alive,false);assert.equal(b.pve.bursts.length,0);
+  b.pveChainBudget=null;
+});
+test('lethal direct hits still count overload and trigger combustion on burning targets',()=>{
+  const b=make(),p=b.entities[0],burning=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  Object.assign(burning,{hp:100,maxHp:100});Object.assign(side,{hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modCombustion:1,modOverload:1});
+  hit(b,p,burning);burning.hp=1;hit(b,p,burning);
+  assert.equal(side.hp,420,'lethal hit on burning enemy still explodes');
+  for(let i=2;i<5;i++){const z=enemy(b,i,0,55);z.hp=1;hit(b,p,z);}
+  assert.equal(b.pve.moduleHits[p.id],0);
+  assert.ok(b.events.some(e=>e.type==='beam'));
+});
+test('a match ending on a pending burn tick remains a valid checkpoint',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  b.pve.upgrades[p.id].modEmber=1;hit(b,p,z);
+  b.damage(p,1000,null,p);b.tick=59;b.step();
+  assert.equal(b.status,'finished');
+  S.validateSnapshot(b.snapshot());
+  const marked=make(),m=marked.entities[0],other=enemy(marked,0,0,55);
+  marked.pve.upgrades[m.id].modFracture=1;hit(marked,m,other);
+  marked.damage(m,1000,null,m);marked.tick=239;marked.step();
+  assert.equal(marked.status,'finished');
+  S.validateSnapshot(marked.snapshot());
+});
+test('module secondary effects respect walls and the per-tick proc budget',()=>{
+  const map=C.clone(C.MAP);
+  map.obstacles=[{id:'module-wall',floor:0,x:2,z:55,w:1,d:8,h:4}];
+  const b=make(1,map),p=b.entities[0],z=enemy(b,0,0,55),hidden=enemy(b,1,4,55);
+  Object.assign(z,{hp:500,maxHp:500});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modCombustion:1,modOverload:1});
+  for(let i=0;i<10;i++)hit(b,p,z);
+  assert.equal(hidden.hp,80);
+  assert.ok(b.events.filter(e=>e.type==='explosion'&&e.radius===5).length<=4);
+  assert.ok(b.moduleProcCount<=4);
+});
+test('checkpoint rejects a burning status with no next damage tick',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  b.pve.upgrades[p.id].modEmber=1;hit(b,p,z);
+  const bad=b.snapshot();bad.pve.moduleStatus[z.id].burnNext=0;
+  assert.throws(()=>S.validateSnapshot(bad),/Invalid module status/);
+});
+test('checkpoint rejects fracture when no player owns its applier',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  b.pve.upgrades[p.id].modExploit=1;
+  const bad=b.snapshot();bad.pve.moduleStatus[z.id]={
+    burnUntil:0,burnNext:0,burnOwner:null,fractureUntil:b.tick+240};
+  assert.throws(()=>S.validateSnapshot(bad),/Invalid module status/);
+  bad.pve.moduleStatus[z.id].fractureOwner=p.id;
+  assert.throws(()=>S.validateSnapshot(bad),/Invalid module status/);
+});
+test('module burn state and overload counters restore but forged states are rejected',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modOverload:1});
+  hit(b,p,z);
+  const saved=b.snapshot();S.validateSnapshot(saved);
+  const copy=make();copy.restore(saved);assert.deepEqual(copy.pve,b.pve);
+  for(const mutate of [
+    s=>{s.pve.moduleHits[p.id]=5;},
+    s=>{s.pve.moduleStatus[z.id].burnOwner='forged';},
+    s=>{s.pve.moduleStatus[z.id].burnUntil=s.tick+10000;},
+    s=>{s.pve.moduleStatus.not_a_zombie=s.pve.moduleStatus[z.id];},
+  ]){const invalid=b.snapshot();mutate(invalid);assert.throws(()=>S.validateSnapshot(invalid));}
+});
+test('boss arrival and zombie-slot reuse clear all stale module statuses',()=>{
+  const b=make(),p=b.entities[0],z=enemy(b,0,0,55);
+  b.pve.upgrades[p.id].modEmber=1;hit(b,p,z);
+  assert.ok(b.pve.moduleStatus[z.id]);
+  b.pve.wave=7;b.pve.nextWaveAt=b.tick+1;b.tick=1;
+  b.step();
+  assert.equal(b.pve.wave,8);
+  assert.ok(!b.pve.moduleStatus[z.id]);
+  S.validateSnapshot(b.snapshot());
 });
 test('five-tier counters and prerequisites survive checkpoints and reject forgery',()=>{
   const b=make(),p=b.entities[0],u=b.pve.upgrades[p.id],keys=Object.keys(R.rewards).filter(k=>R.rewards[k].weapon);
@@ -186,14 +378,11 @@ test('rocket evolves into clustered fire and every third shot becomes doomsday',
   b.tick=1;R.tick(b);assert.equal(b.pve.bursts.length,0);
   assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===6));
 });
-test('pulse build expands range, slows movement and doubles damage to slowed enemies',()=>{
-  const b=make(),p=b.entities[0];Object.assign(p,{x:0,z:55});
-  const z=enemy(b,0,7);
-  Object.assign(b.pve.upgrades[p.id],{nova:1,novaRange:2,frost:1,shatter:1});
-  b.tick=239;b.step();assert.equal(z.hp,60);assert.equal(z.slowUntil,540);
-  Object.assign(z,{heading:0});for(let i=0;i<30;i++)b.tickEntity(z,C.normalizeInput({forward:true}));
-  assert.ok(z.speed<=3.6*.55+1e-6);
-  b.tick=479;b.step();assert.equal(z.hp,20);
+test('removed pulse never auto-damages or slows nearby zombies',()=>{
+  const b=make(),z=enemy(b,0,7,55);
+  b.tick=239;b.step();
+  assert.equal(z.hp,80);assert.equal(z.slowUntil,0);
+  assert.ok(!b.events.some(e=>e.type==='beam'));
   S.validateSnapshot(b.snapshot());
 });
 test('wave-eight boss warns before damage, revives teammates and does not end the campaign',()=>{

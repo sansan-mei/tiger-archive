@@ -28,7 +28,13 @@
       if (pve) {
         $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);
         $("pve-xp").max = C.PVE.progression.xpNeeded(pve.level); $("pve-xp").value = pve.xp;
-        $("pve-build").textContent = Object.entries(pve.upgrades[id]).filter(([,level])=>level>0).map(([key,level])=>C.PVE.rewards[key].name+" "+level).join(" · ") || "击杀升级，打造自己的流派";
+        const acquired=Object.entries(pve.upgrades[id]).filter(([,level])=>level>0);
+        const ordinary=acquired.filter(([key])=>!C.PVE.rewards[key]?.module)
+          .map(([key,level])=>C.PVE.rewards[key].name+" "+level);
+        const modules=acquired.filter(([key])=>C.PVE.rewards[key]?.module)
+          .map(([key])=>C.PVE.rewards[key].name);
+        $("pve-build").textContent=[ordinary.length?ordinary.join(" · "):"",
+          modules.length?"通用模块 "+modules.length+"："+modules.join(" · "):""].filter(Boolean).join(" ｜ ") || "击杀升级，打造自己的流派";
         $("pve-boss").textContent = boss ? bossName + " " + Math.ceil(boss.hp) + "/" + boss.maxHp +
           (pve.boss.telegraph ? " · 红圈即将爆发，离开落点！" : boss.hp < boss.maxHp/2 ? " · 狂暴" : "") :
           pve.boss.stage < 1 ? "第 8 波：零号感染体" : pve.boss.stage < 2 ? "第 16 波：泰坦感染体" : "泰坦已击败";
@@ -56,7 +62,7 @@
       cards.replaceChildren(...options.map((key, index) => {
         const button = document.createElement("button"), title = document.createElement("strong"), detail = document.createElement("span");
         button.type = "button";
-        title.textContent = (index + 1) + " · " + C.PVE.rewards[key].name;
+        title.textContent = (index + 1) + " · " + (C.PVE.rewards[key].module ? "通用模块｜" : "") + C.PVE.rewards[key].name;
         detail.textContent = C.PVE.rewards[key].description;
         button.append(title, detail);
         button.addEventListener("click", () => select(index));

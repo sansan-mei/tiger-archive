@@ -121,6 +121,27 @@ test("authoritative delayed quake and chain explosions survive replica validatio
   for(const e of result.events.filter(e=>e.type==="explosion"))
     assert.deepEqual(Object.keys(e).sort(),["epoch","eventId","owner","radius","tick","type","x","y","z"]);
 });
+test('shared module statuses and burst events survive Authority to Replica delivery',()=>{
+  const a=new S.Authority({mode:'pve',matchId:'shared-modules',participants:[
+    {id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]});
+  const b=a.battle;b.start();b.pve.nextWaveAt=100000;
+  const r=new S.Replica();r.welcome(a.attach('peer','p0'));
+  const p=b.entities[0],targets=b.entities.filter(e=>e.tankType==='zombie').slice(0,3);
+  targets.forEach((z,i)=>Object.assign(z,{x:i===0?0:8+i,y:0,z:55,hp:z.maxHp,alive:true,protectedUntil:0}));
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modCombustion:1,modOverload:1});
+  for(let i=0;i<5;i++){
+    const target=targets[i<4?0:1];
+    b.resolveHit({kind:'tank',id:target.id,point:{x:target.x,y:1.5,z:55}},
+      {id:999,owner:p.id,ownerLife:p.deaths,weaponType:'pistol',damage:20,critical:false,dx:-1,dy:0,dz:0});
+  }
+  a.history.push(...b.events);
+  const result=r.receive(a.statePacket({network:true}));
+  assert.equal(result.ok,true,JSON.stringify(result));
+  assert.ok(r.current.pve.moduleStatus[targets[1].id].burnUntil>b.tick);
+  assert.ok(result.events.some(e=>e.type==='explosion'&&e.radius===5));
+  assert.ok(result.events.some(e=>e.type==='beam'&&e.radius===.1));
+  S.validateSnapshot(b.snapshot());
+});
 test("tier-five beam and explosion events enforce authoritative radii and fields",()=>{
   const {a,clients}=setup(),owner=a.battle.entities[0].id;
   a.battle.emit("beam",{id:owner,radius:1.5,power:1,from:{x:0,y:2,z:0},to:{x:10,y:2,z:0}});

@@ -104,13 +104,15 @@ test('wave rewards are validated once, persist and affect authority cooldown, he
   assert.equal(b.pve.choices[p.id].length,3);
   assert.equal(b.chooseUpgrade(p.id,0,'haste'),false);
   assert.equal(b.chooseUpgrade('other',1,'haste'),false);
-  b.pve.choices[p.id]=['haste','regen','nova'];
+  b.pve.choices[p.id]=['haste','regen','modEmber'];
   assert.equal(b.chooseUpgrade(p.id,1,'haste'),true);
   assert.equal(b.chooseUpgrade(p.id,1,'haste'),false);
   b.shoot(p); assert.equal(p.cooldown,22);
   b.pve.upgrades[p.id].regen=2; p.hp=50; b.tick=59; b.step(); assert.equal(p.hp,52);
-  const z=enemies(b)[0]; Object.assign(p,{x:0,z:55}); Object.assign(z,{x:4,z:55,y:0,floor:0,hp:80,alive:true});
-  b.pve.upgrades[p.id].nova=2; b.tick=239; b.step(); assert.equal(z.hp,40);
+  const z=enemies(b)[0]; Object.assign(p,{x:0,z:55}); Object.assign(z,{x:4,z:55,y:0,floor:0,hp:80,alive:true,protectedUntil:0});
+  b.bullets=[];b.pve.upgrades[p.id].modEmber=1;b.tick=239;
+  b.pveHit({id:z.id,point:{x:z.x,y:1.5,z:z.z}},{owner:p.id,weaponType:'pistol'});
+  b.tick=298;b.step();assert.equal(z.hp,60);
   S.validateSnapshot(b.snapshot());
   const recovered=create(); recovered.restore(b.snapshot());
   for(let i=0;i<120;i++){b.step(); recovered.step();} assert.deepEqual(recovered.snapshot(),b.snapshot());
@@ -136,6 +138,12 @@ test('eight players and sixteen zombies stay within packet bounds and pass repli
     }
   }
   assert.equal(enemies(b).filter(e=>e.alive).length,16);
+  b.pve.upgrades.p0.modEmber=1;b.pve.upgrades.p0.modFracture=1;
+  for(const z of enemies(b).filter(e=>e.alive))b.pve.moduleStatus[z.id]={
+    burnUntil:b.tick+240,burnNext:b.tick+60,burnOwner:'p0',fractureUntil:b.tick+240,fractureOwner:'p0'};
+  const modulePacket=a.statePacket({network:true});
+  assert.ok(Buffer.byteLength(JSON.stringify(modulePacket))<65536);
+  assert.equal(replica.receive(modulePacket).ok,true);
   S.validateSnapshot(b.snapshot());
   for(const mutate of [s=>s.pve.upgrades.p0.haste=999,s=>s.pve.queue=1000,s=>s.entities.pop(),s=>s.pve.choices.p0=['injected']]){
     const bad=b.snapshot();mutate(bad);assert.throws(()=>S.validateSnapshot(bad));

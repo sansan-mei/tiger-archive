@@ -84,6 +84,7 @@
     });
     const owner = battle.getEntity(shot.owner), base = WEAPONS[shot.weaponType],
       routeActive = battle.mode === "pve" && owner?.weaponType === shot.weaponType,
+      moduleActive = battle.mode === "pve" && owner?.deaths === shot.ownerLife,
       upgrades = routeActive ? battle.pve.upgrades[shot.owner] : null,
       nuclear = shot.weaponType === "rocket" && upgrades?.doomsday && shot.doomsday,
       chainBudget = routeActive && shot.weaponType === "rocket" ? {owner:shot.owner,remaining:3} : null;
@@ -94,16 +95,19 @@
       : base;
     if (hit.kind === "tank") {
       const target = battle.getEntity(hit.id), wasAlive = target?.alive,
+        statusBefore=moduleActive&&target?{wasAlive,burning:(battle.pve.moduleStatus[target.id]?.burnUntil||0)>battle.tick,
+          slowed:target.slowUntil>battle.tick}:null,
         baseDamage = Math.round(base.damage * (shot.critical ? base.criticalMultiplier || 1 : 1)),
         applied = battle.damage(
           target,
-          routeActive ? shot.damage : baseDamage,
+          moduleActive ? battle.pveModuleDamage(target,shot,routeActive?shot.damage:baseDamage) :
+            routeActive ? shot.damage : baseDamage,
           shot.owner,
           hit.point,
           { x: shot.dx, z: shot.dz },
           shot.critical === true,
         );
-      if (applied && battle.mode === "pve") battle.pveHit(hit, shot);
+      if (applied && battle.mode === "pve") battle.pveHit(hit, shot, statusBefore);
       if (routeActive && wasAlive && !target.alive) shot.pveKills = (shot.pveKills || 0) + 1;
       // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
       if (

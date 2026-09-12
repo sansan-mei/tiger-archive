@@ -12,7 +12,6 @@
     medkit: { name: "急救补给", description: "立即恢复 60 生命" },
     haste: { name: "快速装填", description: "装填时间减少 10%，最多叠加 3 次" },
     regen: { name: "自愈因子", description: "每秒恢复 1 生命，最多叠加 3 次" },
-    nova: { name: "电磁脉冲", description: "每 4 秒对 5 米内可见僵尸造成 20 伤害，最多叠加 3 次" },
     standard: { name: "标准炮", description: "替换当前武器，以暴击震荡和处决巨型感染者" },
     rapid: { name: "快速炮", description: "替换当前武器，适合持续压制尸群" },
     rocket: { name: "火箭筒", description: "替换当前武器，爆炸可伤害多只僵尸；合作模式无友伤" },
@@ -82,6 +81,7 @@
       const distance = 18 + (i % 3) * 3;
       const x = target.x + Math.cos(angle) * distance, zz = target.z + Math.sin(angle) * distance;
       if (!b.valid(x, zz, target.floor, z)) continue;
+      delete b.pve.moduleStatus[z.id];
       Object.assign(z, { x, z: zz, y: b.map.levels[target.floor].y, floor: target.floor,
         zombieType, maxHp, slowUntil: 0,
         alive: true, hp: maxHp, speed: 0, cooldown: 0, charge: 0, criticalProgress: 0,
@@ -116,6 +116,7 @@
     b.pve.queue = 0; b.pve.nextWaveAt = 0;
     for (const z of zombies(b)) if (z !== boss) {
       z.alive = false; z.hp = 0; z.speed = 0; z.criticalProgress = 0;
+      delete b.pve.moduleStatus[z.id];
     }
     resupply(b, players);
     return true;
@@ -144,15 +145,6 @@
       if (!p.alive) continue;
       const upgrades = pve.upgrades[p.id];
       if (b.tick % 60 === 0 && upgrades.regen) p.hp = Math.min(p.maxHp, p.hp + upgrades.regen);
-      if (b.tick % 240 === 0 && upgrades.nova) {
-        for (const z of zombies(b)) {
-          if (!z.alive || Math.hypot(z.x - p.x, z.y - p.y, z.z - p.z) > 5 + upgrades.novaRange * 1.5 || !b.sight(p, z)) continue;
-          b.damage(z, 20 * upgrades.nova * (upgrades.shatter && z.slowUntil > b.tick ? 2 : 1), p.id, { x: z.x, y: z.y + 1, z: z.z });
-          if (upgrades.frost) z.slowUntil = b.tick + 300;
-          b.emit("beam", { id: p.id, radius: 0.1, power: 0.3,
-            from: { x: p.x, y: p.y + 1.5, z: p.z }, to: { x: z.x, y: z.y + 1.5, z: z.z } });
-        }
-      }
     }
     if (pve.boss.spawned) {
       R.bossAttack(b);

@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v27）
+# 多人接入边界（协议 v28）
 
 ## 已实现
 
@@ -107,7 +107,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v27 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
+协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v28 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
@@ -128,7 +128,7 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 27, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 28, rooms: [{ code, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
 浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v14；需要重启 Node 服务加载接口。
 
