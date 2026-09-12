@@ -109,13 +109,18 @@ test("snapshot packets cannot roll a replica backward, including equal-tick stat
   assert.equal(r.receive(old).ok, false);
   assert.equal(r.current.status, "paused");
 });
-test("tier-five laser events accept 1.5 metre beams but reject oversized radii",()=>{
-  const {a,clients}=setup();
-  a.battle.emit("beam",{id:"p0",radius:1.5,power:1,from:{x:0,y:2,z:0},to:{x:10,y:2,z:0}});
+test("tier-five beam and explosion events enforce authoritative radii and fields",()=>{
+  const {a,clients}=setup(),owner=a.battle.entities[0].id;
+  a.battle.emit("beam",{id:owner,radius:1.5,power:1,from:{x:0,y:2,z:0},to:{x:10,y:2,z:0}});
+  a.battle.emit("explosion",{x:0,y:0,z:0,radius:16,owner});
   a.history.push(...a.battle.events);
-  const packet=a.statePacket(),bad=C.clone(packet);bad.events[0].radius=2.1;
+  const packet=a.statePacket(),badBeam=C.clone(packet),badRadius=C.clone(packet),badField=C.clone(packet),badOwner=C.clone(packet);
+  badBeam.events[0].radius=2.1;badRadius.events[1].radius=16.01;badField.events[1].unknownField=[];badOwner.events[1].owner="ghost";
   assert.equal(clients[0].r.receive(packet).ok,true);
-  assert.equal(clients[1].r.receive(bad).ok,false);
+  assert.equal(clients[1].r.receive(badBeam).ok,false);
+  assert.equal(clients[2].r.receive(badRadius).ok,false);
+  assert.equal(clients[3].r.receive(badField).ok,false);
+  assert.equal(clients[4].r.receive(badOwner).ok,false);
 });
 test("event history repetition is deduplicated by event ID", () => {
   const { a, clients } = setup(),

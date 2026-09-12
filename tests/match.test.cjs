@@ -63,8 +63,8 @@ test("fifteenth kill ends the match once; timer tie is a draw and lower deaths b
 test("repair and boost are authoritative, respect height, refresh after 20 seconds and survive restore", () => {
   const b = battle(),
     a = b.entities[0],
-    repair = b.pickups[0],
-    boost = b.pickups[1];
+    repair = b.pickups.find((p) => p.id === "repair-0"),
+    boost = b.pickups.find((p) => p.id === "boost-0");
   b.pickups.find((p) => p.id === "repair-1").readyAt = 1000;
   Object.assign(a, { x: repair.x, z: repair.z, floor: 1, y: 8, hp: 30 });
   b.step();
@@ -104,7 +104,8 @@ test("all hulls have usable spawns, supplies and two reachable ramps per level c
         [r.a, r.b],
         [r.b, r.a],
       ]) {
-        const z = from.z - Math.sign(to.z - from.z) * 4;
+        const approach = r.width / 2 + C.TANKS[tankType].radius + 2,
+          z = from.z - Math.sign(to.z - from.z) * approach;
         assert.ok(b.valid(from.x, z, from.floor, a, { ignoreEntities: true }));
       }
   }

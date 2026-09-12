@@ -96,7 +96,7 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
   assert.equal(asset.status, 200);
   assert.ok(asset.data.length > 100000);
   assert.equal((await request("/.env")).status, 404);
-  const scenery = await request("/client/environment/maintenance-kit.json");
+  const scenery = await request("/client/environment/nature-kit.json");
   assert.equal(scenery.status, 200);
   assert.equal(
     scenery.headers["Content-Type"],
@@ -104,11 +104,11 @@ test("HTTP adapter serves health and bundled Three.js without opening a listener
   );
   assert.deepEqual(
     JSON.parse(scenery.data),
-    require("../client/environment/maintenance-kit.json"),
+    require("../client/environment/nature-kit.json"),
   );
   assert.ok(
     require("../scripts/client-release.cjs").files.includes(
-      "client/environment/maintenance-kit.json",
+      "client/environment/nature-kit.json",
     ),
   );
   assert.equal((await request("/art/maintenance-base.blend")).status, 404);

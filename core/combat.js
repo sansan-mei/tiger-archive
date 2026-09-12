@@ -85,7 +85,9 @@
     const owner = battle.getEntity(shot.owner), base = WEAPONS[shot.weaponType],
       routeActive = battle.mode === "pve" && owner?.weaponType === shot.weaponType,
       upgrades = routeActive ? battle.pve.upgrades[shot.owner] : null,
-      nuclear = shot.weaponType === "rocket" && upgrades?.doomsday && shot.doomsday;
+      nuclear = shot.weaponType === "rocket" && upgrades?.doomsday && shot.doomsday,
+      chainBudget = routeActive && shot.weaponType === "rocket" ? {owner:shot.owner,remaining:3} : null;
+    if(chainBudget)battle.pveChainBudget=chainBudget;
     const spec = shot.weaponType === "rocket" && routeActive
       ? { ...base, splashRadius: nuclear ? 16 : upgrades.blast ? 10 : base.splashRadius,
           splashDamage: nuclear ? 200 : upgrades.blast ? 100 : base.splashDamage }
@@ -168,6 +170,7 @@
         );
       }
     }
+    if(chainBudget&&battle.pveChainBudget===chainBudget)battle.pveChainBudget=null;
   }
   function shoot(battle, body, power = 1) {
     if (battle.status !== "playing" || !body.alive || body.cooldown)

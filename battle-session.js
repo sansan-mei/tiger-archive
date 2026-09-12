@@ -442,6 +442,12 @@
           for (const key of ["x", "y", "z", "power"])
             if (e[key] !== undefined && !number(e[key], -200, 200))
               throw new Error("Invalid effect");
+          if (e.type === "explosion") {
+            const allowed=["eventId","tick","epoch","type","owner","x","y","z","radius"];
+            if(Object.keys(e).some(key=>!allowed.includes(key))||!s.entities.some(body=>body.id===e.owner)||
+              !number(e.x,-200,200)||!number(e.y,-200,200)||!number(e.z,-200,200)||!number(e.radius,.05,16))
+              throw new Error("Invalid explosion");
+          }
           if (
             e.type === "beam" &&
             e.radius !== undefined &&

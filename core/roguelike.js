@@ -102,7 +102,7 @@
   }
   function burst(b,owner,from,radius,damage,exclude=[]) {
     const targets=nearby(b,from,radius,exclude);
-    b.emit("explosion",{owner,...from,radius});
+    b.emit("explosion",{owner,x:from.x,y:from.y,z:from.z,radius});
     for(const target of targets)b.damage(target,damage,owner,point(target));
     return targets;
   }
@@ -115,9 +115,12 @@
       return;
     }
     addExperience(b,{walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10,allRewards);
+    const budget=b.pveChainBudget;
     if(b.pve.upgrades[owner]?.chain && b.getEntity(owner)?.weaponType==="rocket" &&
-      !b.resolvingPveBurst && b.pve.bursts.length<16)
+      !b.resolvingPveBurst && budget?.owner===owner && budget.remaining>0 && b.pve.bursts.length<16) {
+      budget.remaining--;
       b.pve.bursts.push({kind:"chain",at:b.tick+1,owner,...point(target),radius:6,damage:80});
+    }
   }
   function onHit(b,hit,shot) {
     const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),owner=b.getEntity(shot.owner),from=hit.point;
@@ -215,10 +218,12 @@
   function tick(b) {
     for(const zone of b.pve.hazards)if(b.tick>=zone.nextTick&&b.tick<=zone.until) {
       zone.nextTick=b.tick+30;
-      const from={x:zone.x,y:zone.y+1.35,z:zone.z};
+      const from={x:zone.x,y:zone.y+1.35,z:zone.z},budget={owner:zone.owner,remaining:3};
+      b.pveChainBudget=budget;
       for(const z of enemies(b))
         if(Math.abs(z.y+.15-zone.y)<2&&Math.hypot(z.x-zone.x,z.z-zone.z)<=zone.radius&&visible(b,from,point(z)))
           b.damage(z,zone.damage,zone.owner,point(z));
+      if(b.pveChainBudget===budget)b.pveChainBudget=null;
     }
     b.pve.hazards=b.pve.hazards.filter(h=>h.until>b.tick);
     const jobs=b.pve.bursts.filter(job=>job.at<=b.tick).slice(0,16),due=new Set(jobs);

@@ -106,6 +106,8 @@ test('standard cannon evolves into a delayed ten-metre judgment strike',()=>{
   assert.deepEqual(b.pve.bursts.map(x=>[x.kind,x.at,x.radius,x.damage]),[['quake',30,8,60]]);
   b.tick=29;R.tick(b);assert.equal(elite.hp,500);
   b.tick=30;R.tick(b);assert.equal(elite.hp,440);assert.equal(near.hp,790);assert.equal(behind.hp,590);
+  const delayed=b.events.findLast(e=>e.type==='explosion'&&e.radius===8);
+  assert.deepEqual(Object.keys(delayed).sort(),['epoch','eventId','owner','radius','tick','type','x','y','z']);
 });
 test('in-flight tier-five shots fall back to base damage and effects after a weapon switch',()=>{
   const b=make(),p=b.entities[0],u=b.pve.upgrades[p.id];Object.assign(p,{x:20,z:55,weaponType:'standard',ammo:0,aim:0,pitch:0,criticalProgress:2});
@@ -156,7 +158,12 @@ test('rocket evolves into clustered fire and every third shot becomes doomsday',
   b.resolveHit({kind:'tank',id:near.id,point:{x:.6,y:1.5,z:55}},nuclear);
   assert.equal(b.events.findLast(e=>e.type==='explosion').radius,16);
   assert.deepEqual([b.pve.hazards[0].radius,b.pve.hazards[0].damage,b.pve.hazards[0].until],[8,20,300]);
-  const doomed=enemy(b,2,15,55);Object.assign(doomed,{hp:1,maxHp:100});b.damage(doomed,1,p.id,doomed);
+  const crowded=make(),cp=crowded.entities[0],cu=crowded.pve.upgrades[cp.id];Object.assign(cp,{x:20,z:55,weaponType:'rocket'});
+  Object.assign(cu,{blast:1,fire:1,chain:1,cluster:1,doomsday:1});
+  const packed=crowded.entities.filter(e=>e.tankType==='zombie').slice(0,16);packed.forEach((z,i)=>Object.assign(z,{alive:true,hp:60,maxHp:60,x:Math.cos(i*Math.PI/8)*3,z:55+Math.sin(i*Math.PI/8)*3,y:0,floor:0,protectedUntil:0}));
+  hit(crowded,cp,packed[0],'rocket',false,{doomsday:true});assert.equal(crowded.pve.bursts.length,3);
+
+  const doomed=enemy(b,2,14,55);Object.assign(doomed,{hp:1,maxHp:1});b.pveChainBudget={owner:p.id,remaining:3};b.damage(doomed,1,p.id,doomed);b.pveChainBudget=null;
   assert.deepEqual(b.pve.bursts.map(x=>[x.kind,x.radius,x.damage]),[['chain',6,80]]);
   b.tick=1;R.tick(b);assert.equal(b.pve.bursts.length,0);
   assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===6));
