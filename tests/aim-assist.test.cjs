@@ -138,6 +138,7 @@ test("target highlighting restores paint and ignores invisible shields, walls an
     state = b.snapshot();
   state.entities[0].x = 20;
   state.entities[1].x = 0;
+  state.entities.push({...state.entities[1],id:"zombie_0",controller:"bot",tankType:"zombie",zombieType:"walker",weaponType:"standard",alive:false,hp:0,maxHp:80,speed:0});
   const scene = new T.Scene(),
     camera = new T.PerspectiveCamera();
   const units = ctx.window.TankClient.createUnits({
@@ -193,6 +194,13 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   update("p2");
   assert.equal(enemy.paint.color.getHex(), base);
   assert.equal(units.aimHit(ray, []), undefined);
+  const zombieState=state.entities.find(e=>e.id==="zombie_0"),zombieView=units.views.get("zombie_0");
+  Object.assign(zombieState,{alive:true,hp:80,speed:3,x:4,z:4,respawnAt:1});
+  update(null);
+  assert.equal(zombieView.tank.visible,true);
+  assert.ok(zombieView.tank.quaternion.toArray().every(Number.isFinite));
+  assert.ok(zombieView.tank.position.toArray().every(Number.isFinite));
+  assert.ok(zombieView.limbs.every(limb=>Number.isFinite(limb.rotation.z)));
 });
 test("visible beam radius matches the authoritative event", () => {
   const T = require("three"),

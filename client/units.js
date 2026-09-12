@@ -93,7 +93,8 @@
       const view = views.get(e.id);
       if (e.tankType === "zombie" && !e.alive) {
         view.tank.visible = view.warning.visible = view.shield.visible = view.frontShield.visible = view.criticalGlow.visible = false;
-        view.recoil = 0; view.wasCharging = false; view.lastSpeed = e.speed; view.lastHeading = e.heading; view.lastRespawnAt = e.respawnAt;
+        view.recoil = 0; view.wasCharging = false; view.lastSpeed = e.speed; view.lastHeading = e.heading;
+        view.leanPitch = 0; view.leanRoll = 0; view.travel ??= 0; view.dustTime = 0; view.lastRespawnAt = e.respawnAt;
         if (view.label) { view.label.dataset.targeted = "false"; if (view.label.style.display !== "none") view.label.style.display = "none"; }
         continue;
       }
