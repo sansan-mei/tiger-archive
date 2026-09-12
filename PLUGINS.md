@@ -1,4 +1,4 @@
-# 机甲与武器插件（API v1，协议 v24）
+# 机甲与武器插件（API v1，协议 v25）
 
 当前实现为随游戏发布的可信 JavaScript 模块，不提供第三方代码上传或运行时热加载。支持 4 种玩家单位 × 5 种武器自由组合；当前属性及击毁枪数以 [README.md](README.md) 为准。
 
@@ -64,7 +64,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 联机一致性
 
-协议当前为 v24。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
+协议当前为 v25。握手及完整检查点携带 pluginManifest，包含稳定序列化的插件 ID、版本、API 版本、配置，以及共用技能和赛制规则。握手与恢复拒绝不一致清单。网络广播不重复清单和 AI brain；Replica 在已核对的握手后验证广播字段。
 
 这是配置一致性检查，不是代码签名或反作弊证明。修改行为或外观代码必须提升相应插件版本；修改共享模拟行为需评估协议兼容性。权威服务器只运行自身部署的可信插件。create / join / resume 也核对清单。新增普通插件只需更新 app-manifest.js，不再分别修改浏览器、Node 和 server.js 三份列表。
 
@@ -76,7 +76,7 @@ shield 为基础护盾上限；ability 对应 core/abilities.js 的 dash、barri
 
 ## 宽光束参数
 
-ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v24；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3。
+ray 武器可声明 beamRadius，范围 0.05–1 米；省略则保持原细射线判定。只用于 ray，不适用于 projectile。激光插件当前为 2.5.0，设置 beamRadius: 0.45 和 penetratesBodies: true。核心对实体和遮挡物一起扩张判定，beam 事件携带 radius，显示层按同一半径绘制。当前协议 v25；车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.3。
 
 ## 卡通几何上下文
 
@@ -111,3 +111,7 @@ zombie 1.4.0 将 boss 调整为第 8 波中期 Boss，并新增第 16 波 titan 
 ## v24 检查点一致性
 
 PvE 预分配 16 个普通感染者槽位和 1 个专用 Boss 槽位。专用槽位会保留已死亡的第 8 波 Boss，供检查点校验中期阶段确实完成；第 16 波在同一槽位生成泰坦。胜利状态必须与已死亡泰坦一致，协议升级 v24。
+
+## v25 PvE 地面地图
+
+PvE 权威地图只保留地面层、地面掩体和补给，不注册坡道与高层；客户端地图、摄像机和小地图按 mode 使用同一份 `PVE_MAP`。插件目录和 zombie 1.4.0 不变，共享地图规则变化使协议升级为 v25。

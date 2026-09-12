@@ -28,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 24,
+    const VERSION = 25,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -62,6 +62,17 @@
     const unitSpec = (body) => body.tankType === "zombie"
       ? ZOMBIE_SPECS[body.zombieType || "walker"] : TANKS[body.tankType];
     const PLAYER_TANKS = Object.freeze(Object.fromEntries(Object.entries(TANKS).filter(([, spec]) => !spec.enemyOnly)));
+    const PVE_MAP = Object.freeze({
+      ...MAP,
+      id: MAP.id + "-pve-ground-v1",
+      levels: Object.freeze(MAP.levels.slice(0, 1).map((level) => Object.freeze({ ...level }))),
+      obstacles: Object.freeze(MAP.obstacles.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
+      ramps: Object.freeze([]),
+      dropExits: Object.freeze([]),
+      pickups: Object.freeze(MAP.pickups.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
+      spawns: Object.freeze(MAP.spawns.map(({ x, z }) => Object.freeze({ x, z, floor: 0 }))),
+    });
+    const mapForMode = (mode) => mode === "pve" ? PVE_MAP : MAP;
     const WEAPONS = Object.freeze(
       Object.fromEntries(
         Object.entries(Plugins.weapons).map(([id, p]) => [id, p.spec]),
@@ -144,6 +155,8 @@
       unitSpec,
       WEAPONS,
       MAP,
+      PVE_MAP,
+      mapForMode,
       normalizeInput,
       defaultParticipants,
       wrap,

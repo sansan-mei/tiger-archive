@@ -4,7 +4,7 @@ const C = require('../battle-core.js');
 const S = require('../battle-session.js');
 const { RoomServer } = require('../room-server.js');
 const participants = (count = 1) => Array.from({length: count}, (_, i) => ({id: 'p' + i, controller: 'human', tankType: 'heavy', weaponType: 'rocket', spawn: i}));
-const create = (count = 1) => { const b = new C.Battle({mode:'pve', participants:participants(count)}); b.start(); return b; };
+const create = (count = 1, map = null) => { const b = new C.Battle({mode:'pve', participants:participants(count),...(map?{map}:{})}); b.start(); return b; };
 function enemies(b){return b.entities.filter(e=>e.tankType==='zombie');}
 function markMidBossDefeated(b){
   const boss=enemies(b).at(-1);
@@ -18,6 +18,19 @@ function clearWave(b) {
   b.step();
   if (!b.pve.choices[b.entities[0].id]) C.PVE.progression.addExperience(b, C.PVE.progression.xpNeeded(b.pve.level), C.PVE.rewards);
 }
+test("PvE uses a ground-only authority map while PvP keeps all floors and ramps",()=>{
+  const pve=create(),pvp=new C.Battle();
+  assert.equal(pve.map.levels.length,1);assert.equal(pve.map.ramps.length,0);
+  assert.equal(pve.map.dropExits.length,0);assert.equal(pve.map.spawns.length,8);
+  assert.ok([...pve.map.obstacles,...pve.map.pickups,...pve.map.spawns].every(x=>x.floor===0));
+  assert.ok(pve.entities.every(e=>e.floor===0));
+  assert.equal(pvp.map.levels.length,3);assert.ok(pvp.map.ramps.length>0);
+  S.validateSnapshot(pve.snapshot());
+  const upper=pve.snapshot();Object.assign(upper.entities[0],{floor:1,y:8});
+  assert.throws(()=>S.validateSnapshot(upper),/Invalid entity state/);
+  const ramp=pve.snapshot();Object.assign(ramp.entities[0],{rampId:'west-01',rampDir:1});
+  assert.throws(()=>S.validateSnapshot(ramp),/Invalid ramp state/);
+});
 test('PvP lasts eight minutes while the sixteen-wave PvE campaign lasts sixteen minutes', () => {
   assert.equal(C.RULES.duration, 8 * 60 * C.TICK_RATE);
   assert.equal(C.RULES.pveDuration,16*60*C.TICK_RATE);
@@ -148,15 +161,14 @@ test('co-op room starts solo, authenticates upgrades and restores checkpoint/rec
   assert.equal(out.findLast(m=>m.type==='state').snapshot.mode,'pve');
   S.validateSnapshot(out.findLast(m=>m.type==='state').snapshot,{network:true});
 });
-test('zombies navigate a real ramp to a survivor on the next floor', () => {
-  const b=create(), p=b.entities[0], z=enemies(b)[0];
+test('zombies retain generic ramp navigation on an explicit custom multilevel map', () => {
+  const b=create(1,C.MAP), p=b.entities[0], z=enemies(b)[0];
   Object.assign(p,{x:-36,z:-4,floor:1,y:8});
   Object.assign(z,{x:-36,z:32,floor:0,y:0,hp:80,alive:true,heading:-Math.PI/2,aim:-Math.PI/2});
   b.pve.nextWaveAt=10000; b.pve.wave=1;
   let onRamp=false;
   for(let i=0;i<1600 && z.floor!==1;i++) {
     b.step();onRamp ||= !!z.rampId;
-    if(i%60===0) S.validateSnapshot(b.snapshot());
   }
   assert.equal(onRamp,true);assert.equal(z.floor,1);
 });

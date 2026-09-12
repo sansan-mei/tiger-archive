@@ -5,6 +5,7 @@
   camera,
   reduced,
   getPlayerId,
+  getMode = () => "pvp",
 }) {
   const state = {
     viewYaw: null,
@@ -23,7 +24,7 @@
       state.cameraHeading = body.heading;
       state.cameraElevation = 0.2;
     }
-    const heading =
+    const map = C.mapForMode(getMode()), heading =
       body.id === getPlayerId()
         ? (state.viewYaw ?? body.heading)
         : body.heading;
@@ -42,9 +43,9 @@
     );
     let pivotHeight = 3.2;
     if (!body.rampId)
-      for (const r of C.MAP.ramps) {
+      for (const r of map.ramps) {
         if (r.a.floor !== body.floor) continue;
-        const ceiling = C.rampCeiling(C.MAP, r, body.x, body.z);
+        const ceiling = C.rampCeiling(map, r, body.x, body.z);
         pivotHeight = Math.min(pivotHeight, ceiling - body.y - 0.25);
       }
     // A spherical orbit: pitch changes camera height and horizontal radius around one pivot.
@@ -59,11 +60,11 @@
     const anchor = { x: body.x, y: body.y + pivotHeight, z: body.z };
     let fraction = 1;
     const floor = body.rampId
-      ? C.MAP.ramps.find((r) => r.id === body.rampId).b.floor
+      ? map.ramps.find((r) => r.id === body.rampId).b.floor
       : body.floor;
-    for (const o of C.MAP.obstacles) {
+    for (const o of map.obstacles) {
       if (o.floor > floor) continue;
-      const y = C.MAP.levels[o.floor].y;
+      const y = map.levels[o.floor].y;
       const hit = C.slabHit(
         anchor,
         camera.position,
@@ -72,8 +73,8 @@
       );
       if (hit !== null) fraction = Math.min(fraction, Math.max(0, hit - 0.04));
     }
-    for (const level of C.MAP.levels) {
-      for (const q of C.deckRects(C.MAP, level)) {
+    for (const level of map.levels) {
+      for (const q of C.deckRects(map, level)) {
         const hit = C.slabHit(
           anchor,
           camera.position,
@@ -84,10 +85,10 @@
           fraction = Math.min(fraction, Math.max(0, hit - 0.04));
       }
     }
-    for (const r of C.MAP.ramps) {
+    for (const r of map.ramps) {
       const transform = (p) => ({
         x: p.x,
-        y: p.y - C.rampHeight(C.MAP, r, p.z),
+        y: p.y - C.rampHeight(map, r, p.z),
         z: p.z,
       });
       const hit = C.slabHit(

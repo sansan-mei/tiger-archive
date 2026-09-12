@@ -27,6 +27,7 @@
     TANKS,
     WEAPONS,
     MAP,
+    mapForMode,
     normalizeInput,
     defaultParticipants,
     clone,
@@ -36,7 +37,7 @@
       participants = defaultParticipants(),
       matchId = "local",
       epoch = 1,
-      map = MAP,
+      map = null,
       mode = "pvp",
     } = {}) {
       if (
@@ -49,7 +50,7 @@
         throw new Error("Duplicate player ID");
       if (!["pvp", "pve"].includes(mode)) throw new Error("Invalid game mode");
       this.mode = mode;
-      this.map = clone(map);
+      this.map = clone(map || mapForMode(mode));
       this.matchId = matchId;
       this.epoch = epoch;
       this.tick = 0;

@@ -45,6 +45,12 @@ test('nature replaces covers at their physical bounds and batches repeat vegetat
   assert.ok(matrices(a).length<35,'vegetation uses bounded instanced draw calls');
   assert.equal(JSON.stringify(C.MAP),before);
 });
+test('ramp vegetation can be hidden for the ground-only PvE map',async()=>{
+  const s=setup(async()=>({ok:true,json:async()=>untextured}));assert.ok(await s.ready);
+  const rampMeshes=s.floorGroups.flatMap(g=>g.children).flatMap(g=>g.children).filter(m=>m.userData.rampOnly);
+  assert.ok(rampMeshes.length>0);s.setMode('pve');assert.ok(rampMeshes.every(m=>!m.visible));
+  s.setMode('pvp');assert.ok(rampMeshes.every(m=>m.visible));
+});
 test('failed or incomplete nature kit preserves every usable fallback', async () => {
   for(const fetch of [async()=>({ok:false}),async()=>({ok:true,json:async()=>({...untextured,object:{...untextured.object,children:[]}})})]) {
     const s=setup(fetch), original=[...s.covers.values()].map(c=>c.children[0]);
@@ -90,4 +96,6 @@ test('PvE hazard positions accept the expanded arena but reject coordinates beyo
   const s=b.snapshot();S.validateSnapshot(s);
   s.pve.boss.telegraph.zones[0].x=C.MAP.worldLimit+1;
   assert.throws(()=>S.validateSnapshot(s));
+  s.pve.boss.telegraph.zones[0].x=100;s.pve.boss.telegraph.zones[0].y=8;
+  assert.throws(()=>S.validateSnapshot(s),/Invalid boss warning/);
 });

@@ -138,6 +138,7 @@
       );
   }
   window.TankClient.createRampTerrain({T, C, floorGroups});
+  const rampGroups = C.MAP.ramps.map((r) => floorGroups[r.a.floor].getObjectByName('trail-' + r.id)).filter(Boolean);
   const scenery = new T.Group(); scene.add(scenery);
   const transform = new T.Object3D();
   block(600, .7, 600, 0, -1.1, 0, mat(0x91ad73), scenery);
@@ -181,8 +182,15 @@
     onError: (error) =>
       console.warn("林地素材加载失败，保留基础掩体：", error.message),
   });
+  function setMapMode(mode, cameraFloor) {
+    const pve = mode === 'pve';
+    floorGroups.forEach((group, i) => { group.visible = i <= cameraFloor && (!pve || i === 0); });
+    for (const ramp of rampGroups) ramp.visible = !pve;
+    environment.setMode(mode);
+  }
   return {
     environmentReady: environment.ready,
+    setMapMode,
     covers,
     renderer,
     scene,

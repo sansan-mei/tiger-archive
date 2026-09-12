@@ -23,6 +23,7 @@
     camera,
     sun,
     floorGroups,
+    setMapMode,
     clouds,
     mat,
     block,
@@ -84,6 +85,7 @@
     camera,
     reduced,
     getPlayerId: () => playerId,
+    getMode: () => session.current().mode || "pvp",
   });
   const { sound, puff, beam } = window.TankClient.createEffects({
     T,
@@ -521,7 +523,7 @@
         );
         if (hit?.object.userData.entityId !== entity.id) return false;
         return !window.TankSystems.world.collision(
-          { map: C.MAP, entities: before.entities },
+          { map: C.mapForMode(before.mode), entities: before.entities },
           { x: localBefore.x, y: localBefore.y + 2.2, z: localBefore.z },
           point,
           localBefore.id,
@@ -556,9 +558,7 @@
     const cameraFloor = target.rampId
       ? C.MAP.ramps.find((r) => r.id === target.rampId).b.floor
       : target.floor;
-    floorGroups.forEach((g, i) => {
-      g.visible = i <= cameraFloor;
-    });
+    setMapMode(truth.mode, cameraFloor);
     if (truth.status === "playing") {
       cameraRig.update(target, dt);
     }

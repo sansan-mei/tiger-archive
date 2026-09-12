@@ -2,27 +2,27 @@
   const map = $("battle-map"),
     mc = map.getContext("2d");
   function drawMap(state, viewer) {
-    const floor = viewer.floor;
+    const floor = viewer.floor, modeMap = C.mapForMode(state.mode);
     mc.fillStyle = "#d2ddc0";
     mc.fillRect(0, 0, 260, 260);
     mc.save();
     mc.translate(130, 130);
-    const mapScale = 116 / C.MAP.levels[floor].bound;
+    const mapScale = 116 / modeMap.levels[floor].bound;
     mc.scale(mapScale, mapScale);
-    const b = C.MAP.levels[floor].bound;
+    const b = modeMap.levels[floor].bound;
     mc.strokeStyle = floor > 0 ? "#e79e35" : "#718974";
     mc.lineWidth = 1;
     mc.strokeRect(-b, -b, b * 2, b * 2);
     mc.fillStyle = "#a88e73";
-    for (const o of C.MAP.obstacles)
+    for (const o of modeMap.obstacles)
       if (o.floor === floor)
         mc.fillRect(o.x - o.w / 2, o.z - o.d / 2, o.w, o.d);
     mc.fillStyle = "#8ef5d2";
-    for (const s of C.MAP.ramps)
+    for (const s of modeMap.ramps)
       for (const p of [s.a, s.b])
         if (p.floor === floor) mc.fillRect(p.x - 2, p.z - 2, 4, 4);
     mc.fillStyle = "#e79e35";
-    for (const exit of C.MAP.dropExits || [])
+    for (const exit of modeMap.dropExits || [])
       if (exit.floor === floor)
         mc.fillRect(
           exit.x - exit.width / 2,

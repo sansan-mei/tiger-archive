@@ -4,6 +4,8 @@
   fetchImpl = (...args) => globalThis.fetch(...args), onError = () => {},
 }) {
   const controller = new AbortController();
+  let mode = 'pvp', rampMeshes = [];
+  const setMode = (next) => { mode = next; for (const mesh of rampMeshes) mesh.visible = mode !== 'pve'; };
   const timer = globalThis.setTimeout(() => controller.abort(), 15000);
   const ready = (async () => {
     try {
@@ -18,9 +20,9 @@
       for (const name of names) if (!models.has(name)) throw Error('Missing nature model: ' + name);
       const groups = C.MAP.levels.map(() => new T.Group()), replacements = new Map();
       const batches = new Map(), matrix = new T.Object3D();
-      function plant(name, floor, x, y, z, size, rotation = 0) {
-        const key = floor + ':' + name;
-        if (!batches.has(key)) batches.set(key, {name, floor, entries: []});
+      function plant(name, floor, x, y, z, size, rotation = 0, rampOnly = false) {
+        const key = floor + ':' + name + ':' + rampOnly;
+        if (!batches.has(key)) batches.set(key, {name, floor, rampOnly, entries: []});
         matrix.position.set(x, y, z); matrix.scale.setScalar(size);
         matrix.rotation.set(0, rotation, 0); matrix.updateMatrix();
         batches.get(key).entries.push(matrix.matrix.clone());
@@ -45,7 +47,7 @@
         for(let i=1;i<18;i++) for(const side of [-1,1]) {
           const z=r.a.z+(r.b.z-r.a.z)*i/18;
           plant(i%5===0?'Flower_3_Group':'Grass_Common_Short',r.a.floor,
-            r.a.x+side*(r.width/2-.65),C.rampHeight(C.MAP,r,z)+.02,z,.3+(i%3)*.12,i);
+            r.a.x+side*(r.width/2-.65),C.rampHeight(C.MAP,r,z)+.02,z,.3+(i%3)*.12,i,true);
         }
       }
       for (const level of C.MAP.levels) {
@@ -66,10 +68,12 @@
         const z = side < 2 ? along : (side === 2 ? distance : -distance);
         plant(names[i%3], 0, x, -.3, z, 11+random()*9, random()*Math.PI*2);
       }
-      for (const {name, floor, entries} of batches.values()) {
+      for (const {name, floor, rampOnly, entries} of batches.values()) {
         for (const source of models.get(name).children) {
           const mesh = new T.InstancedMesh(source.geometry, source.material, entries.length);
           mesh.name = 'nature-' + name;
+          mesh.userData.rampOnly = rampOnly;
+          if (rampOnly) { mesh.visible = mode !== 'pve'; rampMeshes.push(mesh); }
           mesh.userData.aimIgnore = !/Bark/.test(source.material.name);
           // Solid trunks are represented by shared-map collision; foliage is decorative.
           mesh.castShadow = true; mesh.receiveShadow = true;
@@ -87,5 +91,5 @@
     } catch (error) { onError(error); return false; }
     finally { globalThis.clearTimeout(timer); }
   })();
-  return {ready};
+  return {ready,setMode};
 };

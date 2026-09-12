@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const C=require('../battle-core.js'),S=require('../battle-session.js'),R=C.PVE.progression;
-function make(n=1) {const b=new C.Battle({mode:'pve',participants:Array.from({length:n},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'}))});b.start();b.pve.nextWaveAt=100000;return b;}
+function make(n=1,map=null) {const b=new C.Battle({mode:'pve',participants:Array.from({length:n},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'})),...(map?{map}:{})});b.start();b.pve.nextWaveAt=100000;return b;}
 function enemy(b,i,x=0,z=55) {const e=b.entities.filter(e=>e.tankType==='zombie')[i];Object.assign(e,{x,z,y:0,floor:0,hp:e.maxHp,alive:true,protectedUntil:0});return e;}
 function enterBossWave(b,wave=8) {
   for(const z of b.entities.filter(e=>e.tankType==='zombie'))Object.assign(z,{alive:false,hp:0,speed:0});
@@ -149,7 +149,7 @@ test('wave-eight boss warns before damage, revives teammates and does not end th
   const timed=make();timed.tick=C.RULES.pveDuration-1;timed.step();assert.equal(timed.pve.result,'defeat');
 });
 test('boss predicts movement with a faster wide strike and keeps summoning pressure',()=>{
-  const b=make(),p=b.entities[0];enterBossWave(b,8);
+  const b=make(1,C.MAP),p=b.entities[0];enterBossWave(b,8);
   Object.assign(p,{x:0,z:55,heading:0,speed:9,hp:10000,maxHp:10000,protectedUntil:0});
   b.tick=b.pve.boss.nextAttackAt;R.bossAttack(b);
   let warning=b.pve.boss.telegraph;const zombies=b.entities.filter(e=>e.tankType==='zombie'),boss=zombies.find(e=>e.zombieType==='boss');
@@ -163,7 +163,7 @@ test('boss predicts movement with a faster wide strike and keeps summoning press
   assert.ok(zombies.filter(e=>e.alive&&!['boss','titan'].includes(e.zombieType)).length>=2);
 });
 test('predicted boss strikes follow the authoritative ramp height',()=>{
-  const b=make(),p=b.entities[0],ramp=b.map.ramps.find(r=>r.id==='west-01');
+  const b=make(1,C.MAP),p=b.entities[0],ramp=b.map.ramps.find(r=>r.id==='west-01');
   enterBossWave(b,8);
   Object.assign(p,{x:ramp.a.x,z:16,y:C.rampHeight(b.map,ramp,16),floor:0,rampId:ramp.id,rampDir:1,
     heading:-Math.PI/2,speed:9,hp:80,protectedUntil:0});
@@ -175,7 +175,7 @@ test('predicted boss strikes follow the authoritative ramp height',()=>{
   assert.equal(p.hp,35);
 });
 test('boss prediction stops at walls and lands airborne players on real decks',()=>{
-  const b=make(),p=b.entities[0],boss=enterBossWave(b,8);
+  const b=make(1,C.MAP),p=b.entities[0],boss=enterBossWave(b,8);
   boss.hp=boss.maxHp/2-1;
   b.map.obstacles.push({id:'prediction-wall',floor:0,x:5,z:55,w:1,d:8,h:4});
   Object.assign(p,{x:10,z:55,y:0,floor:0,rampId:null,rampDir:0,falling:false,heading:0,speed:9});

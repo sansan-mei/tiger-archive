@@ -44,7 +44,7 @@
       (s.mode !== undefined && !["pvp", "pve"].includes(s.mode)) ||
       (s.mode !== "pve" && s.pve !== undefined) ||
       s.version !== VERSION ||
-      s.mapId !== C.MAP.id ||
+      s.mapId !== C.mapForMode(s.mode).id ||
       !id(s.matchId) ||
       !integer(s.epoch, 1) ||
       !integer(s.tick) ||
@@ -53,6 +53,7 @@
       !["ready", "playing", "paused", "finished"].includes(s.status)
     )
       throw new Error("Invalid snapshot header");
+    const modeMap = C.mapForMode(s.mode);
     if (
       !Array.isArray(s.entities) ||
       s.entities.length < (s.mode === "pve" ? 1 : 2) ||
@@ -78,7 +79,7 @@
         !number(e.x, -WORLD_LIMIT, WORLD_LIMIT) ||
         !number(e.z, -WORLD_LIMIT, WORLD_LIMIT) ||
         !number(e.y, 0, 20) ||
-        !integer(e.floor, 0, 2) ||
+        !integer(e.floor, 0, modeMap.levels.length - 1) ||
         !number(e.hp, 0, maxHp) ||
         e.maxHp !== maxHp ||
         typeof e.alive !== "boolean" ||
@@ -130,15 +131,15 @@
           e.rampId !== null ||
           e.rampDir !== 0 ||
           e.floor === 0 ||
-          e.y > C.MAP.levels[e.floor].y ||
-          Math.abs(e.x) > C.MAP.levels[0].bound - tank.radius + 1e-6 ||
-          Math.abs(e.z) > C.MAP.levels[0].bound - tank.radius + 1e-6
+          e.y > modeMap.levels[e.floor].y ||
+          Math.abs(e.x) > modeMap.levels[0].bound - tank.radius + 1e-6 ||
+          Math.abs(e.z) > modeMap.levels[0].bound - tank.radius + 1e-6
         )
           throw new Error("Invalid falling position");
       } else if (e.fallVelocity !== 0 || e.fallVX !== 0 || e.fallVZ !== 0)
         throw new Error("Unexpected airborne velocity");
       if (e.rampId !== null) {
-        const r = C.MAP.ramps.find((r) => r.id === e.rampId);
+        const r = modeMap.ramps.find((r) => r.id === e.rampId);
         if (
           !r ||
           e.floor !== r.a.floor ||
@@ -146,19 +147,19 @@
           Math.abs(e.x - r.a.x) > r.width / 2 - tank.radius + 0.001 ||
           e.z <= Math.min(r.a.z, r.b.z) ||
           e.z >= Math.max(r.a.z, r.b.z) ||
-          Math.abs(e.y - C.rampHeight(C.MAP, r, e.z)) > 0.00001
+          Math.abs(e.y - C.rampHeight(modeMap, r, e.z)) > 0.00001
         )
           throw new Error("Invalid ramp state");
       } else if (
         !e.falling &&
-        (e.y !== C.MAP.levels[e.floor].y || e.rampDir !== 0)
+        (e.y !== modeMap.levels[e.floor].y || e.rampDir !== 0)
       )
         throw new Error("Invalid floor height");
       if (e.rampId === null && !e.falling)
-        for (const ramp of C.MAP.ramps) {
+        for (const ramp of modeMap.ramps) {
           if (
             e.floor === ramp.a.floor &&
-            C.rampCeiling(C.MAP, ramp, e.x, e.z, tank.radius) <
+            C.rampCeiling(modeMap, ramp, e.x, e.z, tank.radius) <
               e.y + (tank.height || 3) + 0.1 - 1e-6
           )
             throw new Error("Insufficient ramp clearance");
@@ -169,20 +170,20 @@
           !Array.isArray(e.brain.path) ||
           e.brain.path.length > 1100 ||
           !e.brain.path.every(
-            (p) => plain(p) && number(p.x, -C.MAP.levels[0].bound, C.MAP.levels[0].bound) && number(p.z, -C.MAP.levels[0].bound, C.MAP.levels[0].bound),
+            (p) => plain(p) && number(p.x, -modeMap.levels[0].bound, modeMap.levels[0].bound) && number(p.z, -modeMap.levels[0].bound, modeMap.levels[0].bound),
           ))
       )
         throw new Error("Invalid path");
     }
     if (
       !Array.isArray(s.pickups) ||
-      s.pickups.length !== C.MAP.pickups.length ||
+      s.pickups.length !== modeMap.pickups.length ||
       s.pickups.some(
         (p, i) =>
           !plain(p) ||
           !integer(p.readyAt) ||
           ["id", "kind", "floor", "x", "z"].some(
-            (k) => p[k] !== C.MAP.pickups[i][k],
+            (k) => p[k] !== modeMap.pickups[i][k],
           ),
       )
     )
