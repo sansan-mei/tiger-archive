@@ -40,6 +40,31 @@ test('ten shared modules enter the existing upgrade pool and pulse is removed',(
     assert.deepEqual(new Set(b.pve.choices[p.id]),new Set(keys.slice(0,3)));
   }
 });
+test('three-choice offers always include a non-weapon reward when one is eligible',()=>{
+  const b=make(),p=b.entities[0];
+  const pool=Object.fromEntries(['standard','rapid','rocket','medkit'].map(k=>[k,C.PVE.rewards[k]]));
+  for(let seed=1;seed<=256;seed++) {
+    b.pve.rng=Math.imul(seed,2654435761)>>>0;
+    b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,pool);
+    const options=b.pve.choices[p.id];
+    assert.equal(options.length,3);
+    assert.equal(new Set(options).size,3);
+    assert.ok(options.some(key=>!Object.hasOwn(C.WEAPONS,key)),`seed ${seed}: ${options}`);
+  }
+});
+test('capped upgrades still give three choices including the always-available medkit',()=>{
+  const b=make(),p=b.entities[0];
+  Object.assign(b.pve.upgrades[p.id],R.caps);
+  for(let seed=1;seed<=128;seed++) {
+    b.pve.rng=Math.imul(seed,2654435761)>>>0;
+    b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
+    const options=b.pve.choices[p.id];
+    assert.equal(options.length,3);
+    assert.equal(new Set(options).size,3);
+    assert.ok(options.includes('medkit'),`seed ${seed}: ${options}`);
+  }
+  S.validateSnapshot(b.snapshot());
+});
 test('weapon evolution is favored but not guaranteed in randomized three-choice offers',()=>{
   const b=make(),p=b.entities[0],seen={pierce:0,medkit:0};let missed=false;
   for(let seed=1;seed<=256;seed++) {
@@ -47,6 +72,7 @@ test('weapon evolution is favored but not guaranteed in randomized three-choice 
     b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
     const options=b.pve.choices[p.id];
     assert.equal(options.length,3);assert.equal(new Set(options).size,3);
+    assert.ok(options.some(key=>!Object.hasOwn(C.WEAPONS,key)));
     assert.ok(!options.includes('ricochet'));
     if(!options.includes('pierce'))missed=true;
     if(options.includes('pierce'))seen.pierce++;

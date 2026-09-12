@@ -71,10 +71,13 @@
     });
     const choices=[];
     while(pool.length && choices.length<3) {
+      const candidates=choices.length===2 && choices.every(key=>Object.hasOwn(C.WEAPONS,key))
+        ? pool.filter(key=>!Object.hasOwn(C.WEAPONS,key)) : pool;
+      if (!candidates.length) throw new Error('No non-weapon reward available');
       const weight=key=>allRewards[key].weapon===p.weaponType?2:1;
-      let roll=random(b)*pool.reduce((sum,key)=>sum+weight(key),0);
-      const index=pool.findIndex(key=>(roll-=weight(key))<0);
-      choices.push(pool.splice(index,1)[0]);
+      let roll=random(b)*candidates.reduce((sum,key)=>sum+weight(key),0);
+      const index=candidates.findIndex(key=>(roll-=weight(key))<0);
+      choices.push(pool.splice(pool.indexOf(candidates[index]),1)[0]);
     }
     b.pve.choices[p.id]=choices; b.pve.choiceIds[p.id]=b.pve.nextChoiceId++;
   }
