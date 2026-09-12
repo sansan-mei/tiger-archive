@@ -69,11 +69,14 @@
       return key!==p.weaponType && (!caps[key] || upgrades[key]<caps[key]) &&
         (!r.requires || upgrades[r.requires]>0) && (!r.weapon || r.weapon===p.weaponType);
     });
-    for(let i=pool.length-1;i>0;i--){const j=Math.floor(random(b)*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-    // At least one eligible evolution for the equipped weapon or pulse build.
-    const preferred=pool.find(k=>rewards[k]?.weapon===p.weaponType || (!rewards[k]?.weapon && rewards[k]?.requires));
-    if(preferred){pool.splice(pool.indexOf(preferred),1);pool.unshift(preferred);}
-    b.pve.choices[p.id]=pool.slice(0,3); b.pve.choiceIds[p.id]=b.pve.nextChoiceId++;
+    const choices=[];
+    while(pool.length && choices.length<3) {
+      const weight=key=>allRewards[key].weapon===p.weaponType?2:1;
+      let roll=random(b)*pool.reduce((sum,key)=>sum+weight(key),0);
+      const index=pool.findIndex(key=>(roll-=weight(key))<0);
+      choices.push(pool.splice(index,1)[0]);
+    }
+    b.pve.choices[p.id]=choices; b.pve.choiceIds[p.id]=b.pve.nextChoiceId++;
   }
   function addExperience(b,amount,allRewards) {
     if(b.status!=="playing" || b.pve.level>=20)return;

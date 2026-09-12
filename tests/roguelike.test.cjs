@@ -25,15 +25,31 @@ test('kills share experience while reward choices are independent, queued and re
   assert.deepEqual(copy.pve,b.pve);S.validateSnapshot(saved);
   b.pve.nextWaveAt=1;b.step();assert.equal(b.pve.pending[p.id],1);
 });
+test('weapon evolution is favored but not guaranteed in randomized three-choice offers',()=>{
+  const b=make(),p=b.entities[0],seen={pierce:0,medkit:0};let missed=false;
+  for(let seed=1;seed<=256;seed++) {
+    b.pve.rng=Math.imul(seed,2654435761)>>>0;
+    b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
+    const options=b.pve.choices[p.id];
+    assert.equal(options.length,3);assert.equal(new Set(options).size,3);
+    assert.ok(!options.includes('ricochet'));
+    if(!options.includes('pierce'))missed=true;
+    if(options.includes('pierce'))seen.pierce++;
+    if(options.includes('medkit'))seen.medkit++;
+  }
+  assert.ok(missed,'the current weapon branch must sometimes miss');
+  assert.ok(seen.pierce>seen.medkit,'the current weapon branch should be favored over a normal reward');
+});
 test('offers enforce evolution prerequisites and stop increasing capped passives',()=>{
-  const b=make(),p=b.entities[0];R.addExperience(b,40,C.PVE.rewards);
+  const b=make(),p=b.entities[0],pool=Object.fromEntries(['pierce','ricochet','lightning','medkit','haste'].map(k=>[k,C.PVE.rewards[k]]));
+  R.addExperience(b,40,pool);
   assert.ok(b.pve.choices[p.id].includes('pierce'));
   assert.ok(!b.pve.choices[p.id].includes('lightning'));
   b.chooseUpgrade(p.id,b.pve.wave,'pierce');
-  R.addExperience(b,60,C.PVE.rewards);
+  R.addExperience(b,60,pool);
   assert.ok(b.pve.choices[p.id].includes('ricochet'));
   assert.equal(b.chooseUpgrade(p.id,b.pve.wave,'lightning'),false);
-  b.chooseUpgrade(p.id,b.pve.wave,'ricochet');R.addExperience(b,80,C.PVE.rewards);
+  b.chooseUpgrade(p.id,b.pve.wave,'ricochet');R.addExperience(b,80,pool);
   assert.ok(b.pve.choices[p.id].includes('lightning'));
   assert.ok(b.pve.upgrades[p.id].pierce===1);
   const copy=make();copy.restore(b.snapshot());
@@ -59,7 +75,9 @@ test('every weapon has exactly five gated exclusive evolution tiers',()=>{
   for(const [weapon,keys] of Object.entries(expected)) {
     p.weaponType=weapon;
     for(let tier=0;tier<keys.length;tier++) {
-      b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
+      const candidates={[keys[tier]]:R.rewards[keys[tier]]};
+      if(keys[tier+1])candidates[keys[tier+1]]=R.rewards[keys[tier+1]];
+      b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,candidates);
       assert.ok(b.pve.choices[p.id].includes(keys[tier]),weapon+' tier '+(tier+1));
       assert.ok(!b.pve.choices[p.id].includes(keys[tier+1]),weapon+' future tier');
       b.pve.upgrades[p.id][keys[tier]]=1;
