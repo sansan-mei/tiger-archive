@@ -70,6 +70,15 @@ test("occlusion, death, range and pause release the lock", () => {
   args.entities[0].alive = false;
   assert.equal(run({ time: 216 }), null);
 });
+test("acquisition rejects distant screen candidates before visibility raycasts", () => {
+  const { run, args } = setup();
+  args.hitId=null;
+  for(const x of [20,40,60,80])args.entities.push({id:"far"+x,x,y:0,z:10,height:3,alive:true});
+  let calls=0;
+  const target=run({visible:()=>{calls++;return true;}});
+  assert.equal(target.id,"enemy");
+  assert.equal(calls,1);
+});
 test("acquisition stays small, prioritizes direct hits and does not switch a held target", () => {
   const { run, args } = setup();
   args.entities.push({

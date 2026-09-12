@@ -26,7 +26,7 @@
       reset(time);
       return null;
     }
-    const candidate = (entity) => {
+    const candidate = (entity, screenLimit = 96) => {
       if (!entity || !entity.alive || entity.id === player.id) return null;
       const point = {
         x: entity.x,
@@ -39,25 +39,20 @@
       )
         return null;
       const screen = project(point);
-      if (!screen.visible || screen.distance > 96 || !visible(entity, point))
+      if (!screen.visible || screen.distance > screenLimit || !visible(entity, point))
         return null;
       return { id: entity.id, point, screen };
     };
     if (lockedId) {
-      const target = candidate(entities.find((e) => e.id === lockedId));
+      const target = candidate(entities.find((e) => e.id === lockedId), 96);
       if (target) return target;
       reset(time);
       return null;
     }
     if (time < acquireAt) return null;
     const candidates = entities
-      .map(candidate)
-      .filter(Boolean)
-      .filter(
-        (t) =>
-          t.screen.distance <= 16 ||
-          (t.id === hitId && t.screen.distance <= 64),
-      );
+      .map((entity) => candidate(entity, entity.id === hitId ? 64 : 16))
+      .filter(Boolean);
     candidates.sort(
       (a, b) =>
         Number(b.id === hitId) - Number(a.id === hitId) ||

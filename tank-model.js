@@ -144,6 +144,8 @@ window.createTankModel = function (
       parent.add(mesh);
     }
   }
+  if (tankType === "zombie" && !["boss", "titan"].includes(zombieType))
+    tank.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   const retained = new Set();
   retired.add(geometry);
   tank.traverse((o) => {

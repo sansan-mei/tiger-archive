@@ -91,6 +91,12 @@
       if (views.get(e.id)?.weaponType !== e.weaponType || views.get(e.id)?.zombieType !== e.zombieType) createViews(e.id, state.entities);
     for (const e of state.entities) {
       const view = views.get(e.id);
+      if (e.tankType === "zombie" && !e.alive) {
+        view.tank.visible = view.warning.visible = view.shield.visible = view.frontShield.visible = view.criticalGlow.visible = false;
+        view.recoil = 0; view.wasCharging = false; view.lastSpeed = e.speed; view.lastHeading = e.heading; view.lastRespawnAt = e.respawnAt;
+        if (view.label) { view.label.dataset.targeted = "false"; if (view.label.style.display !== "none") view.label.style.display = "none"; }
+        continue;
+      }
       const targeted = e.alive && e.id === targetedId && e.id !== getPlayerId();
       view.paint.color.copy(view.basePaintColor);
       if (e.slowUntil > truth.tick) view.paint.color.setHex(0x75c9e2);
@@ -281,17 +287,17 @@
           projected.z > -1 &&
           projected.z < 1 &&
           Math.abs(projected.x) < 1.1 &&
-          Math.abs(projected.y) < 1.1;
-        view.label.style.display = shown ? "block" : "none";
-        view.label.style.left =
-          (projected.x * 0.5 + 0.5) * window.innerWidth + "px";
-        view.label.style.top =
-          (-projected.y * 0.5 + 0.5) * window.innerHeight + "px";
-        view.bar.style.width =
-          ((e.hp + e.shield + e.barrier) /
-            (e.maxHp + C.TANKS[e.tankType].shield + e.barrier)) *
-            100 +
-          "%";
+          Math.abs(projected.y) < 1.1,
+          display = shown ? "block" : "none";
+        if (view.label.style.display !== display) view.label.style.display = display;
+        if (shown && time >= (view.nextLabelAt || 0)) {
+          view.nextLabelAt = time + 32;
+          view.label.style.left = (projected.x * 0.5 + 0.5) * window.innerWidth + "px";
+          view.label.style.top = (-projected.y * 0.5 + 0.5) * window.innerHeight + "px";
+        }
+        const width = ((e.hp + e.shield + e.barrier) /
+          (e.maxHp + C.TANKS[e.tankType].shield + e.barrier)) * 100 + "%";
+        if (view.bar.style.width !== width) view.bar.style.width = width;
       }
     }
     const liveIds = new Set(state.bullets.map((b) => b.id));
@@ -349,15 +355,10 @@
     }
   }
   function aimHit(ray, floors) {
-    const entities = getEntities();
-    const roots = [...views]
-      .filter(
-        ([id, v]) =>
-          id !== getPlayerId() &&
-          v.tank.visible &&
-          entities.some((e) => e.id === id && e.alive && (getMode() !== "pve" || e.tankType === "zombie")),
-      )
-      .map(([, v]) => v.tank);
+    const entities = getEntities(), live = new Set(entities.filter((e) =>
+      e.alive && (getMode() !== "pve" || e.tankType === "zombie")).map((e) => e.id)), roots=[];
+    for (const [id, view] of views)
+      if (id !== getPlayerId() && view.tank.visible && live.has(id)) roots.push(view.tank);
     return ray.intersectObjects([...roots, ...floors], true).find((hit) => {
       for (let node = hit.object; node; node = node.parent)
         if (!node.visible || node.userData.aimIgnore) return false;

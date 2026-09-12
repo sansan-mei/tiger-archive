@@ -101,17 +101,18 @@ test('seven original zombie variants have distinct silhouettes, bounded geometry
   const browser=context(), signatures=new Set();
   for(const zombieType of Object.keys(C.ZOMBIE_SPECS)) {
     const v=browser.createTankModel(T,{tankType:'zombie',weaponType:'standard',zombieType});
-    let triangles=0,meshes=0;const resources=new Set();
+    let triangles=0,meshes=0,shadows=0;const resources=new Set();
     v.tank.updateMatrixWorld(true);
     v.tank.traverse(m=>{
       if(m.geometry) resources.add(m.geometry);
       if(m.material) resources.add(m.material);
       if(!m.isMesh||!m.visible)return;
-      meshes++;triangles+=(m.geometry.index?.count||m.geometry.attributes.position.count)/3;
+      meshes++;if(m.castShadow)shadows++;triangles+=(m.geometry.index?.count||m.geometry.attributes.position.count)/3;
       for(const a of Object.values(m.geometry.attributes)) assert.ok([...a.array].every(Number.isFinite));
     });
     signatures.add(triangles+':'+meshes);
     assert.ok(meshes<=20);assert.ok(triangles<4000);assert.equal(v.limbs.length,2);
+    assert.equal(shadows,['boss','titan'].includes(zombieType)?meshes:0,zombieType+' shadow budget');
     for(const resource of resources) resource.addEventListener('dispose',()=>resource.disposed=true);
     v.dispose();assert.ok([...resources].every(r=>r.disposed));
   }
