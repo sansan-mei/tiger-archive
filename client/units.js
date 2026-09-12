@@ -78,6 +78,11 @@
       views.set(body.id, view);
     });
   }
+  function visibleRayHit(hit) {
+    for (let node = hit.object; node; node = node.parent)
+      if (!node.visible || node.userData.aimIgnore) return false;
+    return true;
+  }
   function update({
     state,
     truth,
@@ -258,7 +263,7 @@
           wallHit = warningRay.intersectObjects(
             floorGroups.filter((g) => g.visible),
             true,
-          )[0];
+          ).find(visibleRayHit);
         const end = start
           .clone()
           .addScaledVector(
@@ -360,11 +365,7 @@
       e.alive && (getMode() !== "pve" || e.tankType === "zombie")).map((e) => e.id)), roots=[];
     for (const [id, view] of views)
       if (id !== getPlayerId() && view.tank.visible && live.has(id)) roots.push(view.tank);
-    return ray.intersectObjects([...roots, ...floors], true).find((hit) => {
-      for (let node = hit.object; node; node = node.parent)
-        if (!node.visible || node.userData.aimIgnore) return false;
-      return true;
-    });
+    return ray.intersectObjects([...roots, ...floors], true).find(visibleRayHit);
   }
   // Recreate against the current session only after the optional library has loaded.
   // No captured entity list: room/loadout changes during the request remain safe.

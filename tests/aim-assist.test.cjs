@@ -140,12 +140,14 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   state.entities[1].x = 0;
   state.entities.push({...state.entities[1],id:"zombie_0",controller:"bot",tankType:"zombie",zombieType:"walker",weaponType:"standard",alive:false,hp:0,maxHp:80,speed:0});
   const scene = new T.Scene(),
+    floorGroup = new T.Group(),
     camera = new T.PerspectiveCamera();
+  scene.add(floorGroup);
   const units = ctx.window.TankClient.createUnits({
     T,
     C,
     scene,
-    floorGroups: [],
+    floorGroups: [floorGroup],
     labelHost: new Element(),
     sphere: new T.IcosahedronGeometry(1, 0),
     shellMat: new T.MeshBasicMaterial(),
@@ -201,6 +203,15 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   assert.ok(zombieView.tank.quaternion.toArray().every(Number.isFinite));
   assert.ok(zombieView.tank.position.toArray().every(Number.isFinite));
   assert.ok(zombieView.limbs.every(limb=>Number.isFinite(limb.rotation.z)));
+  const visibleWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial()),
+    ignoredWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial()),
+    hiddenParent=new T.Group(),hiddenWall=new T.Mesh(new T.BoxGeometry(1,6,6),new T.MeshBasicMaterial());
+  visibleWall.position.set(10,2.2,0);ignoredWall.position.set(17,2.2,0);ignoredWall.userData.aimIgnore=true;
+  hiddenWall.position.set(15,2.2,0);hiddenParent.visible=false;hiddenParent.add(hiddenWall);floorGroup.add(visibleWall,ignoredWall,hiddenParent);
+  Object.assign(state.entities[0],{weaponType:"laser",charge:45,x:20,y:0,z:0,aim:0,pitch:0});
+  scene.updateMatrixWorld(true);update(null);
+  const warning=units.views.get("p1").warning.geometry.getAttribute("position");
+  assert.ok(warning.getX(1)<11,"hidden or aimIgnore terrain must not clip the charge warning");
 });
 test("visible beam radius matches the authoritative event", () => {
   const T = require("three"),
