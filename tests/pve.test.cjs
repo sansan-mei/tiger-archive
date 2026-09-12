@@ -8,7 +8,7 @@ const create = (count = 1, map = null) => { const b = new C.Battle({mode:'pve', 
 function enemies(b){return b.entities.filter(e=>e.tankType==='zombie');}
 function markMidBossDefeated(b){
   const boss=enemies(b).at(-1);
-  Object.assign(boss,{zombieType:'boss',alive:false,hp:0,maxHp:C.PVE.healthFor('boss',b.pve.teamSize),speed:0});
+  Object.assign(boss,{zombieType:'boss',alive:false,hp:0,maxHp:C.PVE.healthFor('boss',b.pve.teamSize,b.pve.wave),speed:0});
   Object.assign(b.pve.boss,{stage:1,spawned:false,defeated:false,telegraph:null});
 }
 function clearWave(b) {
@@ -202,6 +202,18 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   const dead=enemies(b)[1];assert.equal(dead.hp,0);assert.equal(dead.alive,false);
   S.validateSnapshot(b.snapshot());
 });
+test('zombie health gains five percent per wave on top of team scaling', () => {
+  assert.equal(C.PVE.healthFor('walker',1,1),80);
+  assert.equal(C.PVE.healthFor('walker',1,8),108);
+  assert.equal(C.PVE.healthFor('titan',8,16),10588);
+  const b=create();
+  b.pve.wave=7;b.pve.nextWaveAt=1;b.step();
+  const boss=enemies(b).find(z=>z.alive&&z.zombieType==='boss');
+  assert.equal(b.pve.wave,8);assert.equal(boss.hp,1620);assert.equal(boss.maxHp,1620);
+  S.validateSnapshot(b.snapshot());
+  const forged=b.snapshot();enemies(forged).find(z=>z.alive&&z.zombieType==='boss').maxHp=1200;
+  assert.throws(()=>S.validateSnapshot(forged),/Invalid entity state/);
+});
 test('wave composition unlocks four early enemies and giants only after the mid boss', () => {
   const seen=new Set(),bossTypes=new Set(['boss','titan']);
   for (let wave=1;wave<=15;wave++) {
@@ -215,9 +227,12 @@ test('wave composition unlocks four early enemies and giants only after the mid 
   assert.deepEqual([...seen].sort(),Object.keys(C.ZOMBIE_SPECS).filter(k=>!bossTypes.has(k)).sort());
   for (const [type,spec] of Object.entries(C.ZOMBIE_SPECS).filter(([k])=>!bossTypes.has(k))) {
     const b=create(), p=b.entities[0], z=enemies(b)[0],wave=Math.max(1,spec.wave);
-    b.pve.wave=wave;b.pve.nextWaveAt=10000;if(wave>=8)markMidBossDefeated(b);
+    b.pve.wave=wave;b.pve.nextWaveAt=10000;
+    for(const e of enemies(b)){e.maxHp=C.PVE.healthFor(e.zombieType,b.pve.teamSize,wave);e.hp=e.alive?e.maxHp:0;}
+    if(wave>=8)markMidBossDefeated(b);
     Object.assign(p,{x:0,z:55});
-    Object.assign(z,{zombieType:type,maxHp:spec.hp,hp:spec.hp,alive:true,x:8,z:55,y:0,floor:0,heading:0});
+    const maxHp=C.PVE.healthFor(type,b.pve.teamSize,wave);
+    Object.assign(z,{zombieType:type,maxHp,hp:maxHp,alive:true,x:8,z:55,y:0,floor:0,heading:0});
     for(let i=0;i<30;i++) b.step();
     assert.ok(Math.abs(z.speed-spec.speed)<0.001,type);
     Object.assign(z,{x:1.9,z:55,speed:0,cooldown:0});
@@ -288,7 +303,7 @@ test('scaled variants survive replica and checkpoint replay; forged health/type/
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));b.start();
   b.pve.wave=8;markMidBossDefeated(b);b.pve.nextWaveAt=1;
   for(let i=0;i<500;i++) a.step();
-  assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===1100));
+  assert.ok(enemies(b).some(e=>e.zombieType==='brute'&&e.maxHp===1540));
   const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
   assert.equal(r.receive(packet).ok,true);

@@ -23,8 +23,17 @@
   const earlyComposition = ["walker", "walker", "cone", "walker", "runner", "cone", "bucket", "runner", "walker", "cone"],
     lateComposition = ["brute", "runner", "bucket", "brute", "cone", "runner", "brute", "bucket"];
   const bossTypes = new Set(["boss", "titan"]);
-  function healthFor(type, teamSize) {
-    return Math.round(C.ZOMBIE_SPECS[type].hp * (1 + C.RULES.pveHealthPerPlayer * (teamSize - 1)));
+  function healthFor(type, teamSize, wave = 1) {
+    const teamScale = 1 + C.RULES.pveHealthPerPlayer * (teamSize - 1),
+      waveScale = 1 + C.RULES.pveHealthPerWave * (Math.max(1, wave) - 1);
+    return Math.round(C.ZOMBIE_SPECS[type].hp * teamScale * waveScale);
+  }
+  function rescaleHealth(b, teamSize, wave) {
+    for (const z of zombies(b)) {
+      const maxHp = healthFor(z.zombieType, teamSize, wave);
+      z.hp = z.alive ? Math.max(1, Math.ceil(z.hp * maxHp / z.maxHp)) : 0;
+      z.maxHp = maxHp;
+    }
   }
   function typeFor(wave, ordinal) {
     const pool = wave > 8 ? lateComposition : earlyComposition,
@@ -66,7 +75,7 @@
     const target = players[(b.pve.queue + Number(z.id.slice(7))) % players.length];
     if (!target) return false;
     const zombieType = forcedType || typeFor(b.pve.wave, b.pve.queue);
-    const maxHp = healthFor(zombieType, b.pve.teamSize);
+    const maxHp = healthFor(zombieType, b.pve.teamSize, b.pve.wave);
     // Fixed candidates keep checkpoint replay deterministic; reject walls and occupied cells.
     for (let i = 0; i < 32; i++) {
       const angle = (i + b.pve.queue * 7 + b.pve.wave * 3) * Math.PI * 2 / 32;
@@ -115,11 +124,7 @@
     const pve = b.pve, players = survivors(b).filter((p) => !p.forfeited);
     const teamSize = Math.max(1, players.length);
     if (teamSize !== pve.teamSize) {
-      for (const z of zombies(b)) {
-        const maxHp = healthFor(z.zombieType, teamSize);
-        z.hp = z.alive ? Math.max(1, Math.ceil(z.hp * maxHp / z.maxHp)) : 0;
-        z.maxHp = maxHp;
-      }
+      rescaleHealth(b, teamSize, pve.wave);
       pve.teamSize = teamSize;
     }
     for (const id of Object.keys(pve.choices))
@@ -170,10 +175,11 @@
       if (b.tick < pve.nextWaveAt) return;
       pve.nextWaveAt = 0;
       pve.wave++;
+      rescaleHealth(b, pve.teamSize, pve.wave);
       if (pve.wave === 8 || pve.wave === 16) {
         const stage = pve.wave === 8 ? 1 : 2;
         if (!startBoss(b, players, stage)) {
-          pve.wave--; pve.nextWaveAt = b.tick + 1;
+          pve.wave--; rescaleHealth(b, pve.teamSize, pve.wave); pve.nextWaveAt = b.tick + 1;
         }
         return;
       }

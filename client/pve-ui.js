@@ -33,9 +33,11 @@
           (pve.boss.telegraph ? " · 红圈即将爆发，离开落点！" : boss.hp < boss.maxHp/2 ? " · 狂暴" : "") :
           pve.boss.stage < 1 ? "第 8 波：零号感染体" : pve.boss.stage < 2 ? "第 16 波：泰坦感染体" : "泰坦已击败";
       }
+      const healthScale = pve ? (1 + C.RULES.pveHealthPerPlayer * (pve.teamSize - 1)) *
+        (1 + C.RULES.pveHealthPerWave * (Math.max(1, pve.wave) - 1)) : 1;
       $("mission-title").textContent = pve ? "CO-OP SURVIVAL / 16" : "FREE FOR ALL / 8";
       $("mission-rule").textContent = pve
-        ? pve.teamSize + " 人 / 血量×" + (1 + C.RULES.pveHealthPerPlayer * (pve.teamSize - 1)).toFixed(2) + " · 第 " + pve.wave + " 波 · " +
+        ? pve.teamSize + " 人 / 血量×" + healthScale.toFixed(2) + " · 第 " + pve.wave + " 波 · " +
           (boss?.alive ? bossName + " 战" : pve.nextWaveAt ? Math.max(0, Math.ceil((pve.nextWaveAt - state.tick) / 60)) + " 秒后下一波" : "待入场 " + pve.queue + " 只")
         : "8 分钟 · 先到 15 次击毁";
       $("score-title").textContent = pve ? "合作肉鸽 · 击败第 16 波泰坦" : "计分板 · 15 次击毁获胜";
