@@ -82,19 +82,27 @@
       ...hit.point,
       weaponType: shot.weaponType,
     });
-    const owner = battle.getEntity(shot.owner), base = WEAPONS[shot.weaponType];
-    const spec = battle.mode === "pve" && shot.weaponType === "rocket" && owner?.weaponType === shot.weaponType
-      ? { ...base, splashRadius: base.splashRadius + (battle.pve.upgrades[shot.owner]?.blast || 0) } : base;
+    const owner = battle.getEntity(shot.owner), base = WEAPONS[shot.weaponType],
+      routeActive = battle.mode === "pve" && owner?.weaponType === shot.weaponType,
+      upgrades = routeActive ? battle.pve.upgrades[shot.owner] : null,
+      nuclear = shot.weaponType === "rocket" && upgrades?.doomsday && shot.doomsday;
+    const spec = shot.weaponType === "rocket" && routeActive
+      ? { ...base, splashRadius: nuclear ? 16 : upgrades.blast ? 10 : base.splashRadius,
+          splashDamage: nuclear ? 200 : upgrades.blast ? 100 : base.splashDamage }
+      : base;
     if (hit.kind === "tank") {
-      const applied = battle.damage(
-        battle.getEntity(hit.id),
-        shot.damage,
-        shot.owner,
-        hit.point,
-        { x: shot.dx, z: shot.dz },
-        shot.critical === true,
-      );
+      const target = battle.getEntity(hit.id), wasAlive = target?.alive,
+        baseDamage = Math.round(base.damage * (shot.critical ? base.criticalMultiplier || 1 : 1)),
+        applied = battle.damage(
+          target,
+          routeActive ? shot.damage : baseDamage,
+          shot.owner,
+          hit.point,
+          { x: shot.dx, z: shot.dz },
+          shot.critical === true,
+        );
       if (applied && battle.mode === "pve") battle.pveHit(hit, shot);
+      if (routeActive && wasAlive && !target.alive) shot.pveKills = (shot.pveKills || 0) + 1;
       // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
       if (
         applied &&
@@ -168,11 +176,14 @@
     body.protectedUntil = 0;
     body.lastDamageTick = battle.tick;
     const base = WEAPONS[body.weaponType],
-      upgrades = battle.mode === "pve" ? battle.pve.upgrades[body.id] : null,
-      spec = upgrades?.wideBeam && body.weaponType === "laser"
-        ? { ...base, beamRadius: base.beamRadius + 0.3 }
-        : base,
-      c = Math.cos(body.pitch),
+      upgrades = battle.mode === "pve" ? battle.pve.upgrades[body.id] : null;
+    let spec = base;
+    if (body.weaponType === "laser" && upgrades?.wideBeam)
+      spec = { ...spec, beamRadius: upgrades.stellar ? 1.5 : 1,
+        damage: upgrades.stellar ? 250 : upgrades.capacitor ? 150 : base.damage };
+    if (body.weaponType === "rapid" && upgrades?.metalStorm)
+      spec = { ...spec, cooldown: Math.round(base.cooldown / 2) };
+    const c = Math.cos(body.pitch),
       dir = {
         x: -Math.cos(body.aim) * c,
         y: Math.sin(body.pitch),
@@ -194,6 +205,12 @@
       body.ammo--;
       if (body.ammo === 0) body.cooldown = spec.reloadTicks;
     }
+    const magazineFinal = body.weaponType === "pistol" && spec.magazineSize && body.ammo === 0;
+    let doomsday = false;
+    if (body.weaponType === "rocket" && upgrades?.doomsday) {
+      battle.pve.rocketShots[body.id] = (battle.pve.rocketShots[body.id] + 1) % 3;
+      doomsday = battle.pve.rocketShots[body.id] === 0;
+    }
     body.charge = 0;
     const critical =
       !!spec.criticalHits && body.criticalProgress >= spec.criticalHits;
@@ -203,10 +220,12 @@
       owner: body.id,
       weaponType: body.weaponType,
       critical,
+      magazineFinal: !!magazineFinal,
+      doomsday,
       ownerLife: body.deaths,
-      damage: Math.round(
-        spec.damage * power * (critical ? spec.criticalMultiplier : 1),
-      ),
+      damage: upgrades?.judgment && body.weaponType === "standard" && critical
+        ? 200
+        : Math.round(spec.damage * power * (critical ? spec.criticalMultiplier : 1)),
       ...muzzle,
       dx: dir.x,
       dy: dir.y,
@@ -256,7 +275,10 @@
         to: blocker ? blocker.point : end,
         power,
       });
+      shot.rayTargetIds = hits.filter(hit=>hit.kind==="tank").map(hit=>hit.id);
       for (const rayHit of hits) battle.resolveHit(rayHit, shot);
+      if (upgrades?.stellar && (shot.pveKills || 0) >= 3)
+        body.cooldown = Math.max(1, Math.ceil(body.cooldown / 2));
     } else {
       const near = battle.collision(start, muzzle, body.id);
       if (near) battle.resolveHit(near, shot);

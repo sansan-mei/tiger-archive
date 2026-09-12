@@ -316,11 +316,9 @@
       let m = bullets.get(b.id);
       if (!m) {
         m = new T.Mesh(sphere, shellMat);
-        m.scale.set(
-          C.WEAPONS[b.weaponType].splashDamage ? 0.27 : 0.15,
-          C.WEAPONS[b.weaponType].splashDamage ? 0.27 : 0.15,
-          C.WEAPONS[b.weaponType].splashDamage ? 1.1 : 0.7,
-        );
+        const rocket=C.WEAPONS[b.weaponType].splashDamage,scale=b.doomsday?.5:rocket?.27:.15;
+        m.scale.set(scale,scale,b.doomsday?1.6:rocket?1.1:.7);
+        m.userData.doomsday=!!b.doomsday;
         scene.add(m);
         bullets.set(b.id, m);
       }
@@ -334,7 +332,7 @@
         const smoke = new T.Mesh(
           sphere,
           new T.MeshBasicMaterial({
-            color: 0xe4d5b1,
+            color: b.doomsday ? 0xb56cff : 0xe4d5b1,
             transparent: true,
             opacity: 0.45,
             depthWrite: false,

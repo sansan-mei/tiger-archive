@@ -197,7 +197,10 @@
       new Set(s.bullets.map((b) => b.id)).size !== s.bullets.length
     )
       throw new Error("Invalid projectiles");
-    for (const b of s.bullets)
+    for (const b of s.bullets) {
+      const ownerEntity=s.entities.find((e)=>e.id===b.owner),upgrades=s.pve?.upgrades?.[b.owner],
+        expectedDamage=b.weaponType==="standard"&&b.critical&&upgrades?.judgment
+          ?200:C.WEAPONS[b.weaponType]?.damage*(b.critical?C.WEAPONS[b.weaponType]?.criticalMultiplier||1:1);
       if (
         !plain(b) ||
         !integer(b.id, 1) ||
@@ -211,24 +214,15 @@
         !number(b.dz, -1, 1) ||
         !integer(b.life, 0, C.WEAPONS[b.weaponType].life) ||
         typeof b.critical !== "boolean" ||
-        !integer(
-          b.ownerLife,
-          0,
-          s.entities.find((e) => e.id === b.owner).deaths,
-        ) ||
+        (b.magazineFinal!==undefined&&typeof b.magazineFinal!=="boolean") ||
+        (b.doomsday!==undefined&&typeof b.doomsday!=="boolean") ||
+        (b.magazineFinal&&(b.weaponType!=="pistol"||ownerEntity.ammo!==0)) ||
+        (b.doomsday&&(b.weaponType!=="rocket"||!upgrades?.doomsday||s.pve.rocketShots[b.owner]!==0)) ||
+        !integer(b.ownerLife,0,ownerEntity.deaths) ||
         (b.critical && !C.WEAPONS[b.weaponType].criticalHits) ||
-        !integer(
-          b.damage,
-          1,
-          C.WEAPONS[b.weaponType].damage *
-            (b.critical ? C.WEAPONS[b.weaponType].criticalMultiplier : 1),
-        ) ||
-        (C.WEAPONS[b.weaponType].criticalHits &&
-          b.damage !==
-            C.WEAPONS[b.weaponType].damage *
-              (b.critical ? C.WEAPONS[b.weaponType].criticalMultiplier : 1))
-      )
-        throw new Error("Invalid projectile");
+        b.damage!==expectedDamage
+      ) throw new Error("Invalid projectile");
+    }
     return s;
   }
   class Authority {
@@ -451,7 +445,7 @@
           if (
             e.type === "beam" &&
             e.radius !== undefined &&
-            !number(e.radius, 0, 1)
+            !number(e.radius, 0, 2)
           )
             throw new Error("Invalid beam radius");
           if (e.type === "beam")

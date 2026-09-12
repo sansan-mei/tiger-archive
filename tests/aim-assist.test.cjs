@@ -212,6 +212,9 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   scene.updateMatrixWorld(true);update(null);
   const warning=units.views.get("p1").warning.geometry.getAttribute("position");
   assert.ok(warning.getX(1)<11,"hidden or aimIgnore terrain must not clip the charge warning");
+  state.bullets=[{id:77,weaponType:"rocket",doomsday:true,x:1,y:1,z:1,dx:1,dy:0,dz:0}];update(null);
+  const nuclear=units.bullets.get(77);assert.equal(nuclear.userData.doomsday,true);
+  assert.deepEqual(nuclear.scale.toArray(),[.5,.5,1.6]);
 });
 test("visible beam radius matches the authoritative event", () => {
   const T = require("three"),
@@ -231,8 +234,10 @@ test("visible beam radius matches the authoritative event", () => {
   system.beam({
     from: { x: 0, y: 2, z: 0 },
     to: { x: 10, y: 2, z: 0 },
-    radius: 0.45,
+    radius: 1.5,
     power: 1,
   });
-  assert.equal(effects[0].m.geometry.parameters.radiusTop, 0.45);
+  assert.equal(effects[0].m.geometry.parameters.radiusTop, 1.5);
+  for(let i=0;i<20;i++)system.puff({x:0,y:0,z:0},6,30);
+  assert.equal(effects.length,160);
 });

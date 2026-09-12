@@ -22,6 +22,7 @@
     o.stop(at + 0.24);
   }
   function puff(point, size = 1, count = 6) {
+    count=Math.min(count,Math.max(0,160-effects.length));
     for (let i = 0; i < count; i++) {
       const material = new T.MeshBasicMaterial({
         color: i % 3 ? 0xeaa15a : 0x555d4c,

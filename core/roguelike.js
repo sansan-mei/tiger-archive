@@ -6,37 +6,55 @@
 })(typeof window === "undefined" ? globalThis : window, function(C) {
   "use strict";
   const rewards = Object.freeze({
-    pistol: { name: "换装小手枪", description: "切换至小手枪，搭配穿透、弹射和闪电" },
-    pierce: { name: "贯穿弹", description: "手枪命中后穿透至前方 12 米内另一名敌人", weapon: "pistol" },
-    ricochet: { name: "弹射弹", description: "手枪额外弹射至 7 米内另一敌人，造成 15 伤害", requires: "pierce", weapon: "pistol" },
-    lightning: { name: "雷电弹匣", description: "每 3 次手枪命中，对附近最多 3 名敌人各造成 20 电击", requires: "ricochet", weapon: "pistol" },
-    heavyShell: { name: "震荡重弹", description: "标准炮暴击在命中点震荡 4 米，对附近敌人造成 30 伤害", weapon: "standard" },
-    execution: { name: "处决弹", description: "标准炮暴击对巨型与 Boss 感染者追加 60 伤害", requires: "heavyShell", weapon: "standard" },
-    suppression: { name: "压制弹链", description: "快速炮命中使感染者减速 45%，持续 2 秒", weapon: "rapid" },
-    crossfire: { name: "交叉火力", description: "快速炮命中后对 6 米内另一敌人追加 10 伤害", requires: "suppression", weapon: "rapid" },
-    wideBeam: { name: "广角透镜", description: "激光束半径从 0.45 米提升至 0.75 米", weapon: "laser" },
-    plasmaBurst: { name: "等离子爆发", description: "激光每次发射首次命中时，对目标周围 3 米敌人造成 25 伤害", requires: "wideBeam", weapon: "laser" },
-    blast: { name: "扩爆弹头", description: "火箭爆炸半径 +1 米，最多 3 级", weapon: "rocket" },
-    fire: { name: "燃烧弹头", description: "火箭留下 3 秒燃烧区，每半秒造成 8 伤害", requires: "blast", weapon: "rocket" },
-    chain: { name: "连锁殉爆", description: "击杀感染者触发 4 米、35 伤害次爆；次爆不会继续引爆", requires: "fire", weapon: "rocket" },
+    pistol: { name: "换装小手枪", description: "切换至小手枪，成长为雷神弹匣" },
+    pierce: { name: "贯穿弹", description: "子弹向前贯穿最多 3 名敌人，每名 20 伤害", weapon: "pistol" },
+    ricochet: { name: "双重弹射", description: "向 10 米内最多 2 名其他敌人弹射，各 20 伤害", requires: "pierce", weapon: "pistol" },
+    lightning: { name: "高压弹匣", description: "每 2 次命中电击 12 米内最多 5 名敌人，各 35 伤害", requires: "ricochet", weapon: "pistol" },
+    conductor: { name: "雷电网络", description: "电击额外跳跃一轮，单次最多命中 10 名不同敌人", requires: "lightning", weapon: "pistol" },
+    thunder: { name: "雷神降临", description: "每个弹匣最后一发命中召唤 8 米、120 伤害雷暴", requires: "conductor", weapon: "pistol" },
+    heavyShell: { name: "震荡重弹", description: "标准炮暴击产生 6 米、60 伤害震荡", weapon: "standard" },
+    execution: { name: "处决弹", description: "暴击对巨人与 Boss 追加 100 伤害", requires: "heavyShell", weapon: "standard" },
+    penetrator: { name: "钨芯贯甲弹", description: "暴击继续贯穿后方最多 2 名敌人，保持完整伤害", requires: "execution", weapon: "standard" },
+    earthquake: { name: "地震弹头", description: "暴击改为 8 米、100 伤害震荡，并在半秒后追加 60 伤害", requires: "penetrator", weapon: "standard" },
+    judgment: { name: "天罚炮弹", description: "暴击变为 200 直击、10 米 150 爆炸；对巨人与 Boss 追加 150", requires: "earthquake", weapon: "standard" },
+    suppression: { name: "重度压制", description: "快速炮命中减速 50%，持续 3 秒", weapon: "rapid" },
+    crossfire: { name: "交叉火力", description: "命中后对 8 米内另一名敌人追加 10 伤害", requires: "suppression", weapon: "rapid" },
+    multiCross: { name: "多重交叉", description: "交叉火力扩大为最多 3 名敌人，各 15 伤害", requires: "crossfire", weapon: "rapid" },
+    rupture: { name: "弱点撕裂", description: "命中已减速敌人额外造成 8 伤害", requires: "multiCross", weapon: "rapid" },
+    metalStorm: { name: "金属风暴", description: "射速翻倍；每 5 次命中追踪攻击最多 8 名敌人，各 30 伤害", requires: "rupture", weapon: "rapid" },
+    wideBeam: { name: "广角透镜", description: "激光束半径从 0.45 米提升至 1 米", weapon: "laser" },
+    capacitor: { name: "聚能电容", description: "激光伤害从 100 提升至 150", requires: "wideBeam", weapon: "laser" },
+    plasmaBurst: { name: "多重等离子", description: "前 3 个命中点各产生 4 米、60 伤害爆发", requires: "capacitor", weapon: "laser" },
+    refraction: { name: "光棱折射", description: "每次发射额外折射至 12 米内最多 4 名敌人，各 100 伤害", requires: "plasmaBurst", weapon: "laser" },
+    stellar: { name: "恒星射线", description: "1.5 米宽束、250 伤害、8 米 120 首爆并折射 6 名敌人", requires: "refraction", weapon: "laser" },
+    blast: { name: "巨型弹头", description: "火箭爆炸半径提升至 10 米，中心伤害提升至 100", weapon: "rocket" },
+    fire: { name: "烈焰地带", description: "留下 5 米燃烧区，持续 4 秒，每半秒 15 伤害", requires: "blast", weapon: "rocket" },
+    chain: { name: "尸爆连锁", description: "击杀感染者触发 6 米、80 伤害尸爆；尸爆不递归", requires: "fire", weapon: "rocket" },
+    cluster: { name: "集束弹头", description: "主爆炸后产生 5 个 4 米、50 伤害集束爆炸", requires: "chain", weapon: "rocket" },
+    doomsday: { name: "末日弹头", description: "每第 3 发变为 16 米、200 伤害核爆，并留下 8 米辐射区", requires: "cluster", weapon: "rocket" },
     novaRange: { name: "广域脉冲", description: "脉冲半径 +1.5 米，最多 3 级", requires: "nova" },
     frost: { name: "寒霜脉冲", description: "脉冲使命中敌人减速 45%，持续 5 秒", requires: "novaRange" },
     shatter: { name: "碎冰共振", description: "脉冲对已减速的敌人造成双倍伤害", requires: "frost" },
   });
-  const caps = Object.freeze({ haste:3, regen:3, nova:3, pierce:1, ricochet:1, lightning:1,
-    heavyShell:1, execution:1, suppression:1, crossfire:1, wideBeam:1, plasmaBurst:1,
-    blast:3, fire:1, chain:1, novaRange:3, frost:1, shatter:1 });
+  const caps = Object.freeze({ haste:3, regen:3, nova:3,
+    pierce:1, ricochet:1, lightning:1, conductor:1, thunder:1,
+    heavyShell:1, execution:1, penetrator:1, earthquake:1, judgment:1,
+    suppression:1, crossfire:1, multiCross:1, rupture:1, metalStorm:1,
+    wideBeam:1, capacitor:1, plasmaBurst:1, refraction:1, stellar:1,
+    blast:1, fire:1, chain:1, cluster:1, doomsday:1,
+    novaRange:3, frost:1, shatter:1 });
   const xpNeeded = level => 40 + (level - 1) * 20;
   const point = e => ({x:e.x,y:e.y+1.5,z:e.z});
   const enemies = b => b.entities.filter(e => e.tankType === "zombie" && e.alive);
   function initialize(b) {
     let seed = 2166136261;
     for (const ch of b.matchId + ":" + b.epoch) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
-    Object.assign(b.pve, { level:1, xp:0, rng:seed || 1, pending:{}, choiceIds:{}, nextChoiceId:1, hits:{}, hazards:[], bursts:[], nextHazard:1,
+    Object.assign(b.pve, { level:1, xp:0, rng:seed || 1, pending:{}, choiceIds:{}, nextChoiceId:1,
+      hits:{}, rapidHits:{}, rocketShots:{}, hazards:[], bursts:[], nextHazard:1,
       boss:{ stage:0, spawned:false, defeated:false, nextAttackAt:0, telegraph:null } });
     for (const p of b.entities.filter(e=>e.tankType!=="zombie")) {
       b.pve.upgrades[p.id] = Object.fromEntries(Object.keys(caps).map(k=>[k,0]));
-      b.pve.pending[p.id]=0; b.pve.hits[p.id]=0;
+      b.pve.pending[p.id]=0; b.pve.hits[p.id]=0; b.pve.rapidHits[p.id]=0; b.pve.rocketShots[p.id]=0;
     }
   }
   function random(b) {
@@ -78,12 +96,15 @@
       .sort((a,c)=>Math.hypot(a.x-from.x,a.z-from.z)-Math.hypot(c.x-from.x,c.z-from.z)||a.id.localeCompare(c.id));
   }
   function arc(b,owner,from,target,damage) {
-    b.damage(target,damage,owner,point(target));
-    b.emit("beam",{id:owner,from,to:point(target),radius:0.1,power:0.5});
+    const to=point(target),applied=b.damage(target,damage,owner,to);
+    if(applied)b.emit("beam",{id:owner,from,to,radius:0.1,power:0.5});
+    return applied;
   }
   function burst(b,owner,from,radius,damage,exclude=[]) {
+    const targets=nearby(b,from,radius,exclude);
     b.emit("explosion",{owner,...from,radius});
-    for(const target of nearby(b,from,radius,exclude))b.damage(target,damage,owner,point(target));
+    for(const target of targets)b.damage(target,damage,owner,point(target));
+    return targets;
   }
   function onDeath(b,target,owner,allRewards) {
     if(target.tankType!=="zombie")return;
@@ -95,7 +116,8 @@
     }
     addExperience(b,{walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10,allRewards);
     if(b.pve.upgrades[owner]?.chain && b.getEntity(owner)?.weaponType==="rocket" &&
-      !b.resolvingPveBurst && b.pve.bursts.length<16)b.pve.bursts.push({owner,...point(target)});
+      !b.resolvingPveBurst && b.pve.bursts.length<16)
+      b.pve.bursts.push({kind:"chain",at:b.tick+1,owner,...point(target),radius:6,damage:80});
   }
   function onHit(b,hit,shot) {
     const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),owner=b.getEntity(shot.owner),from=hit.point;
@@ -103,45 +125,105 @@
     if(shot.weaponType==="pistol") {
       const excluded=[hit.id];
       if(u.pierce) {
-        const end={x:from.x+shot.dx*12,y:from.y+shot.dy*12,z:from.z+shot.dz*12};
-        const next=b.collision(from,end,shot.owner,{ignoreIds:excluded});
-        if(next?.kind==="tank") { const pierced=b.getEntity(next.id);arc(b,shot.owner,from,pierced,20);excluded.push(pierced.id); }
+        const end={x:from.x+shot.dx*15,y:from.y+shot.dy*15,z:from.z+shot.dz*15};
+        for(let i=0;i<3;i++) {
+          const next=b.collision(from,end,shot.owner,{ignoreIds:excluded});
+          if(next?.kind!=="tank")break;
+          const pierced=b.getEntity(next.id);if(!pierced)break;
+          arc(b,shot.owner,from,pierced,20);excluded.push(pierced.id);
+        }
       }
-      if(u.ricochet) {const ricochet=nearby(b,from,7,excluded)[0];if(ricochet){arc(b,shot.owner,from,ricochet,15);excluded.push(ricochet.id);}}
-      b.pve.hits[shot.owner]=(b.pve.hits[shot.owner]+1)%3;
-      if(u.lightning && !b.pve.hits[shot.owner])for(const shocked of nearby(b,from,12,[hit.id]).slice(0,3))arc(b,shot.owner,from,shocked,20);
-    } else if(shot.weaponType==="standard" && shot.critical) {
-      if(u.heavyShell)burst(b,shot.owner,point(target),4,30,[target.id]);
-      if(u.execution && target.alive && ["brute","boss","titan"].includes(target.zombieType))
-        b.damage(target,60,shot.owner,point(target));
+      if(u.ricochet)for(const ricochet of nearby(b,from,10,excluded).slice(0,2)) {
+        arc(b,shot.owner,from,ricochet,20);excluded.push(ricochet.id);
+      }
+      b.pve.hits[shot.owner]=(b.pve.hits[shot.owner]+1)%2;
+      if(u.lightning&&!b.pve.hits[shot.owner]) {
+        const limit=u.conductor?10:5;
+        for(const shocked of nearby(b,from,12,[hit.id]).slice(0,limit))arc(b,shot.owner,from,shocked,35);
+      }
+      if(u.thunder&&shot.magazineFinal&&!shot.pveThunder) {
+        shot.pveThunder=true;
+        if(burst(b,shot.owner,point(target),8,120).length>=5) {
+          owner.ammo=C.WEAPONS.pistol.magazineSize;owner.cooldown=0;
+        }
+      }
+    } else if(shot.weaponType==="standard"&&shot.critical) {
+      const epic=u.judgment,origin=point(target);
+      if(epic)burst(b,shot.owner,origin,10,150);
+      else if(u.earthquake)burst(b,shot.owner,origin,8,100,[target.id]);
+      else if(u.heavyShell)burst(b,shot.owner,origin,6,60,[target.id]);
+      if(u.earthquake&&b.pve.bursts.length<16)
+        b.pve.bursts.push({kind:"quake",at:b.tick+30,owner:shot.owner,...origin,radius:8,damage:60});
+      if(u.execution&&target.alive&&["brute","boss","titan"].includes(target.zombieType))
+        b.damage(target,epic?150:100,shot.owner,origin);
+      if(u.penetrator) {
+        const excluded=[hit.id],end={x:from.x+shot.dx*30,y:from.y+shot.dy*30,z:from.z+shot.dz*30};
+        for(let i=0;i<2;i++) {
+          const next=b.collision(from,end,shot.owner,{ignoreIds:excluded});
+          if(next?.kind!=="tank")break;
+          const pierced=b.getEntity(next.id);if(!pierced)break;
+          arc(b,shot.owner,from,pierced,shot.damage);excluded.push(pierced.id);
+        }
+      }
     } else if(shot.weaponType==="rapid") {
-      if(u.suppression)target.slowUntil=Math.max(target.slowUntil,b.tick+120);
-      if(u.crossfire) {const side=nearby(b,from,6,[target.id])[0];if(side)arc(b,shot.owner,from,side,10);}
-    } else if(shot.weaponType==="laser" && u.plasmaBurst && !shot.pvePlasmaBurst) {
-      shot.pvePlasmaBurst=true;burst(b,shot.owner,point(target),3,25,[target.id]);
+      const wasSlowed=target.slowUntil>b.tick;
+      if(u.suppression)target.slowUntil=Math.max(target.slowUntil,b.tick+180);
+      if(u.crossfire)for(const side of nearby(b,from,8,[target.id]).slice(0,u.multiCross?3:1))
+        arc(b,shot.owner,from,side,u.multiCross?15:10);
+      if(u.rupture&&wasSlowed&&target.alive)b.damage(target,8,shot.owner,point(target));
+      if(u.metalStorm) {
+        b.pve.rapidHits[shot.owner]=(b.pve.rapidHits[shot.owner]+1)%5;
+        if(!b.pve.rapidHits[shot.owner])for(const tracked of nearby(b,from,12,[target.id]).slice(0,8))
+          arc(b,shot.owner,from,tracked,30);
+      }
+    } else if(shot.weaponType==="laser") {
+      if(u.plasmaBurst&&(shot.pvePlasmaBursts||0)<3) {
+        const first=!shot.pvePlasmaBursts,radius=u.stellar&&first?8:4,damage=u.stellar&&first?120:60;
+        shot.pvePlasmaBursts=(shot.pvePlasmaBursts||0)+1;
+        const excluded=[...(shot.rayTargetIds||[target.id]),...(shot.pvePlasmaVictims||[])],
+          struck=burst(b,shot.owner,point(target),radius,damage,excluded);
+        shot.pvePlasmaVictims=[...(shot.pvePlasmaVictims||[]),...struck.map(e=>e.id)];
+      }
+      if(u.refraction&&!shot.pveRefraction) {
+        shot.pveRefraction=true;
+        for(const refracted of nearby(b,from,12,shot.rayTargetIds||[target.id]).slice(0,u.stellar?6:4))
+          arc(b,shot.owner,from,refracted,100);
+      }
     }
   }
   function fireZone(b,hit,shot) {
-    if(!b.pve.upgrades[shot.owner]?.fire || shot.weaponType!=="rocket" ||
-      b.getEntity(shot.owner)?.weaponType!=="rocket")return;
-    if(b.pve.hazards.length>=12)b.pve.hazards.shift();
-    b.pve.hazards.push({id:b.pve.nextHazard++,owner:shot.owner,x:hit.point.x-shot.dx*.04,y:(b.map.levels.filter(level=>level.y<=hit.point.y+.05).at(-1)?.y || 0)+.15,z:hit.point.z-shot.dz*.04,
-      radius:3,until:b.tick+180,nextTick:b.tick+30});
+    const u=b.pve.upgrades[shot.owner],owner=b.getEntity(shot.owner);
+    if(!u||shot.weaponType!=="rocket"||owner?.weaponType!=="rocket")return;
+    if(u.fire) {
+      if(b.pve.hazards.length>=12)b.pve.hazards.shift();
+      const nuclear=u.doomsday&&shot.doomsday;
+      b.pve.hazards.push({id:b.pve.nextHazard++,owner:shot.owner,x:hit.point.x-shot.dx*.04,
+        y:(b.map.levels.filter(level=>level.y<=hit.point.y+.05).at(-1)?.y||0)+.15,z:hit.point.z-shot.dz*.04,
+        radius:nuclear?8:5,damage:nuclear?20:15,until:b.tick+(nuclear?300:240),nextTick:b.tick+30});
+    }
+    if(u.cluster) {
+      const counts=new Map(),center=hit.point;
+      for(let i=0;i<5;i++) {
+        const angle=(shot.id%17+i)*Math.PI*2/5,p={x:center.x+Math.cos(angle)*5,y:center.y,z:center.z+Math.sin(angle)*5};
+        b.emit("explosion",{owner:shot.owner,...p,radius:4});
+        for(const z of nearby(b,p,4))if((counts.get(z.id)||0)<2) {
+          counts.set(z.id,(counts.get(z.id)||0)+1);b.damage(z,50,shot.owner,point(z));
+        }
+      }
+    }
   }
   function tick(b) {
-    for(const zone of b.pve.hazards) if(b.tick>=zone.nextTick && b.tick<=zone.until) {
+    for(const zone of b.pve.hazards)if(b.tick>=zone.nextTick&&b.tick<=zone.until) {
       zone.nextTick=b.tick+30;
-      const from = { x: zone.x, y: zone.y + 1.35, z: zone.z };
+      const from={x:zone.x,y:zone.y+1.35,z:zone.z};
       for(const z of enemies(b))
-        if (Math.abs(z.y + .15 - zone.y) < 2 && Math.hypot(z.x-zone.x,z.z-zone.z)<=zone.radius && visible(b,from,point(z)))
-          b.damage(z,8,zone.owner,point(z));
+        if(Math.abs(z.y+.15-zone.y)<2&&Math.hypot(z.x-zone.x,z.z-zone.z)<=zone.radius&&visible(b,from,point(z)))
+          b.damage(z,zone.damage,zone.owner,point(z));
     }
     b.pve.hazards=b.pve.hazards.filter(h=>h.until>b.tick);
-    const jobs=b.pve.bursts.splice(0,16);b.resolvingPveBurst=true;
-    try {for(const job of jobs) {
-      b.emit("explosion",{owner:job.owner,x:job.x,y:job.y,z:job.z,radius:4});
-      for(const z of nearby(b,job,4))b.damage(z,35,job.owner,point(z));
-    }} finally {b.resolvingPveBurst=false;}
+    const jobs=b.pve.bursts.filter(job=>job.at<=b.tick).slice(0,16),due=new Set(jobs);
+    b.pve.bursts=b.pve.bursts.filter(job=>!due.has(job));b.resolvingPveBurst=true;
+    try {for(const job of jobs)burst(b,job.owner,job,job.radius,job.damage);} finally {b.resolvingPveBurst=false;}
   }
   function bossAttack(b) {
     const state=b.pve.boss, boss=b.entities.find(e=>["boss","titan"].includes(e.zombieType)&&e.alive);
@@ -200,20 +282,25 @@
     const object=o=>o && typeof o==="object"&&!Array.isArray(o);
     const pos=o=>object(o)&&['x','y','z'].every(k=>Number.isFinite(o[k])&&Math.abs(o[k])<=(k==='y'?map.levels.at(-1).y+4:map.worldLimit));
     if(!int(v.level,20)||v.level<1||!int(v.xp,xpNeeded(v.level)-1)||!int(v.rng,4294967295)||!v.rng||
-       !int(v.nextChoiceId)||!object(v.pending)||!object(v.choiceIds)||!object(v.hits)||!int(v.nextHazard)||
+       !int(v.nextChoiceId)||!object(v.pending)||!object(v.choiceIds)||!object(v.hits)||
+       !object(v.rapidHits)||!object(v.rocketShots)||!int(v.nextHazard)||
        !Array.isArray(v.hazards)||v.hazards.length>12||!Array.isArray(v.bursts)||v.bursts.length>16)throw Error('Invalid run progression');
-    for(const table of [v.pending,v.hits])if(Object.keys(table).length!==players.length||Object.keys(table).some(id=>!ids.has(id)))throw Error('Invalid run owners');
+    for(const table of [v.pending,v.hits,v.rapidHits,v.rocketShots])if(Object.keys(table).length!==players.length||Object.keys(table).some(id=>!ids.has(id)))throw Error('Invalid run owners');
     for(const p of players) {
       const u=v.upgrades[p.id];
       if(!object(u)||Object.keys(u).length!==Object.keys(caps).length||Object.entries(caps).some(([k,max])=>!int(u[k],max))||
          Object.entries(rewards).some(([key,r])=>r.requires&&u[key]>0&&!u[r.requires])||
-         !int(v.pending[p.id],19)||!int(v.hits[p.id],2))throw Error('Invalid run upgrade');
+         !int(v.pending[p.id],19)||!int(v.hits[p.id],1)||!int(v.rapidHits[p.id],4)||!int(v.rocketShots[p.id],2))throw Error('Invalid run upgrade');
       if(Boolean(v.choices[p.id])!==Boolean(v.pending[p.id]) && !p.forfeited && s.status!=="finished")throw Error('Missing reward');
     }
     if(Object.keys(v.choiceIds).length!==Object.keys(v.choices).length)throw Error('Invalid reward identifiers');
     for(const id of Object.keys(v.choices))if(!int(v.choiceIds[id])||v.choiceIds[id]>=v.nextChoiceId)throw Error('Invalid reward identifier');
-    for(const h of v.hazards)if(!pos(h)||!ids.has(h.owner)||!int(h.id)||!int(h.until)||!int(h.nextTick)||h.radius!==3)throw Error('Invalid fire zone');
-    for(const h of v.bursts)if(!pos(h)||!ids.has(h.owner))throw Error('Invalid burst');
+    for(const h of v.hazards)if(!pos(h)||!ids.has(h.owner)||!int(h.id)||!int(h.until)||!int(h.nextTick)||
+      ![[5,15],[8,20]].some(([r,d])=>h.radius===r&&h.damage===d)||h.nextTick<=s.tick||h.nextTick>h.until||h.until>s.tick+300)
+      throw Error('Invalid fire zone');
+    for(const h of v.bursts)if(!pos(h)||!ids.has(h.owner)||!['chain','quake'].includes(h.kind)||!int(h.at)||h.at<=s.tick||
+      (h.kind==='chain'&&(h.radius!==6||h.damage!==80||h.at>s.tick+1))||
+      (h.kind==='quake'&&(h.radius!==8||h.damage!==60||h.at>s.tick+30)))throw Error('Invalid burst');
     const boss=v.boss;
     if(!object(boss)||!int(boss.stage,2)||typeof boss.spawned!=="boolean"||typeof boss.defeated!=="boolean"||!int(boss.nextAttackAt)||
       (boss.stage===0&&(boss.spawned||boss.defeated))||(boss.stage===1&&boss.defeated)||

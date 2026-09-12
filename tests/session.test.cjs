@@ -109,6 +109,14 @@ test("snapshot packets cannot roll a replica backward, including equal-tick stat
   assert.equal(r.receive(old).ok, false);
   assert.equal(r.current.status, "paused");
 });
+test("tier-five laser events accept 1.5 metre beams but reject oversized radii",()=>{
+  const {a,clients}=setup();
+  a.battle.emit("beam",{id:"p0",radius:1.5,power:1,from:{x:0,y:2,z:0},to:{x:10,y:2,z:0}});
+  a.history.push(...a.battle.events);
+  const packet=a.statePacket(),bad=C.clone(packet);bad.events[0].radius=2.1;
+  assert.equal(clients[0].r.receive(packet).ok,true);
+  assert.equal(clients[1].r.receive(bad).ok,false);
+});
 test("event history repetition is deduplicated by event ID", () => {
   const { a, clients } = setup(),
     c = clients[0];

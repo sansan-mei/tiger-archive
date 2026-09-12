@@ -115,7 +115,7 @@
       }
       if (e.type === "beam") beam(e);
       if (e.type === "explosion") {
-        puff(e, 3, 16);
+        puff(e, Math.min(6, Math.max(1.5, (e.radius || 8) / 3)), Math.min(30, 10 + Math.round(e.radius || 8)));
         sound(false, 0.8);
       }
       if (e.type === "impact") {
