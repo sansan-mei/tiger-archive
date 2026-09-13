@@ -50,6 +50,7 @@
       this.sequence = 0;
       this.lastSent = 0;
       this.receivedAt = 0;
+      this.packetError = null;
       this.snapshots = [];
       this.renderTick = null;
       this.renderAt = null;
@@ -74,7 +75,6 @@
       this.socket = ws;
       ws.addEventListener("open", () => {
         if (this.socket !== ws) return;
-        this.retry = 0;
         this.onStatus("已连接");
         this.send({
           ...this.action,
@@ -163,7 +163,17 @@
             previousTick = this.replica.current?.tick,
             arrivedAt = this.now();
           const result = this.replica.receive(m);
-          if (!result.ok) throw new Error(result.reason);
+          if (!result.ok) {
+            if (this.packetError !== result.reason)
+              this.onStatus("状态包校验失败：" + result.reason + "；等待同步恢复");
+            this.packetError = result.reason;
+            if (!this.replica.current && this.credentials)
+              this.socket?.close(4002, "Invalid initial state");
+            return;
+          }
+          const hadPacketError = this.packetError !== null;
+          this.packetError = null;
+          this.retry = 0;
           this.stableState = this.replica.current;
           this.receivedAt = arrivedAt;
           const snapshot = this.replica.current;
@@ -187,6 +197,8 @@
             this.stale = false;
             if (recovered && !first)
               this.onStatus("战场同步已恢复，点击继续战斗");
+            else if (hadPacketError && !first)
+              this.onStatus("战场同步已恢复");
           }
           if (!first) this.events.push(...result.events);
           if (first) {

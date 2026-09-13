@@ -297,6 +297,13 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(210);
   assert.equal(nodes.get("network-quality").hidden, false);
   assert.match(nodes.get("network-quality").textContent, /FPS · 延迟 .* ms · 距收包/);
+  const rejected=rooms.packet(room);
+  rejected.snapshot.entities[0].hp=999999;
+  sockets[0].emit("message",{data:JSON.stringify(rejected)});
+  now+=100;frame(now);now+=100;frame(now);
+  assert.match(nodes.get("network-quality").textContent,/校验失败.*Invalid entity state/);
+  advance(6);
+  assert.doesNotMatch(nodes.get("network-quality").textContent,/校验失败/);
   assert.equal(e.floor, 1);
   for (const fn of windowEvents.keyup)
     fn({ code: "KeyW", preventDefault() {} });

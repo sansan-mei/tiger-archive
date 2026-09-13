@@ -656,7 +656,8 @@
         quality.textContent = session.online
           ? Math.round(1 / Math.max(0.001, frameSeconds)) + " FPS · 延迟 " +
             (session.rtt === null ? "测量中" : Math.round(session.rtt) + " ms") +
-            " · 距收包 " + Math.round(Math.max(0, performance.now() - session.receivedAt)) + " ms"
+            " · 距收包 " + Math.round(Math.max(0, performance.now() - session.receivedAt)) + " ms" +
+            (session.packetError ? " · 校验失败 " + session.packetError : "")
           : "";
       }
     }

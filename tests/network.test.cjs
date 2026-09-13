@@ -445,6 +445,69 @@ function stalledClient() {
     },
   };
 }
+test("a rejected state keeps the previous frame, records the reason and accepts the next valid state", () => {
+  const t = stalledClient(), previous = t.n.current(), receivedAt = t.n.receivedAt;
+  t.time(100);
+  const bad = t.authority.statePacket();
+  bad.snapshot.entities[0].hp = 999999;
+  t.n.message(JSON.stringify(bad));
+  assert.equal(t.n.current(), previous);
+  assert.equal(t.n.receivedAt, receivedAt);
+  assert.equal(t.n.stopped, false);
+  assert.equal(t.sockets[0].readyState, 1);
+  assert.match(t.n.packetError, /Invalid entity state/);
+  assert.match(t.statuses.at(-1), /Invalid entity state/);
+  t.authority.step();
+  t.time(200);
+  t.deliver();
+  assert.equal(t.n.current().tick, 1);
+  assert.equal(t.n.receivedAt, 200);
+  assert.equal(t.n.packetError, null);
+  assert.match(t.statuses.at(-1), /已恢复/);
+  t.n.close();
+});
+test("repeated rejected states pause controls and reconnect instead of freezing forever", () => {
+  const t = stalledClient();
+  for (const now of [100, 200, 300]) {
+    t.time(now);
+    const bad = t.authority.statePacket();
+    bad.snapshot.entities[0].hp = 999999;
+    t.n.message(JSON.stringify(bad));
+  }
+  assert.equal(t.statuses.filter(s=>s.includes("校验失败")).length,1);
+  t.time(1600);
+  t.n.advance(0,{fire:true});
+  assert.equal(t.n.stale,true);
+  assert.equal(t.n.suspended,true);
+  assert.match(t.n.packetError,/Invalid entity state/);
+  t.time(5000);
+  t.n.advance(0,{});
+  assert.equal(t.sockets[0].readyState,3);
+  assert.equal(t.scheduled.length,1);
+  assert.match(t.n.packetError,/Invalid entity state/);
+  t.n.close();
+});
+test("a rejected first state after welcome retries instead of waiting forever", () => {
+  const t = stalledClient();
+  t.authority.detach("peer");
+  t.n.message(JSON.stringify(t.authority.attach("peer2","p1")));
+  const bad = t.authority.statePacket();
+  bad.snapshot.entities[0].hp = 999999;
+  t.n.message(JSON.stringify(bad));
+  assert.equal(t.n.replica.current,null);
+  assert.match(t.n.packetError,/Invalid entity state/);
+  assert.equal(t.sockets[0].readyState,3);
+  assert.equal(t.scheduled.length,1);
+  assert.equal(t.n.stopped,false);
+  t.scheduled[0]();t.sockets[1].emit("open");
+  assert.equal(t.n.retry,1,"failed reconnects must keep their backoff");
+  t.authority.detach("peer2");
+  t.n.message(JSON.stringify(t.authority.attach("peer3","p1")));
+  t.deliver();
+  assert.equal(t.n.packetError,null);
+  assert.equal(t.n.retry,0,"a valid state resets reconnect backoff");
+  t.n.close();
+});
 test("jittered snapshots never rewind the render clock or teleport on packet arrival", () => {
   const t = stalledClient();
   let lastX = 0;
