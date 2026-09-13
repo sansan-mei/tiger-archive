@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v30）
+# 多人接入边界（协议 v31）
 
 ## 已实现
 
@@ -57,12 +57,12 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 30, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 31, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 30, type: "input", matchId, epoch, connection,
+      version: 31, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state（以下 snapshot 仅列主要字段；PvE 额外包含 `mode: "pve"` 和 `pve`）：
 
     {
-      version: 30, type: "state", matchId, epoch, snapshotSeq,
+      version: 31, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { kind: "network", version, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups, ... },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -107,7 +107,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v30 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
+协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v31 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
@@ -128,7 +128,7 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 30, rooms: [{ code, mode, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。`mode` 为 `pvp` 或 `pve`。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 31, rooms: [{ code, mode, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。`mode` 为 `pvp` 或 `pve`。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
 浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v14；需要重启 Node 服务加载接口。
 
@@ -239,3 +239,7 @@ PvE 五种普通感染者与零号、泰坦两只 Boss 使用同一人数系数�
 ## v30：回血奖励改为攻击模块
 
 移除急救补给与击杀回血的生命回流，保留自愈因子和清波固定恢复 20 生命。原三选一奖池新增猎巨弹芯（对重锤巨人/Boss 直击伤害 +30%）与震荡余波（4 米内最多 3 名其他敌人，3 级分别造成 30/40/50 伤害）。震荡余波复用模块次生伤害的遮挡、去直击目标、非递归和单 tick 预算。模块升级键集合与合法等级改变，协议升为 v30；旧 v29 检查点不迁移，旧房间需重开。其他玩法与 PvP 规则不变。
+
+## v31：PvE 不再因时间耗尽判负
+
+PvE 只在全队阵亡或击败最终 Boss 后结算；取消权威模拟的 16 分钟截止及房间墙钟的 PvE 判负，清波/中期 Boss 的推进规则不变。HUD 在 PvE 显示“已进行”时间，不再倒计时；PvP 仍保持 8 分钟模拟赛制与 15 分钟房间异常兜底。移除 `RULES.pveDuration`，协议升 v31，旧 v30 客户端与检查点不兼容，旧房间需重开。

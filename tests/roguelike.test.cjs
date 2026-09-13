@@ -181,8 +181,7 @@ test('shockwave damage and explosion survive the authoritative network packet',(
   assert.equal(replica.current.entities.find(e=>e.id===side.id).hp,30);
   assert.ok(received.events.some(e=>e.type==='explosion'&&e.radius===4));
 });
-test('v29 checkpoints and retired healing upgrades are rejected under v30',()=>{
-  assert.equal(C.VERSION,30);
+test('v29 checkpoints and retired healing upgrades are rejected',()=>{
   const b=make(),saved=b.snapshot();
   const old=C.clone(saved);old.version=29;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
@@ -539,7 +538,8 @@ test('wave-eight boss warns before damage, revives teammates and does not end th
   assert.equal(p.hp,80);assert.equal(q.hp,35);assert.deepEqual(copy.snapshot(),b.snapshot());
   boss.protectedUntil=0;b.damage(boss,100000,p.id,boss);b.step();
   assert.equal(b.status,'playing');assert.equal(b.pve.result,null);assert.equal(b.pve.boss.spawned,false);
-  const timed=make();timed.tick=C.RULES.pveDuration-1;timed.step();assert.equal(timed.pve.result,'defeat');
+  const timed=make();timed.tick=16*60*C.TICK_RATE-1;timed.step();
+  assert.equal(timed.status,'playing');assert.equal(timed.pve.result,null);
 });
 test('boss predicts movement with a faster wide strike and keeps summoning pressure',()=>{
   const b=make(1,C.MAP),p=b.entities[0];enterBossWave(b,8);

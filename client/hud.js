@@ -133,14 +133,14 @@
             "/" +
             weapon.criticalHits +
             " · 直接命中积攒";
-    const remaining = Math.max(
-      0,
-      Math.ceil(((truth.mode === "pve" ? C.RULES.pveDuration : C.RULES.duration) - truth.tick) / 60),
-    );
+    const seconds = truth.mode === "pve"
+      ? Math.floor(truth.tick / 60)
+      : Math.max(0, Math.ceil((C.RULES.duration - truth.tick) / 60));
     $("battle-clock").textContent =
-      String(Math.floor(remaining / 60)).padStart(2, "0") +
+      (truth.mode === "pve" ? "已进行 " : "") +
+      String(Math.floor(seconds / 60)).padStart(2, "0") +
       ":" +
-      String(remaining % 60).padStart(2, "0");
+      String(seconds % 60).padStart(2, "0");
     $("scoreboard").replaceChildren(
       ...truth.entities
         .filter((e) => e.tankType !== "zombie")

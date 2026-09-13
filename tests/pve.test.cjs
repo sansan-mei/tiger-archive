@@ -31,9 +31,16 @@ test("PvE uses a ground-only authority map while PvP keeps all floors and ramps"
   const ramp=pve.snapshot();Object.assign(ramp.entities[0],{rampId:'west-01',rampDir:1});
   assert.throws(()=>S.validateSnapshot(ramp),/Invalid ramp state/);
 });
-test('PvP lasts eight minutes while the sixteen-wave PvE campaign lasts sixteen minutes', () => {
+test('PvE authority does not defeat a living team at or after the old sixteen-minute deadline',()=>{
+  const b=create(),p=b.entities[0],oldDeadline=16*60*C.TICK_RATE;
+  b.tick=oldDeadline-1;b.step();
+  assert.equal(b.status,'playing');assert.equal(b.pve.result,null);assert.equal(p.hp,80);
+  b.tick=oldDeadline*2;b.step();
+  assert.equal(b.status,'playing');assert.equal(b.pve.result,null);
+  S.validateSnapshot(b.snapshot());
+});
+test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulation deadline', () => {
   assert.equal(C.RULES.duration, 8 * 60 * C.TICK_RATE);
-  assert.equal(C.RULES.pveDuration,16*60*C.TICK_RATE);
   assert.throws(() => new C.Battle({participants:participants()}));
   const b=create(), p=b.entities[0];
   assert.equal(p.tankType, 'human'); assert.equal(p.weaponType,'pistol'); assert.equal(p.hp,80);
@@ -41,8 +48,14 @@ test('PvP lasts eight minutes while the sixteen-wave PvE campaign lasts sixteen 
   p.kills=15; b.step(); assert.equal(b.status,'playing');
   assert.throws(()=>new C.Battle({participants:[{...participants()[0],tankType:'zombie'},...participants(2).slice(1)]}));
   b.tick=C.RULES.duration-1;b.step();assert.equal(b.status,'playing');S.validateSnapshot(b.snapshot());
-  b.tick = C.RULES.pveDuration-1; b.step(); assert.equal(b.pve.result,'defeat');
-  assert.equal(b.status,'finished'); S.validateSnapshot(b.snapshot());
+  b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
+  assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
+});
+test('untimed PvE uses v31 and rejects old v30 checkpoints',()=>{
+  assert.equal(C.VERSION,31);
+  assert.equal(Object.hasOwn(C.RULES,'pveDuration'),false);
+  const old=create().snapshot();old.version=30;
+  assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
 test('PvE prevents direct, self and splash friendly fire while retaining zombie damage', () => {
   const b=create(2), [p, ally]=b.entities, z=enemies(b)[0];

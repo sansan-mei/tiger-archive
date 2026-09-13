@@ -128,7 +128,7 @@
     }
     for (const id of Object.keys(pve.choices))
       if (!players.some((p) => p.id === id)) { delete pve.choices[id]; delete pve.choiceIds[id]; pve.pending[id] = 0; }
-    if (!players.some((p) => p.alive) || pve.boss.defeated || b.tick >= C.RULES.pveDuration) {
+    if (!players.some((p) => p.alive) || pve.boss.defeated) {
       pve.result = players.some((p) => p.alive) && pve.boss.defeated ? "victory" : "defeat";
       b.status = "finished";
       b.winnerId = null;
