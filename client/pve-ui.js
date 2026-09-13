@@ -1,5 +1,5 @@
 /* Small wave HUD and keyboard/touch reward choices; sends intentions only. */
-(window.TankClient ??= {}).createPveUI = function ({ C, $, choose }) {
+(window.TankClient ??= {}).createPveUI = function ({ C, $, choose, chooseTrial, startNextWave, isHost }) {
   const panel = $("pve-rewards"), cards = $("pve-choices");
   let current = null, signature = "", deferred = false, match = null;
   const toggle = $("pve-toggle");
@@ -7,6 +7,11 @@
   function select(index) {
     if (current?.options[index]) choose(current.wave, current.options[index], current.offerId);
   }
+  const safe = $("trial-safe"), risk = $("trial-risk"), early = $("trial-early");
+  safe?.addEventListener("click",()=>{ if(currentTrial)chooseTrial(currentTrial.wave,"safe"); });
+  risk?.addEventListener("click",()=>{ if(currentTrial)chooseTrial(currentTrial.wave,"risk"); });
+  early?.addEventListener("click",()=>{ if(currentTrial)startNextWave(currentTrial.wave); });
+  let currentTrial = null;
   document.addEventListener("keydown", (event) => {
     if (event.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName)) return;
     if (event.code === "KeyU" && current) { deferred = !deferred; event.preventDefault(); }
@@ -21,9 +26,21 @@
       const pve = state.mode === "pve" ? state.pve : null,
         boss = pve ? state.entities.find(e => ['boss','titan'].includes(e.zombieType) && e.alive) : null,
         bossName = boss ? C.ZOMBIE_SPECS[boss.zombieType].name : "";
-      const options = pve?.choices[id];
+      const options = pve?.choices[id], trial = pve?.trial;
+      currentTrial = pve?.nextWaveAt > state.tick && pve.wave > 0 && state.status === "playing"
+        ? {wave:pve.wave} : null;
       const matchKey = state.matchId + ":" + state.epoch;
       if (match !== matchKey) { match = matchKey; deferred = false; }
+      const trialEl = $("trial-choice");
+      if (trialEl) {
+        trialEl.hidden = !trial || state.status !== "playing";
+        if (trialEl.hidden) trialEl.textContent = "";
+        else if (trial.choice === null) trialEl.textContent = "第 " + trial.forWave + " 波选择：稳进 / 险进（下波经验 +25%）";
+        else trialEl.textContent = "已选 " + (trial.choice === "risk" ? "险进" : "稳进") + " · 下一波准备中";
+      }
+      if (safe) safe.hidden = !trial || trial.choice !== null || !isHost();
+      if (risk) risk.hidden = !trial || trial.choice !== null || !isHost();
+      if (early) early.hidden = !currentTrial || !isHost();
       $("pve-progress").hidden = !pve;
       if (pve) {
         $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);

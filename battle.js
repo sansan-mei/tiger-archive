@@ -33,7 +33,7 @@
   let session = new window.TankSession.LocalSession(),
     network = null;
   let snapshot = session.current(),
-    playerId = session.playerId;
+    playerId = session.playerId, roomHost = false;
   const effects = [],
     sphere = new T.IcosahedronGeometry(1, 0),
     shellMat = new T.MeshBasicMaterial({ color: 0xffd18a });
@@ -128,7 +128,9 @@
       if (e.type === "damage" && e.id === playerId) {
         damageTime = 0.6;
         attackerId = e.owner;
-        notify("受到攻击 −" + Math.ceil(e.amount) + " · 寻找掩体");
+        const source = session.current().entities.find(body=>body.id===e.owner),
+          name = source?.zombieType ? C.ZOMBIE_SPECS[source.zombieType].name : e.owner || "未知来源";
+        notify("受到" + name + "攻击 −" + Math.ceil(e.amount) + " · 寻找掩体");
         sound(false, 0.5);
       }
       if (e.type === "damage" && e.owner === playerId) {
@@ -228,7 +230,11 @@
       clearInput();
       network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId });
     }
-  } });
+  }, chooseTrial:(wave,choice)=>{
+    if(session.online&&!session.suspended)network.send({type:"trial",epoch:session.current().epoch,wave,choice});
+  }, startNextWave:wave=>{
+    if(session.online&&!session.suspended)network.send({type:"startWave",epoch:session.current().epoch,wave});
+  }, isHost:()=>roomHost });
   function config() {
     return {
       tankType: $("tank-select").value,
@@ -385,6 +391,14 @@
               " 死亡";
             return row;
           }),
+        ...(s.mode === "pve" ? [(() => {
+          const row=document.createElement("p"),u=s.pve.upgrades[playerId]||{},
+            modules=Object.entries(u).filter(([key,level])=>level>0&&C.PVE.rewards[key]?.module)
+              .map(([key,level])=>C.PVE.rewards[key].name+(level>1?" "+level+"级":""));
+          row.textContent="本局构筑 · "+(C.WEAPONS[p?.weaponType]?.name||"小手枪")+
+            " · "+(modules.join(" · ")||"暂无通用模块");
+          return row;
+        })()] : []),
       );
       $("menu-description").textContent =
         (s.mode === "pve" ? "存活至第 " + s.pve.wave + " 波" : "获胜者：" + (s.winnerId || "平局")) +
@@ -705,6 +719,7 @@
     $("current-room-code").textContent = room.code;
     const me = room.players.find((p) => p.id === network.entityId),
       host = room.host === me?.id;
+    roomHost = host;
     $("room-players").replaceChildren(
       ...room.players.map((p) => {
         const li = document.createElement("li");
@@ -736,7 +751,7 @@
       $("restart-button").hidden = true;
       $("menu-title").textContent = "准备大厅";
       $("menu-description").textContent =
-        room.mode === "pve" ? "合作生存 · 1–8 人 · 人类＋小手枪开局，击杀共享经验，按 1 / 2 / 3 升级、U 暂存；8 分钟内击败最终 Boss。" :
+        room.mode === "pve" ? "合作生存 · 1–8 人 · 人类＋小手枪开局，击杀共享经验，按 1 / 2 / 3 升级、U 暂存；击败最终 Boss，不限时。" :
           "分享房间码，所有人准备后由房主开局（2–8 人，8 分钟）。";
       if (me) {
         $("tank-select").value = me.tankType;

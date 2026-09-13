@@ -121,7 +121,9 @@
       else b.pve.boss.spawned=false;
       return;
     }
-    addExperience(b,{walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10,allRewards);
+    const xp = {walker:10,cone:15,runner:12,bucket:25,brute:40}[target.zombieType]||10;
+    const bonus = b.pve.riskyWave && b.pve.riskyWave===b.pve.wave?1.25:1;
+    addExperience(b,Math.ceil(xp*bonus),allRewards);
     const budget=b.pveChainBudget;
     if(b.pve.upgrades[owner]?.chain && b.getEntity(owner)?.weaponType==="rocket" &&
       !b.resolvingPveBurst && !b.moduleSecondary && budget?.owner===owner && budget.remaining>0 && b.pve.bursts.length<16) {

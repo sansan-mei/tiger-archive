@@ -186,6 +186,8 @@
     chooseUpgrade(id, wave, choice, offerId) {
       return Systems.pve.choose(this, id, wave, choice, offerId);
     }
+    chooseTrial(wave, choice) { return Systems.pve.chooseTrial(this, wave, choice); }
+    startNextWave(wave) { return Systems.pve.startNextWave(this, wave); }
     pveDeath(target, owner) {
       Systems.pve.progression.onDeath(this, target, owner, Systems.pve.rewards);
     }

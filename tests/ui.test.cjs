@@ -561,6 +561,14 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(12);
   assert.match(nodes.get("pve-build").textContent,/震荡余波 2级/);
   assert.equal(modulePlayer.weaponType,"rocket");
+  survival.pve.wave=4;survival.pve.queue=0;survival.pve.nextWaveAt=0;
+  for(const z of survival.entities.filter(e=>e.tankType==='zombie')){z.alive=false;z.hp=0;z.maxHp=C.PVE.healthFor(z.zombieType,1,4);}
+  advance(12);
+  assert.equal(nodes.get('trial-risk').hidden,false,'host sees the risk decision');
+  nodes.get('trial-risk').emit('click');advance(12);
+  assert.equal(survival.pve.trial.choice,'risk');
+  nodes.get('trial-early').emit('click');advance(12);
+  assert.equal(survival.pve.wave,5);
   survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;
   advance(12);
   const boss = survival.entities.find(e=>e.zombieType === "boss");
@@ -575,5 +583,6 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   titan.protectedUntil=0;survival.damage(titan,100000,survival.entities[0].id,titan);
   advance(12);
   assert.equal(nodes.get("menu-title").textContent, "撤离成功");
-  assert.equal(nodes.get("match-results").children.length, 1);
+  assert.equal(nodes.get("match-results").children.length, 2);
+  assert.match(nodes.get("match-results").children[1].textContent,/火箭筒.*燃烧弹芯.*震荡余波/);
 });

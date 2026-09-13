@@ -63,6 +63,232 @@ function setup() {
     },
   };
 }
+const enemies=b=>b.entities.filter(e=>e.tankType==='zombie');
+function create(){const b=new C.Battle({mode:'pve',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]});b.start();return b;}
+test('cone throw is warned, travels from authority and stops at solid cover',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:12,z:55,alive:true,zombieType:'cone',hp:C.PVE.healthFor('cone',1,4),
+    maxHp:C.PVE.healthFor('cone',1,4),protectedUntil:0});
+  Object.assign(b.pve,{wave:4,nextWaveAt:100000,queue:0});
+  for(const enemy of enemies(b))if(enemy!==z)enemy.maxHp=C.PVE.healthFor(enemy.zombieType,1,4);
+  b.step();
+  assert.ok(b.pve.enemyAttacks.some(a=>a.owner===z.id&&a.phase==='warn'));
+  const hp=p.hp;
+  for(let i=0;i<30;i++)b.step();
+  assert.equal(p.hp,hp,'warning is dodgeable before damage');
+  S.validateSnapshot(b.snapshot());
+  for(const mutate of [a=>a.phase='teleport',a=>a.at=-1,a=>a.tx=1e9,a=>a.owner='p0',
+    a=>{a.phase='flight';a.at=b.tick+120;a.x=-20;a.z=55;}]){
+    const forged=b.snapshot();mutate(forged.pve.enemyAttacks[0]);
+    assert.throws(()=>S.validateSnapshot(forged),/Invalid PvE attack/);
+  }
+});
+test('a naturally cast runner dash hits a wall after the player walks away',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:9.8,z:52.9,protectedUntil:0});
+  Object.assign(z,{x:13,z:52.01,alive:true,zombieType:'runner',hp:C.PVE.healthFor('runner',1,6),
+    maxHp:C.PVE.healthFor('runner',1,6),protectedUntil:0});
+  Object.assign(b.pve,{wave:6,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,6);
+  assert.equal(b.sight(z,p),true);
+  b.step();assert.equal(b.pve.enemyAttacks[0]?.phase,'warn');
+  let stunned=false;
+  for(let i=0;i<70;i++){
+    b.step({p0:{forward:true,moveYaw:Math.PI/2}});
+    S.validateSnapshot(b.snapshot());
+    if(b.pve.enemyAttacks[0]?.phase==='stun'){stunned=true;break;}
+  }
+  assert.equal(stunned,true,'legitimate wall contact triggers the one-second stagger');
+  assert.deepEqual(z.brain.path,[]);
+});
+test('runner dash endpoint contact is dangerous behind the telegraph start',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:5,z:55,alive:true,zombieType:'runner',hp:C.PVE.healthFor('runner',1,6),
+    maxHp:C.PVE.healthFor('runner',1,6),protectedUntil:0});
+  Object.assign(b.pve,{wave:6,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,6);
+  b.step();const a=b.pve.enemyAttacks[0];assert.equal(a.phase,'warn');
+  // Position-only contact probe at the point confirmed by independent review; the cast itself is real.
+  Object.assign(p,{x:6.2,z:56.13});let dashHits=0;
+  for(let i=0;i<55;i++){
+    const events=b.step();S.validateSnapshot(b.snapshot());
+    for(const e of events)if(e.type==='damage'&&e.id===p.id&&e.owner===z.id&&a.phase==='cooldown')dashHits++;
+  }
+  assert.equal(dashHits,1,'contact just behind the locked-line start is part of the warned danger zone');
+});
+test('runner contact at 1.5m lateral offset stays inside the displayed warning corridor',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:5,z:55,alive:true,zombieType:'runner',hp:C.PVE.healthFor('runner',1,6),
+    maxHp:C.PVE.healthFor('runner',1,6),protectedUntil:0});
+  Object.assign(b.pve,{wave:6,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,6);
+  b.step();const warning=b.pve.enemyAttacks[0];assert.equal(warning.phase,'warn');
+  p.z=56.5;let dashDamage=0;
+  for(let i=0;i<75;i++){
+    const events=b.step();S.validateSnapshot(b.snapshot());
+    for(const e of events)
+      if(e.type==='damage'&&e.id===p.id&&e.owner===z.id&&warning.phase==='cooldown'&&b.tick<=58)dashDamage++;
+  }
+  assert.ok(dashDamage>0,'offset within 2m is hurt by the dash, not an unrelated later melee');
+  S.validateSnapshot(b.snapshot());
+});
+test('runner warns then commits to its original dash line rather than homing',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:5,z:55,alive:true,zombieType:'runner',hp:C.PVE.healthFor('runner',1,6),
+    maxHp:C.PVE.healthFor('runner',1,6),protectedUntil:0,heading:0});
+  Object.assign(b.pve,{wave:6,nextWaveAt:100000,queue:0});
+  for(const enemy of enemies(b))if(enemy!==z)enemy.maxHp=C.PVE.healthFor(enemy.zombieType,1,6);
+  b.step();
+  const warning=b.pve.enemyAttacks.find(a=>a.owner===z.id&&a.phase==='warn');
+  assert.equal(warning.kind,'runner');
+  Object.assign(p,{x:0,z:65});
+  for(let i=0;i<75;i++)b.step();
+  assert.ok(z.x<5,'runner advanced on fixed x line');
+  assert.ok(Math.abs(z.z-55)<3,'runner did not home toward moved target');
+  assert.equal(p.hp,80);
+  S.validateSnapshot(b.snapshot());
+});
+test('checkpoint restore keeps a runner dash locked to its cast direction',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:5,z:55,alive:true,zombieType:'runner',hp:C.PVE.healthFor('runner',1,6),
+    maxHp:C.PVE.healthFor('runner',1,6),protectedUntil:0});
+  Object.assign(b.pve,{wave:6,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,6);
+  b.step();Object.assign(p,{x:0,z:65});
+  for(let i=0;i<44;i++)b.step();
+  assert.equal(b.pve.enemyAttacks[0].phase,'dash');
+  const saved=b.snapshot();S.validateSnapshot(saved);
+  const copy=create();copy.restore(saved);
+  for(let i=0;i<15;i++){b.step();copy.step();}
+  assert.deepEqual(copy.snapshot(),b.snapshot());
+  assert.equal(p.hp,80);
+});
+test('checkpoint restore continues an in-flight cone attack deterministically',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0];
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:12,z:55,alive:true,zombieType:'cone',hp:C.PVE.healthFor('cone',1,4),
+    maxHp:C.PVE.healthFor('cone',1,4),protectedUntil:0});
+  Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,4);
+  for(let i=0;i<60;i++)b.step();
+  assert.equal(b.pve.enemyAttacks[0].phase,'flight');
+  const saved=b.snapshot();S.validateSnapshot(saved);
+  const forged=C.clone(saved);forged.pve.enemyAttacks[0].x+=3;
+  assert.throws(()=>S.validateSnapshot(forged),/Invalid PvE attack/);
+  const cooldownForge=C.clone(saved);
+  Object.assign(cooldownForge.pve.enemyAttacks[0],{phase:'cooldown',at:saved.tick+240,x:20,z:35});
+  assert.throws(()=>S.validateSnapshot(cooldownForge),/Invalid PvE attack/);
+  const copy=create();copy.restore(saved);
+  for(let i=0;i<25;i++){b.step();copy.step();}
+  assert.deepEqual(copy.snapshot(),b.snapshot());
+});
+test('eight-player sixteen-caster warning packet stays inside wire limits',()=>{
+  const a=new S.Authority({mode:'pve',matchId:'warning-stress',participants:Array.from({length:8},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol',spawn:i}))}),b=a.battle;
+  b.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));
+  Object.assign(b.entities[0],{x:0,z:55});
+  Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000});
+  for(const [i,z] of enemies(b).entries()){
+    z.maxHp=C.PVE.healthFor(z.zombieType,8,4);
+    if(i===16)continue;
+    Object.assign(z,{x:12+i*.04,z:55+i*.1,zombieType:'cone',maxHp:C.PVE.healthFor('cone',8,4),
+      hp:C.PVE.healthFor('cone',8,4),alive:true,protectedUntil:0});
+  }
+  a.step();const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
+  assert.equal(b.pve.enemyAttacks.length,16);
+  assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
+  assert.equal(r.receive(packet).ok,true);
+  S.validateSnapshot(b.snapshot());
+});
+test('a real cone cast, flight and hit remain valid through Authority to Replica',()=>{
+  const a=new S.Authority({mode:'pve',matchId:'cone-wire',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]}),b=a.battle;
+  b.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));
+  const p=b.entities[0],z=enemies(b)[0];Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:12,z:55,alive:true,zombieType:'cone',hp:C.PVE.healthFor('cone',1,4),maxHp:C.PVE.healthFor('cone',1,4),protectedUntil:0});
+  Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,4);
+  let warned=false,flown=false,damaged=false;
+  for(let i=0;i<140;i++){
+    a.step();S.validateSnapshot(b.snapshot());
+    if(i%6 && i!==139)continue;
+    const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
+    const result=r.receive(packet);
+    assert.equal(result.ok,true,JSON.stringify(result));
+    warned ||= result.state?.pve?.enemyAttacks?.some(v=>v.phase==='warn')||r.current.pve.enemyAttacks.some(v=>v.phase==='warn');
+    flown ||= r.current.pve.enemyAttacks.some(v=>v.phase==='flight');
+    damaged ||= result.events.some(e=>e.type==='damage'&&e.id===p.id&&e.owner===z.id);
+  }
+  assert.ok(warned&&flown&&damaged,'real cast, flight and damage reached replica');
+  S.validateSnapshot(b.snapshot());
+});
+test('cone projectile hits an exposed player once and cannot pass solid cover',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0],wave=4;
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:12,z:55,zombieType:'cone',alive:true,protectedUntil:0,
+    hp:C.PVE.healthFor('cone',1,wave),maxHp:C.PVE.healthFor('cone',1,wave)});
+  Object.assign(b.pve,{wave,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,wave);
+  b.step();let hits=0;
+  for(let i=0;i<140;i++)for(const e of b.step())if(e.type==='damage'&&e.id===p.id&&e.owner===z.id)hits++;
+  assert.equal(hits,1,'one throw, one hit');
+  const a=b.pve.enemyAttacks.find(v=>v.owner===z.id);
+  // Synthetic collision-only probe: a real cast requires sight, so this teleported flight is not a valid checkpoint.
+  Object.assign(z,{x:13,z:47});
+  Object.assign(a,{phase:'flight',at:b.tick+120,x:13,z:47,tx:3,tz:47});
+  const before=p.hp;
+  for(let i=0;i<35&&a.phase==='flight';i++)b.step();
+  assert.equal(a.phase,'cooldown','projectile hits spawn rock before the player');
+  assert.equal(p.hp,before);
+});
+test('runner dash hits once up close and recovers from a rock collision',()=>{
+  const b=create(),p=b.entities[0],z=enemies(b)[0],wave=6;
+  Object.assign(p,{x:0,z:55,protectedUntil:0});
+  Object.assign(z,{x:5,z:55,zombieType:'runner',alive:true,protectedUntil:0,
+    hp:C.PVE.healthFor('runner',1,wave),maxHp:C.PVE.healthFor('runner',1,wave)});
+  Object.assign(b.pve,{wave,queue:0,nextWaveAt:100000});
+  for(const e of enemies(b))if(e!==z)e.maxHp=C.PVE.healthFor(e.zombieType,1,wave);
+  b.step();let dashHits=0;
+  for(let i=0;i<70;i++)for(const e of b.step())if(e.type==='damage'&&e.id===p.id&&e.owner===z.id&&e.tick<60)dashHits++;
+  assert.equal(dashHits,1,'locked dash hurts stationary player only once');
+  const a=b.pve.enemyAttacks.find(v=>v.owner===z.id);
+  Object.assign(z,{x:13,z:47,heading:0,abilityUntil:b.tick+15});
+  Object.assign(z.brain,{path:[{x:9,z:47}],pathTick:b.tick+1000,target:p.id});
+  Object.assign(a,{phase:'dash',castTick:b.tick-42,at:b.tick+15,ox:13,oz:47,x:13,z:47,tx:9,tz:47});
+  for(let i=0;i<20&&a.phase==='dash';i++)b.step();
+  assert.equal(a.phase,'stun','solid cover cancels dash');
+  assert.deepEqual(z.brain.path,[],'wall stun clears stale route');
+  S.validateSnapshot(b.snapshot());
+});
+test('PvE trial and early wave commands require the current host and epoch',()=>{
+  const ctx=setup(),host=ctx.peer(),guest=ctx.peer();
+  ctx.send(host,'create',{mode:'pve'});const room=ctx.rooms.rooms.get(host.last('joined').code);
+  ctx.send(guest,'join',{code:room.code});
+  for(const peer of [host,guest])ctx.send(peer,'ready',{ready:true});
+  ctx.send(host,'start');const b=room.authority.battle;
+  b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
+  for(const z of b.entities.filter(e=>e.tankType==='zombie'))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
+  b.step();assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
+  ctx.send(guest,'trial',{epoch:room.epoch,wave:4,choice:'risk'});
+  assert.equal(b.pve.trial.choice,null);assert.equal(guest.last('error').type,'error');
+  ctx.send(host,'trial',{epoch:room.epoch-1,wave:4,choice:'risk'});
+  assert.equal(b.pve.trial.choice,null);
+  ctx.send(host,'trial',{epoch:room.epoch,wave:4,choice:'risk'});
+  assert.equal(b.pve.trial.choice,'risk');
+  const recovered=new RoomServer({now:()=>0});recovered.restore(ctx.rooms.checkpoint());
+  assert.equal(recovered.rooms.get(room.code).authority.battle.pve.trial.choice,'risk');
+  ctx.send(host,'trial',{epoch:room.epoch,wave:4,choice:'safe'});
+  assert.equal(b.pve.trial.choice,'risk');
+  ctx.send(guest,'startWave',{epoch:room.epoch,wave:4});
+  assert.ok(b.pve.nextWaveAt>b.tick+1);
+  ctx.send(host,'startWave',{epoch:room.epoch,wave:4});
+  assert.equal(b.pve.nextWaveAt,b.tick+1);
+  b.step();assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
+  S.validateSnapshot(b.snapshot());
+});
 test("PvE room has no wall-clock defeat while the PvP watchdog remains fifteen minutes", () => {
   const pve = setup(), host = pve.peer();
   pve.send(host, "create", { mode: "pve" });

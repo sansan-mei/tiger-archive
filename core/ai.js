@@ -126,6 +126,9 @@
     const zombie = battle.mode === "pve" && body.tankType === "zombie",
       zombieOrdinal = zombie ? Number(body.id.slice(7)) || 0 : 0,
       recovering = zombie && body.brain.blocked === 12;
+    const attack = zombie && battle.pve.enemyAttacks.find(a=>a.owner===body.id);
+    if(attack?.phase==='warn'||attack?.phase==='stun')return {brake:true};
+    if(attack?.phase==='dash')return {forward:true};
     if (recovering) {
       body.brain.path = [];
       body.brain.pathTick = 0;

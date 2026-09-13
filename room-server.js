@@ -241,6 +241,15 @@ class RoomServer {
         this.broadcastState(room);
         return;
       }
+      if (m.type === "trial" || m.type === "startWave") {
+        const battle = room.authority?.battle;
+        if (room.mode !== "pve" || room.phase !== "playing" || room.host !== seat.id ||
+            m.epoch !== room.epoch || !Number.isSafeInteger(m.wave) || !battle ||
+            !(m.type === "trial" ? battle.chooseTrial(m.wave, m.choice) : battle.startNextWave(m.wave)))
+          throw new Error("仅房主可在清波休整期选择试炼或提前开波");
+        this.broadcastState(room);
+        return;
+      }
       if (m.type === "loadout") {
         if (room.mode === "pve") throw new Error("合作生存固定人类＋小手枪开局");
         if (room.phase !== "lobby") throw new Error("仅能在准备大厅修改配置");

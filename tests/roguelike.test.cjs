@@ -12,8 +12,8 @@ function hit(b,p,target,weapon='pistol',critical=false,extra={}) {b.resolveHit({
   {id:999,owner:p.id,ownerLife:p.deaths,weaponType:weapon,damage:C.WEAPONS[weapon].damage*(critical?(C.WEAPONS[weapon].criticalMultiplier||1):1),critical,dx:-1,dy:0,dz:0,...extra});}
 test('kills share experience while reward choices are independent, queued and replay protected',()=>{
   const b=make(2), [p,q]=b.entities;
-  for(let i=0;i<10;i++){const z=enemy(b,0);b.damage(z,10000,p.id,z);}
-  assert.equal(b.pve.level,3);assert.equal(b.pve.xp,0);
+  for(let i=0;i<10;i++){const z=enemy(b,0);b.damage(z,10000,p.id,z);if(i<3)z.maxHp=C.PVE.healthFor(z.zombieType,2,b.pve.wave);}
+  assert.equal(b.pve.level,3);assert.equal(b.pve.xp,0,'riskyWave=0 keeps base XP');
   assert.equal(b.pve.pending[p.id],2);assert.equal(b.pve.pending[q.id],2);
   assert.notEqual(b.pve.choiceIds[p.id],b.pve.choiceIds[q.id]);
   const first=b.pve.choiceIds[p.id], choices=b.pve.choices[p.id];
@@ -600,6 +600,28 @@ test('deferred rewards survive death and a wave transition without auto-picking'
   b.tick=b.pve.nextWaveAt;b.step();assert.equal(b.pve.pending[q.id],1);
   assert.equal(b.chooseUpgrade(q.id,b.pve.wave,choice,offerId),true);
   assert.equal(b.pve.pending[p.id],1);S.validateSnapshot(b.snapshot());
+});
+test('cone and runner telegraphs follow authoritative phases and release old meshes',()=>{
+  const T=require('three'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
+  const context=vm.createContext({window:{}});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../client/pve-effects.js'),'utf8'),context);
+  const scene=new T.Scene(),fx=context.window.TankClient.createPveEffects({T,scene}),b=make(),z=enemy(b,0,12,55);
+  z.zombieType='cone';b.pve.enemyAttacks=[{owner:z.id,kind:'cone',phase:'warn',at:48,x:12,z:55,tx:0,tz:55}];
+  fx.update(b.snapshot(),0);assert.equal(scene.children.length,1);
+  assert.ok(scene.children[0].geometry instanceof T.RingGeometry);
+  const warning=scene.children[0];b.pve.enemyAttacks[0].phase='flight';b.pve.enemyAttacks[0].x=6;
+  fx.update(b.snapshot(),0);assert.equal(scene.children.length,1);
+  assert.notEqual(scene.children[0],warning);assert.ok(scene.children[0].geometry instanceof T.IcosahedronGeometry);
+  Object.assign(b.pve.enemyAttacks[0],{kind:'runner',phase:'warn',x:7,z:55,tx:2,tz:55});
+  fx.update(b.snapshot(),0);
+  assert.ok(scene.children[0].geometry instanceof T.BoxGeometry);
+  assert.ok(scene.children[0].scale.z/2>=5/2+2,
+    'dash warning extends past both locked-line endpoints by the 2m contact radius');
+  assert.ok(scene.children[0].geometry.parameters.width*scene.children[0].scale.x>=4,
+    'dash warning must cover the entire 2m contact radius on either side');
+  b.pve.enemyAttacks[0].phase='stun';fx.update(b.snapshot(),0);
+  assert.ok(scene.children[0].geometry instanceof T.RingGeometry);
+  b.pve.enemyAttacks=[];fx.update(b.snapshot(),0);assert.equal(scene.children.length,0);
 });
 test('warning and fire visuals reuse rings and clear on return to PvP',()=>{
   const T=require('three'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');

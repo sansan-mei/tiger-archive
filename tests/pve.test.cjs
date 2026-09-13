@@ -51,8 +51,12 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
-test('updated pursuit uses v32 and rejects v31 checkpoints',()=>{
-  assert.equal(C.VERSION,32);
+test('v33 trial and enemy specials reject v32 checkpoints',()=>{
+  assert.equal(C.VERSION,33);
+  const old=create().snapshot();old.version=32;
+  assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
+});
+test('v32 pursuit rule still rejects v31 checkpoints',()=>{
   const old=create().snapshot();old.version=31;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
@@ -227,6 +231,54 @@ test('eight players and sixteen zombies stay within packet bounds and pass repli
   for(const mutate of [s=>s.pve.upgrades.p0.haste=999,s=>s.pve.queue=1000,s=>s.entities.pop(),s=>s.pve.choices.p0=['injected']]){
     const bad=b.snapshot();mutate(bad);assert.throws(()=>S.validateSnapshot(bad));
   }
+});
+test('risk trial changes the actual next-wave composition and XP without leaking later',()=>{
+  const b=create(),p=b.entities[0];b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
+  for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
+  b.step();assert.equal(b.chooseTrial(4,'risk'),true);
+  b.tick=b.pve.nextWaveAt-1;b.step();
+  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
+  const first=enemies(b).find(z=>z.alive);
+  assert.equal(first.zombieType,'runner');
+  first.protectedUntil=0;b.damage(first,10000,p.id,first);
+  assert.equal(b.pve.xp,Math.ceil(12*1.25));
+  b.pve.queue=0;for(const z of enemies(b)){z.alive=false;z.hp=0;}
+  b.pve.nextWaveAt=b.tick+1;b.step();
+  assert.equal(b.pve.wave,6);assert.equal(b.pve.riskyWave,0);
+  S.validateSnapshot(b.snapshot());
+});
+test('trial defaults safe after the ordinary break and early start waits for team resupply',()=>{
+  const b=create(2);b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
+  for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
+  b.step();assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
+  const before=b.pve.nextWaveAt;
+  b.entities[1].alive=false;b.entities[1].hp=0;
+  assert.equal(b.startNextWave(4),false);
+  assert.equal(b.pve.nextWaveAt,before);
+  b.entities[1].alive=true;b.entities[1].hp=b.entities[1].maxHp;
+  b.tick=b.pve.nextWaveAt-1;b.step();
+  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,0);
+  assert.equal(b.pve.queue+enemies(b).filter(z=>z.alive).length,4+5*2+3);
+  S.validateSnapshot(b.snapshot());
+});
+test('v33 trial choice is confined to a cleared wave and next wave can start early without consuming upgrade cards',()=>{
+  const b=create(),p=b.entities[0];
+  b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
+  for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
+  C.PVE.progression.addExperience(b,C.PVE.progression.xpNeeded(b.pve.level),C.PVE.rewards);
+  const cards=b.pve.choices[p.id].slice(),offerId=b.pve.choiceIds[p.id];
+  b.step();
+  assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
+  assert.equal(b.chooseTrial(4,'risk'),true);
+  assert.equal(b.chooseTrial(4,'safe'),false,'one confirmed team decision');
+  assert.equal(b.startNextWave(4),true);
+  b.step();
+  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
+  assert.deepEqual(b.pve.choices[p.id],cards);
+  assert.equal(b.pve.choiceIds[p.id],offerId);
+  assert.equal(b.chooseUpgrade(p.id,4,cards[0],offerId),true,'old card remains claimable after early start');
+  assert.equal(b.chooseUpgrade(p.id,5,cards[0],offerId),false,'replayed offer is rejected');
+  S.validateSnapshot(b.snapshot());
 });
 test('co-op room starts solo, authenticates upgrades and restores checkpoint/reconnect with mode intact', () => {
   const server=new RoomServer({now:()=>1000}), messages=[];
