@@ -77,14 +77,6 @@
     p.trial.choice = choice;
     return true;
   }
-  function startNextWave(b, wave) {
-    const p = b.pve;
-    if (b.mode !== "pve" || b.status !== "playing" || p.wave !== wave || wave < 1 || wave >= 16 ||
-        p.nextWaveAt <= b.tick + 1 || p.queue || zombies(b).some(z=>z.alive) ||
-        survivors(b).some(h=>!h.forfeited&&!h.alive)) return false;
-    p.nextWaveAt = b.tick + 1;
-    return true;
-  }
   function spawn(b, z, forcedType = null) {
     const players = survivors(b).filter((p) => p.alive && !p.forfeited);
     const target = players[(b.pve.queue + Number(z.id.slice(7))) % players.length];
@@ -327,5 +319,5 @@
           new Set(choices).size !== 3 || choices.some((c) => !Object.hasOwn(rewards, c))) throw new Error("Invalid PvE choices");
     }
   }
-  return Object.freeze({ MAX_ZOMBIES, rewards, progression: R, healthFor, typeFor, initialize, choose, chooseTrial, startNextWave, step, validate });
+  return Object.freeze({ MAX_ZOMBIES, rewards, progression: R, healthFor, typeFor, initialize, choose, chooseTrial, step, validate });
 });

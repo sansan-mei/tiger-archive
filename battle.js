@@ -232,8 +232,6 @@
     }
   }, chooseTrial:(wave,choice)=>{
     if(session.online&&!session.suspended)network.send({type:"trial",epoch:session.current().epoch,wave,choice});
-  }, startNextWave:wave=>{
-    if(session.online&&!session.suspended)network.send({type:"startWave",epoch:session.current().epoch,wave});
   }, isHost:()=>roomHost });
   function config() {
     return {

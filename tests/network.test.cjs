@@ -263,7 +263,7 @@ test('runner dash hits once up close and recovers from a rock collision',()=>{
   assert.deepEqual(z.brain.path,[],'wall stun clears stale route');
   S.validateSnapshot(b.snapshot());
 });
-test('PvE trial and early wave commands require the current host and epoch',()=>{
+test('PvE trial requires the current host and epoch while legacy early-wave commands are rejected',()=>{
   const ctx=setup(),host=ctx.peer(),guest=ctx.peer();
   ctx.send(host,'create',{mode:'pve'});const room=ctx.rooms.rooms.get(host.last('joined').code);
   ctx.send(guest,'join',{code:room.code});
@@ -282,10 +282,13 @@ test('PvE trial and early wave commands require the current host and epoch',()=>
   assert.equal(recovered.rooms.get(room.code).authority.battle.pve.trial.choice,'risk');
   ctx.send(host,'trial',{epoch:room.epoch,wave:4,choice:'safe'});
   assert.equal(b.pve.trial.choice,'risk');
+  const scheduled=b.pve.nextWaveAt;
   ctx.send(guest,'startWave',{epoch:room.epoch,wave:4});
-  assert.ok(b.pve.nextWaveAt>b.tick+1);
+  assert.match(guest.last('error').message,/未知消息/);
   ctx.send(host,'startWave',{epoch:room.epoch,wave:4});
-  assert.equal(b.pve.nextWaveAt,b.tick+1);
+  assert.match(host.last('error').message,/未知消息/);
+  assert.equal(b.pve.nextWaveAt,scheduled);
+  b.tick=scheduled-1;
   b.step();assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
   S.validateSnapshot(b.snapshot());
 });

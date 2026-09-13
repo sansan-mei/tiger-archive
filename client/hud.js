@@ -165,13 +165,15 @@
           return row;
         }),
     );
-    $("ramp-status").textContent = p.falling
+    const rampStatus = $("ramp-status");
+    rampStatus.textContent = p.falling
       ? "下落中 · 保持惯性 / 可开火"
       : p.rampId
         ? "斜坡行驶 · 可停车 / 倒车 / 交战"
         : p.floor > 0
           ? "平台四周可直接驶出下落 · 注意边缘"
-          : "直接驾驶上坡 · 无需按键";
+          : "";
+    rampStatus.hidden = !rampStatus.textContent;
     drawMap(state, target);
   }
   return { update };

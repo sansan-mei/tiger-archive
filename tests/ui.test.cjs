@@ -243,8 +243,12 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(3);
   const driver = room.authority.battle.entities[0];
   assert.equal(driver.weaponType, "standard");
+  assert.equal(html.includes('直接驾驶上坡'),false,'initial page no longer advertises ramp driving');
+  assert.equal(nodes.has('trial-early'),false,'early-wave button is removed');
   driver.criticalProgress = 2;
   advance(18);
+  assert.equal(nodes.get('ramp-status').textContent,'','flat ground has no ramp banner');
+  assert.equal(nodes.get('ramp-status').hidden,true);
   assert.match(nodes.get("weapon-description").textContent, /强化弹就绪/);
   let halo;
   renderedScene.traverse((o) => {
@@ -462,6 +466,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(18);
   assert.equal(e.falling, true);
   assert.ok(nodes.get("ramp-status").textContent.includes("下落中"));
+  assert.equal(nodes.get("ramp-status").hidden,false,'falling still shows its status banner');
   for (const fn of windowEvents.keyup)
     fn({ code: "KeyW", preventDefault() {} });
   advance(150);
@@ -567,7 +572,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(nodes.get('trial-risk').hidden,false,'host sees the risk decision');
   nodes.get('trial-risk').emit('click');advance(12);
   assert.equal(survival.pve.trial.choice,'risk');
-  nodes.get('trial-early').emit('click');advance(12);
+  survival.tick=survival.pve.nextWaveAt-1;advance(12);
   assert.equal(survival.pve.wave,5);
   survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;
   advance(12);

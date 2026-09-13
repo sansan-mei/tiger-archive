@@ -1,5 +1,5 @@
 /* Small wave HUD and keyboard/touch reward choices; sends intentions only. */
-(window.TankClient ??= {}).createPveUI = function ({ C, $, choose, chooseTrial, startNextWave, isHost }) {
+(window.TankClient ??= {}).createPveUI = function ({ C, $, choose, chooseTrial, isHost }) {
   const panel = $("pve-rewards"), cards = $("pve-choices");
   let current = null, signature = "", deferred = false, match = null;
   const toggle = $("pve-toggle");
@@ -7,10 +7,9 @@
   function select(index) {
     if (current?.options[index]) choose(current.wave, current.options[index], current.offerId);
   }
-  const safe = $("trial-safe"), risk = $("trial-risk"), early = $("trial-early");
+  const safe = $("trial-safe"), risk = $("trial-risk");
   safe?.addEventListener("click",()=>{ if(currentTrial)chooseTrial(currentTrial.wave,"safe"); });
   risk?.addEventListener("click",()=>{ if(currentTrial)chooseTrial(currentTrial.wave,"risk"); });
-  early?.addEventListener("click",()=>{ if(currentTrial)startNextWave(currentTrial.wave); });
   let currentTrial = null;
   document.addEventListener("keydown", (event) => {
     if (event.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName)) return;
@@ -40,7 +39,6 @@
       }
       if (safe) safe.hidden = !trial || trial.choice !== null || !isHost();
       if (risk) risk.hidden = !trial || trial.choice !== null || !isHost();
-      if (early) early.hidden = !currentTrial || !isHost();
       $("pve-progress").hidden = !pve;
       if (pve) {
         $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);

@@ -247,21 +247,21 @@ test('risk trial changes the actual next-wave composition and XP without leaking
   assert.equal(b.pve.wave,6);assert.equal(b.pve.riskyWave,0);
   S.validateSnapshot(b.snapshot());
 });
-test('trial defaults safe after the ordinary break and early start waits for team resupply',()=>{
+test('trial defaults safe after the ordinary 15-second break',()=>{
   const b=create(2);b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
   b.step();assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
   const before=b.pve.nextWaveAt;
-  b.entities[1].alive=false;b.entities[1].hp=0;
-  assert.equal(b.startNextWave(4),false);
+  assert.equal(before-b.tick,15*C.TICK_RATE,'the automatic break still lasts 15 seconds');
+  assert.equal(typeof b.startNextWave,'undefined');
+  b.step();assert.equal(b.pve.wave,4);
   assert.equal(b.pve.nextWaveAt,before);
-  b.entities[1].alive=true;b.entities[1].hp=b.entities[1].maxHp;
   b.tick=b.pve.nextWaveAt-1;b.step();
   assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,0);
   assert.equal(b.pve.queue+enemies(b).filter(z=>z.alive).length,4+5*2+3);
   S.validateSnapshot(b.snapshot());
 });
-test('v33 trial choice is confined to a cleared wave and next wave can start early without consuming upgrade cards',()=>{
+test('v33 trial choice persists through the timed break without consuming upgrade cards',()=>{
   const b=create(),p=b.entities[0];
   b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
@@ -271,12 +271,15 @@ test('v33 trial choice is confined to a cleared wave and next wave can start ear
   assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
   assert.equal(b.chooseTrial(4,'risk'),true);
   assert.equal(b.chooseTrial(4,'safe'),false,'one confirmed team decision');
-  assert.equal(b.startNextWave(4),true);
+  const scheduled=b.pve.nextWaveAt;
+  b.step();assert.equal(b.pve.wave,4);
+  assert.equal(b.pve.nextWaveAt,scheduled);
+  b.tick=scheduled-1;
   b.step();
   assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
   assert.deepEqual(b.pve.choices[p.id],cards);
   assert.equal(b.pve.choiceIds[p.id],offerId);
-  assert.equal(b.chooseUpgrade(p.id,4,cards[0],offerId),true,'old card remains claimable after early start');
+  assert.equal(b.chooseUpgrade(p.id,4,cards[0],offerId),true,'old card remains claimable after the next wave');
   assert.equal(b.chooseUpgrade(p.id,5,cards[0],offerId),false,'replayed offer is rejected');
   S.validateSnapshot(b.snapshot());
 });
