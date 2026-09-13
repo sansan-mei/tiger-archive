@@ -51,11 +51,19 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
-test('untimed PvE uses v31 and rejects old v30 checkpoints',()=>{
-  assert.equal(C.VERSION,31);
+test('updated pursuit uses v32 and rejects v31 checkpoints',()=>{
+  assert.equal(C.VERSION,32);
+  const old=create().snapshot();old.version=31;
+  assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
+});
+test('untimed PvE rule persists and rejects old v30 checkpoints',()=>{
   assert.equal(Object.hasOwn(C.RULES,'pveDuration'),false);
   const old=create().snapshot();old.version=30;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
+});
+test('both bosses have runner-speed base pursuit',()=>{
+  const runner=C.ZOMBIE_SPECS.runner.speed;
+  for(const type of ['boss','titan'])assert.equal(C.ZOMBIE_SPECS[type].speed,runner,type);
 });
 test('PvE prevents direct, self and splash friendly fire while retaining zombie damage', () => {
   const b=create(2), [p, ally]=b.entities, z=enemies(b)[0];
@@ -76,6 +84,27 @@ test('zombies close distance and melee at one-second intervals without projectil
   assert.ok(z.x<3, String(z.x)); assert.ok(p.hp<80); assert.equal(b.bullets.length,0); assert.equal(z.abilityUntil,0);
   const hp=p.hp; for(let i=0;i<59;i++) b.step(); assert.ok(hp-p.hp<=10);
   S.validateSnapshot(b.networkSnapshot(),{network:true});
+});
+test('PvE zombies steer toward players without braking in place',()=>{
+  for(const type of ['walker','cone','runner','bucket','brute','boss','titan']){
+    const b=create(),p=b.entities[0],z=enemies(b)[0],spec=C.ZOMBIE_SPECS[type];
+    Object.assign(p,{x:0,z:55});
+    Object.assign(z,{x:8,z:55,y:0,floor:0,alive:true,hp:spec.hp,maxHp:spec.hp,
+      zombieType:type,heading:Math.PI/2,brain:{target:null,path:[],pathTick:0,blocked:0}});
+    const input=b.botInput(z);
+    assert.equal(input.forward,true,type+' forward');
+    assert.equal(input.brake,false,type+' brake');
+  }
+  const duel=new C.Battle({participants:[
+    {id:'human',controller:'human',tankType:'medium',weaponType:'standard',spawn:0},
+    {id:'bot',controller:'bot',tankType:'medium',weaponType:'standard',spawn:1},
+  ]});duel.start();
+  const [human,bot]=duel.entities;
+  Object.assign(human,{x:0,z:55});Object.assign(bot,{x:40,z:55,heading:Math.PI/2,
+    brain:{target:human.id,path:[{x:0,z:55}],pathTick:10000,blocked:0}});
+  const versus=duel.botInput(bot);
+  assert.equal(versus.forward,false,'PvP bot keeps its original turning rule');
+  assert.equal(versus.brake,true);
 });
 test('a zombie pack spreads around one target instead of forming a single-file traffic jam', () => {
   const b=create(),p=b.entities[0],pack=enemies(b).slice(0,6),attackers=new Set();
@@ -111,6 +140,42 @@ test('simultaneously blocked zombies invalidate stale paths but spread A-star wo
   for(const z of pack)b.botInput(z);
   assert.equal(calls,1);
   assert.ok(pack.slice(1).every(z=>z.brain.path.length===0&&z.brain.pathTick===0));
+});
+test('all seventeen zombie slots including the boss can replan without synchronized A-star bursts',()=>{
+  const b=create(),p=b.entities[0],pack=enemies(b),route=b.route.bind(b),seen=new Set();
+  Object.assign(p,{x:0,z:55});
+  for(const [i,z] of pack.entries())Object.assign(z,{x:20+i,z:55,y:0,floor:0,alive:true,
+    brain:{target:p.id,path:[{x:100,z:100}],pathTick:10000,blocked:12}});
+  for(let tick=0;tick<pack.length;tick++){
+    b.tick=tick;const routed=[];
+    b.route=(z,...args)=>{routed.push(z.id);return route(z,...args);};
+    for(const z of pack)b.botInput(z);
+    assert.ok(routed.length<=1,'A-star budget at tick '+tick);
+    for(const id of routed)seen.add(id);
+  }
+  assert.equal(seen.size,pack.length,'boss slot must get a route too');
+  assert.ok(seen.has('zombie_16'));
+});
+test('fast bosses go around solid cover and reach the player instead of orbiting a waypoint',()=>{
+  for(const type of ['boss','titan']){
+    const b=create(),p=b.entities[0],z=enemies(b).at(-1),wave=type==='boss'?8:16,
+      hp=C.PVE.healthFor(type,1,wave);
+    Object.assign(p,{x:-28,z:11,hp:10000,maxHp:10000,protectedUntil:0});
+    Object.assign(z,{x:-7,z:11,y:0,floor:0,alive:true,hp,maxHp:hp,
+      zombieType:type,heading:Math.PI,protectedUntil:0,
+      brain:{target:null,path:[],pathTick:0,blocked:0}});
+    Object.assign(b.pve,{wave,queue:0,nextWaveAt:100000});
+    Object.assign(b.pve.boss,{stage:type==='boss'?1:2,spawned:true,
+      defeated:false,nextAttackAt:100000});
+    assert.equal(b.sight(z,p),false,'rock initially blocks '+type);
+    let bossHits=0;
+    for(let i=0;i<900&&bossHits===0&&b.status==='playing';i++){
+      for(const event of b.step())
+        if(event.type==='damage'&&event.id===p.id&&event.owner===z.id)bossHits++;
+      assert.ok(b.valid(z.x,z.z,z.floor,z),type+' stays outside rock');
+    }
+    assert.ok(bossHits>0,type+' should reach the player around rock');
+  }
 });
 test('wave rewards are validated once, persist and affect authority cooldown, healing and area damage', () => {
   const b=create(), p=b.entities[0]; p.hp=37; clearWave(b);

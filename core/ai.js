@@ -231,19 +231,24 @@
     if (goal) {
       if (
         !direct &&
-        (!zombie || battle.tick % 16 === zombieOrdinal) &&
+        (!zombie ||
+          battle.tick % battle.entities.filter(e=>e.tankType==="zombie").length === zombieOrdinal) &&
         (battle.tick >= body.brain.pathTick || body.brain.target !== goalKey)
       ) {
         body.brain.path = battle.route(body, goal);
         body.brain.pathTick = battle.tick + (zombie ? 90 : 240);
         body.brain.target = goalKey;
       }
+      const zombieSpec = zombie ? C.unitSpec(body) : null,
+        waypointReach = zombie
+          ? Math.max(0.75, zombieSpec.speed / zombieSpec.turn * 1.25)
+          : 0.75;
       while (
         body.brain.path.length &&
         Math.hypot(
           body.brain.path[0].x - body.x,
           body.brain.path[0].z - body.z,
-        ) < 0.75
+        ) < waypointReach
       )
         body.brain.path.shift();
       const next = direct ? goal : body.brain.path[0] || goal,
@@ -251,7 +256,7 @@
         diff = wrap(desired - body.heading);
       input.left = diff > 0.1;
       input.right = diff < -0.1;
-      input.forward = Math.abs(diff) < 0.18;
+      input.forward = zombie || Math.abs(diff) < 0.18;
       input.brake = !input.forward;
       if (body.brain.blocked > 20) {
         input.forward = false;
