@@ -100,7 +100,8 @@ test('simultaneously blocked zombies invalidate stale paths but spread A-star wo
   assert.ok(pack.slice(1).every(z=>z.brain.path.length===0&&z.brain.pathTick===0));
 });
 test('wave rewards are validated once, persist and affect authority cooldown, healing and area damage', () => {
-  const b=create(), p=b.entities[0]; clearWave(b);
+  const b=create(), p=b.entities[0]; p.hp=37; clearWave(b);
+  assert.equal(p.hp,57,'clearing a wave still restores 20 health');
   assert.equal(b.pve.choices[p.id].length,3);
   assert.equal(b.chooseUpgrade(p.id,0,'haste'),false);
   assert.equal(b.chooseUpgrade('other',1,'haste'),false);

@@ -32,7 +32,7 @@
         const ordinary=acquired.filter(([key])=>!C.PVE.rewards[key]?.module)
           .map(([key,level])=>C.PVE.rewards[key].name+" "+level);
         const modules=acquired.filter(([key])=>C.PVE.rewards[key]?.module)
-          .map(([key])=>C.PVE.rewards[key].name);
+          .map(([key,level])=>C.PVE.rewards[key].name+(C.PVE.progression.caps[key]>1?" "+level+"级":""));
         $("pve-build").textContent=[ordinary.length?ordinary.join(" · "):"",
           modules.length?"通用模块 "+modules.length+"："+modules.join(" · "):""].filter(Boolean).join(" ｜ ") || "击杀升级，打造自己的流派";
         $("pve-boss").textContent = boss ? bossName + " " + Math.ceil(boss.hp) + "/" + boss.maxHp +

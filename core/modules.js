@@ -13,20 +13,24 @@
     modCryo:{name:"碎冰装置",description:"命中减速目标引爆4米冰爆，对最多4名其他敌人各造成70伤害",module:true},
     modExploit:{name:"弱点破解器",description:"对已破甲目标的直接命中伤害提高50%",module:true},
     modSpread:{name:"余烬传染",description:"燃烧目标死亡时点燃6米内最多5名敌人",module:true},
-    modLeech:{name:"生命回流",description:"击杀敌人恢复20生命，不超过最大生命",module:true},
+    modGiantSlayer:{name:"猎巨弹芯",description:"直接命中重锤巨人或Boss时伤害提高30%",module:true},
     modOverload:{name:"雷暴电容",description:"每5次直接命中电击12米内最多4名其他敌人，各造成50伤害",module:true},
     modReprisal:{name:"破甲收割",description:"破甲目标死亡时冲击5米内最多4名其他敌人，各造成60伤害",module:true},
+    modShockwave:{name:"震荡余波",description:"直接命中引发4米冲击，对最多3名其他敌人造成30/40/50伤害，最多3级",module:true},
   });
-  const caps=Object.freeze(Object.fromEntries(Object.keys(rewards).map(key=>[key,1])));
+  const caps=Object.freeze({...Object.fromEntries(Object.keys(rewards).map(key=>[key,1])),modShockwave:3});
   function initialize(b) {
     b.pve.moduleStatus={};
     b.pve.moduleHits=Object.fromEntries(b.entities.filter(e=>e.tankType!=="zombie").map(e=>[e.id,0]));
   }
   function directDamage(b,target,shot,amount) {
     const u=b.pve.upgrades[shot.owner],state=b.pve.moduleStatus[target.id];
-    return u?.modExploit&&state?.fractureUntil>b.tick?Math.round(amount*1.5):amount;
+    let factor=1;
+    if(u?.modExploit&&state?.fractureUntil>b.tick)factor*=1.5;
+    if(u?.modGiantSlayer&&["brute","boss","titan"].includes(target.zombieType))factor*=1.3;
+    return factor===1?amount:Math.round(amount*factor);
   }
-  function burst(b,owner,from,radius,damage,exclude) {
+  function burst(b,owner,from,radius,damage,exclude,limit=4) {
     if(b.moduleProcTick!==b.tick){b.moduleProcTick=b.tick;b.moduleProcCount=0;}
     if(b.moduleProcCount>=4)return;
     b.moduleProcCount++;
@@ -35,7 +39,7 @@
     b.moduleSecondary=true;
     try {
       for(const enemy of b.entities) {
-        if(enemy.tankType!=="zombie"||!enemy.alive||enemy.id===exclude||struck>=4)continue;
+        if(enemy.tankType!=="zombie"||!enemy.alive||enemy.id===exclude||struck>=limit)continue;
         const center={x:enemy.x,y:enemy.y+1.5,z:enemy.z};
         if(Math.hypot(center.x-from.x,center.y-from.y,center.z-from.z)>radius||
           b.collision(from,center,null,{bodies:false}))continue;
@@ -50,6 +54,7 @@
     const previous=b.pve.moduleStatus[target.id],burning=before?.burning??(previous?.burnUntil>b.tick),
       slowed=before?.slowed??(target.slowUntil>b.tick);
     const origin={x:target.x,y:target.y+1.5,z:target.z};
+    if(u.modShockwave)burst(b,owner.id,origin,4,20+10*u.modShockwave,target.id,3);
     if(u.modCombustion&&burning)burst(b,owner.id,origin,5,80,target.id);
     if(u.modCryo&&slowed)burst(b,owner.id,origin,4,70,target.id);
     if(target.alive&&(u.modEmber||u.modFracture)) {
@@ -81,9 +86,8 @@
     }
   }
   function onDeath(b,target,owner) {
-    const state=b.pve.moduleStatus[target.id],u=b.pve.upgrades[owner],player=b.getEntity(owner),
+    const state=b.pve.moduleStatus[target.id],u=b.pve.upgrades[owner],
       from={x:target.x,y:target.y+1.5,z:target.z};
-    if(u?.modLeech&&player?.alive)player.hp=Math.min(player.maxHp,player.hp+20);
     if(!b.moduleSecondary&&u?.modSpread&&state?.burnUntil>b.tick) {
       let count=0;
       for(const enemy of b.entities) {

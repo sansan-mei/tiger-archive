@@ -557,6 +557,9 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(12);
   assert.equal(survival.pve.upgrades[modulePlayer.id].modEmber,1);
   assert.match(nodes.get("pve-build").textContent,/通用模块.*燃烧弹芯/);
+  survival.pve.upgrades[modulePlayer.id].modShockwave=2;
+  advance(12);
+  assert.match(nodes.get("pve-build").textContent,/震荡余波 2级/);
   assert.equal(modulePlayer.weaponType,"rocket");
   survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;
   advance(12);

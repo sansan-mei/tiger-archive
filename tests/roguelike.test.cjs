@@ -25,15 +25,21 @@ test('kills share experience while reward choices are independent, queued and re
   assert.deepEqual(copy.pve,b.pve);S.validateSnapshot(saved);
   b.pve.nextWaveAt=1;b.step();assert.equal(b.pve.pending[p.id],1);
 });
-test('ten shared modules enter the existing upgrade pool and pulse is removed',()=>{
+test('eleven shared modules replace medkit and life leech while preserving regen',()=>{
   const keys=['modEmber','modFrost','modFracture','modCombustion','modCryo',
-    'modExploit','modSpread','modLeech','modOverload','modReprisal'];
+    'modExploit','modSpread','modGiantSlayer','modOverload','modReprisal','modShockwave'];
   assert.deepEqual(Object.keys(R.rewards).filter(k=>k.startsWith('mod')),keys);
-  for(const key of keys){assert.equal(R.caps[key],1);assert.ok(C.PVE.rewards[key]);}
-  for(const key of ['nova','novaRange','frost','shatter']){
+  for(const key of keys){assert.equal(R.caps[key],key==='modShockwave'?3:1);assert.ok(C.PVE.rewards[key]);}
+  for(const key of ['medkit','modLeech','nova','novaRange','frost','shatter']){
     assert.ok(!Object.hasOwn(C.PVE.rewards,key));assert.ok(!Object.hasOwn(R.caps,key));
   }
+  assert.equal(R.caps.regen,3);
+  assert.equal(C.PVE.rewards.regen.name,'自愈因子');
   const b=make(),p=b.entities[0];
+  p.hp=40;b.pve.pending[p.id]=1;R.offer(b,p,C.PVE.rewards);
+  assert.equal(b.chooseUpgrade(p.id,b.pve.wave,'medkit'),false);
+  assert.equal(p.hp,40);
+  delete b.pve.choices[p.id];
   for(const weapon of ['pistol','standard','rapid','laser','rocket']){
     p.weaponType=weapon;b.pve.pending[p.id]=1;delete b.pve.choices[p.id];
     R.offer(b,p,Object.fromEntries(keys.slice(0,3).map(k=>[k,C.PVE.rewards[k]])));
@@ -42,7 +48,7 @@ test('ten shared modules enter the existing upgrade pool and pulse is removed',(
 });
 test('three-choice offers always include a non-weapon reward when one is eligible',()=>{
   const b=make(),p=b.entities[0];
-  const pool=Object.fromEntries(['standard','rapid','rocket','medkit'].map(k=>[k,C.PVE.rewards[k]]));
+  const pool=Object.fromEntries(['standard','rapid','rocket','modShockwave'].map(k=>[k,C.PVE.rewards[k]]));
   for(let seed=1;seed<=256;seed++) {
     b.pve.rng=Math.imul(seed,2654435761)>>>0;
     b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,pool);
@@ -52,21 +58,22 @@ test('three-choice offers always include a non-weapon reward when one is eligibl
     assert.ok(options.some(key=>!Object.hasOwn(C.WEAPONS,key)),`seed ${seed}: ${options}`);
   }
 });
-test('capped upgrades still give three choices including the always-available medkit',()=>{
+test('final shockwave layer keeps three choices after other non-weapon rewards cap',()=>{
   const b=make(),p=b.entities[0];
-  Object.assign(b.pve.upgrades[p.id],R.caps);
+  Object.assign(b.pve.upgrades[p.id],R.caps,{modShockwave:2});
+  b.pve.level=20;
   for(let seed=1;seed<=128;seed++) {
     b.pve.rng=Math.imul(seed,2654435761)>>>0;
     b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
     const options=b.pve.choices[p.id];
     assert.equal(options.length,3);
     assert.equal(new Set(options).size,3);
-    assert.ok(options.includes('medkit'),`seed ${seed}: ${options}`);
+    assert.ok(options.includes('modShockwave'),`seed ${seed}: ${options}`);
   }
   S.validateSnapshot(b.snapshot());
 });
 test('weapon evolution is favored but not guaranteed in randomized three-choice offers',()=>{
-  const b=make(),p=b.entities[0],seen={pierce:0,medkit:0};let missed=false;
+  const b=make(),p=b.entities[0],seen={pierce:0,modShockwave:0};let missed=false;
   for(let seed=1;seed<=256;seed++) {
     b.pve.rng=Math.imul(seed,2654435761)>>>0;
     b.pve.pending[p.id]=1;delete b.pve.choices[p.id];R.offer(b,p,C.PVE.rewards);
@@ -76,13 +83,13 @@ test('weapon evolution is favored but not guaranteed in randomized three-choice 
     assert.ok(!options.includes('ricochet'));
     if(!options.includes('pierce'))missed=true;
     if(options.includes('pierce'))seen.pierce++;
-    if(options.includes('medkit'))seen.medkit++;
+    if(options.includes('modShockwave'))seen.modShockwave++;
   }
   assert.ok(missed,'the current weapon branch must sometimes miss');
-  assert.ok(seen.pierce>seen.medkit,'the current weapon branch should be favored over a normal reward');
+  assert.ok(seen.pierce>seen.modShockwave,'the current weapon branch should be favored over a normal reward');
 });
 test('offers enforce evolution prerequisites and stop increasing capped passives',()=>{
-  const b=make(),p=b.entities[0],pool=Object.fromEntries(['pierce','ricochet','lightning','medkit','haste'].map(k=>[k,C.PVE.rewards[k]]));
+  const b=make(),p=b.entities[0],pool=Object.fromEntries(['pierce','ricochet','lightning','modShockwave','haste'].map(k=>[k,C.PVE.rewards[k]]));
   R.addExperience(b,40,pool);
   assert.ok(b.pve.choices[p.id].includes('pierce'));
   assert.ok(!b.pve.choices[p.id].includes('lightning'));
@@ -125,6 +132,90 @@ test('every weapon has exactly five gated exclusive evolution tiers',()=>{
     }
   }
   assert.ok(Object.hasOwn(C.PVE.rewards,'standard'));
+});
+test('giant slayer raises direct damage against giants and bosses, not regular enemies',()=>{
+  const b=make(),p=b.entities[0],boss=enterBossWave(b,8),u=b.pve.upgrades[p.id];
+  boss.protectedUntil=0;
+  u.modGiantSlayer=1;
+  const hp=boss.hp;hit(b,p,boss);
+  assert.equal(hp-boss.hp,26);
+  assert.equal(C.PVE.progression.moduleDamage(b,{zombieType:'brute'}, {owner:p.id},100),130);
+  assert.equal(C.PVE.progression.moduleDamage(b,{zombieType:'walker'}, {owner:p.id},100),100);
+  u.modExploit=1;u.modFracture=1;
+  b.pve.moduleStatus[boss.id]={fractureUntil:b.tick+240};
+  assert.equal(C.PVE.progression.moduleDamage(b,boss,{owner:p.id},100),195);
+});
+test('shockwave direct hits damage only three nearby secondary targets',()=>{
+  const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),nearby=Array.from({length:4},(_,i)=>enemy(b,i+1,2+i*.5,55)),
+    far=enemy(b,5,8,55);
+  b.pve.upgrades[p.id].modShockwave=1;
+  hit(b,p,primary);
+  assert.equal(primary.hp,primary.maxHp-20);
+  assert.deepEqual(nearby.map(e=>e.hp),[50,50,50,80]);
+  assert.equal(far.hp,far.maxHp);
+  assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===4).length,1);
+});
+test('shockwave gains ten secondary damage per level and caps at three',()=>{
+  for(const [level,damage] of [[1,30],[2,40],[3,50]]) {
+    const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+    b.pve.upgrades[p.id].modShockwave=level;
+    hit(b,p,primary);
+    assert.equal(side.maxHp-side.hp,damage,`level ${level}`);
+  }
+});
+test('shockwave damage and explosion survive the authoritative network packet',()=>{
+  const a=new S.Authority({mode:'pve',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]}),
+    b=a.battle,p=b.entities[0];
+  b.start();b.pve.wave=1;b.pve.nextWaveAt=100000;
+  const primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  b.pve.upgrades[p.id].modShockwave=3;
+  S.validateSnapshot(b.snapshot());
+  const replica=new S.Replica();replica.welcome(a.attach('peer',p.id));
+  const previous=b.events.length;
+  hit(b,p,primary);
+  a.history.push(...b.events.slice(previous));
+  const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
+  assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
+  const received=replica.receive(packet);
+  assert.equal(received.ok,true,received.reason);
+  assert.equal(replica.current.entities.find(e=>e.id===side.id).hp,30);
+  assert.ok(received.events.some(e=>e.type==='explosion'&&e.radius===4));
+});
+test('v29 checkpoints and retired healing upgrades are rejected under v30',()=>{
+  assert.equal(C.VERSION,30);
+  const b=make(),saved=b.snapshot();
+  const old=C.clone(saved);old.version=29;
+  assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
+  saved.pve.upgrades.p0.modLeech=1;
+  assert.throws(()=>S.validateSnapshot(saved),/Invalid run upgrade/);
+});
+test('an in-flight shot keeps shockwave after changing weapons',()=>{
+  const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  p.weaponType='rapid';b.pve.upgrades[p.id].modShockwave=3;
+  assert.equal(b.shoot(p),true);
+  const shot=b.bullets[0];assert.ok(shot&&shot.weaponType==='rapid');
+  p.weaponType='pistol';
+  b.resolveHit({kind:'tank',id:primary.id,point:{x:primary.x+.6,y:1.5,z:primary.z}},shot);
+  assert.equal(side.hp,30);
+  assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
+});
+test('eight-player shockwaves stay within the module and network event budgets',()=>{
+  const a=new S.Authority({mode:'pve',participants:Array.from({length:8},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'}))}),
+    b=a.battle;
+  b.start();b.pve.wave=1;b.pve.nextWaveAt=100000;
+  const primary=enemy(b,0,0,55);
+  for(let i=1;i<=4;i++)enemy(b,i,2+i*.2,55);
+  for(const p of b.entities.filter(e=>e.tankType!=='zombie'))b.pve.upgrades[p.id].modShockwave=3;
+  S.validateSnapshot(b.snapshot());
+  const replica=new S.Replica();replica.welcome(a.attach('peer','p0'));
+  const previous=b.events.length;
+  for(const p of b.entities.filter(e=>e.tankType!=='zombie'))hit(b,p,primary);
+  a.history.push(...b.events.slice(previous));
+  assert.equal(b.moduleProcCount,4);
+  const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
+  assert.equal(packet.events.filter(e=>e.type==='explosion'&&e.radius===4).length,4);
+  assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
+  assert.equal(replica.receive(packet).ok,true);
 });
 test('shared elemental modules apply across all five weapons and burn on authority ticks',()=>{
   for(const weapon of ['pistol','standard','rapid','laser','rocket']) {
@@ -191,12 +282,12 @@ test('frost and cryo modules shatter slowed targets without double hitting the p
   assert.equal(z.hp,445);assert.equal(side.hp,430);
   assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
 });
-test('shared kill modules spread burning, heal and burst fractured enemies',()=>{
+test('shared kill modules spread burning and burst fractured enemies without healing',()=>{
   const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
   Object.assign(z,{hp:100,maxHp:100});Object.assign(side,{hp:300,maxHp:300});p.hp=10;
-  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modSpread:1,modLeech:1,modReprisal:1});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modSpread:1,modReprisal:1});
   hit(b,p,z);b.damage(z,1000,p.id,{x:z.x,y:1.5,z:z.z});
-  assert.equal(p.hp,30);assert.equal(side.hp,240);
+  assert.equal(p.hp,10);assert.equal(side.hp,240);
   assert.equal(b.pve.moduleStatus[side.id].burnUntil,b.tick+240);
   b.tick=60;R.tick(b);assert.equal(side.hp,220);
   assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===5).length,1);
@@ -259,10 +350,11 @@ test('module secondary effects respect walls and the per-tick proc budget',()=>{
   map.obstacles=[{id:'module-wall',floor:0,x:2,z:55,w:1,d:8,h:4}];
   const b=make(1,map),p=b.entities[0],z=enemy(b,0,0,55),hidden=enemy(b,1,4,55);
   Object.assign(z,{hp:500,maxHp:500});
-  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modCombustion:1,modOverload:1});
+  Object.assign(b.pve.upgrades[p.id],{modEmber:1,modCombustion:1,modOverload:1,modShockwave:1});
   for(let i=0;i<10;i++)hit(b,p,z);
   assert.equal(hidden.hp,80);
   assert.ok(b.events.filter(e=>e.type==='explosion'&&e.radius===5).length<=4);
+  assert.ok(b.events.filter(e=>e.type==='explosion'&&e.radius===4).length<=4);
   assert.ok(b.moduleProcCount<=4);
 });
 test('checkpoint rejects a burning status with no next damage tick',()=>{

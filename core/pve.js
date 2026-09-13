@@ -9,7 +9,6 @@
   const MAX_REGULAR_ZOMBIES = 16, MAX_ZOMBIES = 17;
   const rewards = Object.freeze({
     ...R.rewards,
-    medkit: { name: "急救补给", description: "立即恢复 60 生命" },
     haste: { name: "快速装填", description: "装填时间减少 10%，最多叠加 3 次" },
     regen: { name: "自愈因子", description: "每秒恢复 1 生命，最多叠加 3 次" },
     standard: { name: "标准炮", description: "替换当前武器，以暴击震荡和处决巨型感染者" },
@@ -55,8 +54,7 @@
         !b.pve.pending[id] || offerId !== b.pve.choiceIds[id] || !b.pve.choices[id]?.includes(choice)) return false;
     const p = b.getEntity(id), upgrades = b.pve.upgrades[id];
     if (!p || p.forfeited || !p.alive) return false;
-    if (choice === "medkit") p.hp = Math.min(p.maxHp, p.hp + 60);
-    else if (Object.hasOwn(upgrades, choice)) upgrades[choice] = Math.min(R.caps[choice], upgrades[choice] + 1);
+    if (Object.hasOwn(upgrades, choice)) upgrades[choice] = Math.min(R.caps[choice], upgrades[choice] + 1);
     else {
       p.weaponType = choice;
       p.ammo = C.WEAPONS[choice].magazineSize || 0;
