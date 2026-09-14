@@ -282,12 +282,12 @@ for (const previousWave of [4, 10]) test(`wave ${previousWave + 1} automatically
   assert.equal(b.pve.wave,previousWave+2);assert.equal(b.pve.riskyWave,0);
   S.validateSnapshot(b.snapshot());
 });
-test('risk starts automatically after the ordinary 15-second break',()=>{
+test('risk starts automatically after the ordinary 10-second break',()=>{
   const b=create(2);b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
   b.step();assert.equal(b.pve.trial,undefined);
   const before=b.pve.nextWaveAt;
-  assert.equal(before-b.tick,15*C.TICK_RATE,'the automatic break still lasts 15 seconds');
+  assert.equal(before-b.tick,10*C.TICK_RATE,'the automatic break lasts 10 seconds');
   assert.equal(typeof b.startNextWave,'undefined');
   b.step();assert.equal(b.pve.wave,4);
   assert.equal(b.pve.nextWaveAt,before);

@@ -229,7 +229,12 @@
   const pveUI = window.TankClient.createPveUI({ C, $, onFormation: () => { if (!session.suspended) formationSound(); }, choose: (wave, choice, offerId) => {
     if (session.online && !session.suspended) {
       clearInput();
-      network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId });
+      if (network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId })) {
+        // Upgrade clicks otherwise leave focus on a card that the next snapshot removes.
+        // Reacquire pointer lock in this user gesture, not in the wave/render loop.
+        canvas.focus({ preventScroll: true });
+        if (!window.matchMedia("(pointer: coarse)").matches) lockMouse();
+      }
     }
   } });
   function config() {

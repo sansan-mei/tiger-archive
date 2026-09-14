@@ -253,7 +253,7 @@
     if (!pve.queue && !zombies(b).some((z) => z.alive)) {
       // Dead teammates return only after the team clears a wave.
       resupply(b, players);
-      pve.nextWaveAt = b.tick + 900;
+      pve.nextWaveAt = b.tick + 10 * C.TICK_RATE;
     }
   }
   function validate(s) {
