@@ -78,7 +78,9 @@
       for(const [kind,refs]of Object.entries(kit.userData.treeReferences)){
         const visual=kit.getObjectByName(kind+'Trees'),body=visual.children.find(m=>m.name.startsWith('treeBody'));
         const crowns=visual.children.filter(m=>m.name.startsWith('treeLeaves'));
-        style.decorate(body.material);
+        // Trunk materials must be independent from the palette shared by scenery props.
+        body.material=body.material.clone();
+        style.fadeOccluder(body.material);style.decorate(body.material);
         const trunks=new T.InstancedMesh(body.geometry,body.material,refs.length);
         const leaves=new T.InstancedMesh(style.crown,style.foliage,refs.length*crowns.length);
         trunks.name='folio-'+kind+'-trunks';leaves.name='folio-'+kind+'-leaves';leaves.userData.aimIgnore=true;leaves.customDepthMaterial=style.foliageDepth;

@@ -8,6 +8,53 @@
   const time = {value:0}, weatherLight={value:new T.Color().setRGB(1.08,1.01,.91)},
     weatherShade={value:new T.Color().setRGB(.52,.47,.68)}, wind={value:.35};
   function setWeather({light,shade,wind:amount}){weatherLight.value.copy(light);weatherShade.value.copy(shade);wind.value=amount;}
+  const occlusion = {
+    focus:{value:new T.Vector4(0,0,0,0)},
+    limits:{value:new T.Vector3(1,.2,-1)}
+  };
+  const focusPoint=new T.Vector3(),viewPoint=new T.Vector3();
+  function updateOcclusion(camera,body,C) {
+    occlusion.limits.value.z=-1;
+    if(!body?.alive)return;
+    camera.updateMatrixWorld();
+    viewPoint.set(body.x,body.y+.25,body.z).applyMatrix4(camera.matrixWorldInverse);
+    if(viewPoint.z>=-camera.near)return;
+    focusPoint.set(body.x,body.y+.25,body.z).project(camera);
+    const radius=(C.TANKS[body.tankType].radius+.8)*camera.projectionMatrix.elements[5]/-viewPoint.z;
+    // A screen-space corridor joins the character to the central aiming area.
+    occlusion.focus.value.set(focusPoint.x,focusPoint.y,0,0);
+    occlusion.limits.value.set(camera.aspect,Math.max(.12,Math.min(.45,radius)),-viewPoint.z+.5);
+  }
+  function fadeOccluder(material) {
+    if(material.userData.folioOccluder)return material;
+    material.userData.folioOccluder=true;
+    const before=material.onBeforeCompile;
+    material.onBeforeCompile=shader=>{
+      before.call(material,shader);
+      shader.uniforms.folioFocus=occlusion.focus;shader.uniforms.folioOcclusion=occlusion.limits;
+      shader.vertexShader='varying vec4 folioClip;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <logdepthbuf_vertex>',
+        '#include <logdepthbuf_vertex>\nfolioClip=gl_Position;');
+      shader.fragmentShader='varying vec4 folioClip; uniform vec4 folioFocus; uniform vec3 folioOcclusion;\n'+shader.fragmentShader;
+      shader.fragmentShader=shader.fragmentShader.replace('#include <alphatest_fragment>',`
+        #include <alphatest_fragment>
+        if(folioOcclusion.z>0. && vViewPosition.z<folioOcclusion.z){
+          vec2 aspect=vec2(folioOcclusion.x,1.);
+          vec2 a=folioFocus.xy*aspect,b=folioFocus.zw*aspect;
+          vec2 p=folioClip.xy/folioClip.w*aspect,ab=b-a;
+          float h=clamp(dot(p-a,ab)/max(dot(ab,ab),.00001),0.,1.);
+          float distanceToFocus=length(p-a-ab*h);
+          float coverage=smoothstep(folioOcclusion.y*.65,folioOcclusion.y*1.65,distanceToFocus);
+          // Dithered cutouts avoid alpha sorting problems across overlapping instanced crowns.
+          // The center clears completely; the soft edge restores the canopy gradually.
+          float dither=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715))));
+          if(coverage<=dither)discard;
+        }
+      `);
+    };
+    material.customProgramCacheKey=()=> 'folio-occluder-v1-'+material.name;
+    return material;
+  }
   // WebGL port of Folio's MeshDefaultMaterial: palette colors and tinted shadows.
   function decorate(material) {
     if(material.userData.folioStyled) return material;
@@ -27,7 +74,7 @@
         #include <opaque_fragment>
       `);
     };
-    material.customProgramCacheKey = () => 'folio-palette-v2-'+material.name;
+    material.customProgramCacheKey = () => 'folio-palette-v2-'+material.name+(material.userData.folioOccluder?'-occlusion':'');
     return material;
   }
   const leafFallback = new T.DataTexture(new Uint8Array([255,255,255,255]), 1, 1);
@@ -92,7 +139,7 @@
       gl_Position = projectionMatrix * mvPosition;
     `);
   };
-  foliage.onBeforeCompile=billboard; decorate(foliage);
+  foliage.onBeforeCompile=billboard; fadeOccluder(foliage); decorate(foliage);
   const foliageDepth = new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide,alphaMap:foliage.alphaMap,alphaTest:.3});
   foliageDepth.onBeforeCompile=billboard;
   foliageDepth.customProgramCacheKey=()=> 'folio-leaf-depth-v2';
@@ -187,5 +234,5 @@
       shadows.computeBoundingSphere();floorGroups[level.id].add(shadows);
     }
   }
-  return { setWeather, decorate, foliageDepth, update: t=>{time.value=t*.001;}, ready, ground, restyle, treeColor, addDetails, crown, foliage, grassGeometry, grass };
+  return { updateOcclusion, fadeOccluder, setWeather, decorate, foliageDepth, update: t=>{time.value=t*.001;}, ready, ground, restyle, treeColor, addDetails, crown, foliage, grassGeometry, grass };
 };

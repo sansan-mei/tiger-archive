@@ -91,7 +91,10 @@
   return {
     environmentReady: Promise.all([style.ready, folio.ready]),
     setMapMode,
-    renderFrame: atmosphere.render,
+    renderFrame(time,target,focus) {
+      style.updateOcclusion(camera,target,C);
+      atmosphere.render(time,target,focus);
+    },
     renderer,
     scene,
     camera,
