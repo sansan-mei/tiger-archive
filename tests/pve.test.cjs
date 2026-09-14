@@ -213,7 +213,7 @@ test('wave rewards are validated once, persist and affect authority cooldown, he
   const z=enemies(b)[0]; Object.assign(p,{x:0,z:55}); Object.assign(z,{x:4,z:55,y:0,floor:0,hp:z.maxHp,alive:true,protectedUntil:0});
   b.bullets=[];b.pve.upgrades[p.id].modEmber=1;b.tick=239;
   b.pveHit({id:z.id,point:{x:z.x,y:1.5,z:z.z}},{owner:p.id,weaponType:'pistol'});
-  b.tick=298;b.step();assert.equal(z.hp,z.maxHp-20);
+  b.tick=298;b.step();assert.equal(z.hp,z.maxHp-14);
   S.validateSnapshot(b.snapshot());
   const recovered=create(); recovered.restore(b.snapshot());
   for(let i=0;i<120;i++){b.step(); recovered.step();} assert.deepEqual(recovered.snapshot(),b.snapshot());
