@@ -27,9 +27,9 @@
     breach:['近距破阵','破片击退 6 米内敌人；同次射击命中两枚破片追加一次 30 伤害，Boss 不被击退'],
     siegeScatter:['攻城霰炮','每第 3 炮破片伤害提高至 35，每枚额外贯穿一名敌人'],
     bipod:['稳定支架','站定持续开火 1.5 秒，射速逐步提高至两倍；跑动迅速失去加成'],
-    piercingBelt:['穿甲弹链','完全展开后，直接命中额外贯穿后方一名敌人，造成 15 伤害'],
+    piercingBelt:['穿甲弹链','完全展开后发射的主弹直击伤害增加 8（13 → 21），不再贯穿后方敌人'],
     guardPlate:['应急护板','完全展开获得 25 点护盾，持续 3 秒，冷却 10 秒'],
-    fortress:['移动堡垒','完全展开追加两路侧向火力，各 12 伤害；开火时按住 C 或缓行按钮可缓慢移动并保持展开'],
+    fortress:['移动堡垒','完全展开后发射的主弹直击伤害再增加 15（21 → 36），不再追加侧向火力；开火时按住 C 或缓行按钮可缓慢移动并保持展开'],
     chargeCore:['蓄能核心','按住蓄力、松开发射，2 秒蓄满造成 240 伤害；点射造成 60 伤害'],
     hotTrail:['灼热轨迹','满蓄力留下 3 秒灼烧带，每半秒 20 伤害'],
     energyReturn:['能量回收','满蓄力命中至少 3 名敌人，下一次蓄力缩短至 1.2 秒'],
@@ -66,6 +66,7 @@
     if(p.weaponType==='pistol'&&u.lightMagazine)return {...base,magazineSize:4,reloadTicks:45};
     if(p.weaponType==='rapid'&&u.bipod)return {...base,cooldown:Math.max(1,Math.round(base.cooldown/(1+s.deploy/90)))};
     if(p.weaponType==='laser'&&u.chargeCore)return {...base,trigger:'release',charge:s.chargeReady?72:120,damage:240,minPower:.25};
+    if(p.weaponType==='laser'&&u.stellar)return {...base,charge:45,minCharge:45};
     return base;
   }
   function reload(b,p) {
@@ -119,6 +120,10 @@
       shot.branchBoost=s.bonus>0||s.burstUntil>b.tick;
       if(shot.branchBoost){shot.damage=Math.round(shot.damage*1.5);s.bonus=Math.max(0,s.bonus-1);}
     }
+    if(p.weaponType==='rapid'&&u.piercingBelt&&s.deploy===90) {
+      shot.branchBelt=true;shot.damage+=8;
+      if(u.fortress){shot.branchFortress=true;shot.damage+=15;}
+    }
     if(p.weaponType==='rocket'&&u.napalm){shot.branchNapalm=true;shot.damage=Math.round(shot.damage*.6);shot.branchInferno=!!u.inferno&&(s.shots+1)%3===0;}
   }
   function hit(b,hit,shot,before) {
@@ -135,9 +140,6 @@
         if(u.refundRound&&s.refunds<2){p.ammo=Math.min(4,p.ammo+1);s.bonus=Math.min(4,s.bonus+1);s.refunds++;if(p.cooldown>24)p.cooldown=24;}
         if(u.openingForever&&s.burstUntil>b.tick)s.burstUntil=Math.min(s.burstCap,s.burstUntil+15);
       }
-    }
-    if(shot.weaponType==='rapid'&&u.piercingBelt&&s.deploy===90) {
-      ray(b,p,hit.point,{x:hit.point.x+shot.dx*12,y:hit.point.y+shot.dy*12,z:hit.point.z+shot.dz*12},15,.1,1,null,3,[target.id]);
     }
   }
   function afterShot(b,p,shot,start,end=null) {
@@ -157,10 +159,6 @@
           for(let i=0;i<6;i++){const x=target.x+dx,z=target.z+dz;if(!b.valid(x,z,target.floor,target))break;target.x=x;target.z=z;}
         }
       }
-    }
-    if(p.weaponType==='rapid'&&u.fortress&&s.deploy===90)for(const offset of [-.16,.16]) {
-      const angle=p.aim+offset,c=Math.cos(p.pitch);
-      ray(b,p,start,{x:start.x-Math.cos(angle)*24*c,y:start.y+Math.sin(p.pitch)*24,z:start.z+Math.sin(angle)*24*c},12);
     }
     if(p.weaponType==='laser'&&u.chargeCore) {
       s.chargeReady=0;

@@ -75,6 +75,7 @@
       p.ammo=4; p.cooldown=0; R.branches.reload(b,p);
     }
     if (choice==='chargeCore') { p.charge=0; p.fireHeld=false; p.needsRelease=true; }
+    if (choice==='stellar') p.charge=Math.min(p.charge,b.pveWeapon(p).charge);
     R.complete(b, p, rewards);
     return true;
   }

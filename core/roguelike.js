@@ -28,7 +28,7 @@
     capacitor: { name: "聚能电容", description: "激光伤害从 100 提升至 150", requires: "wideBeam", weapon: "laser" },
     plasmaBurst: { name: "多重等离子", description: "前 3 个命中点各产生 4 米、60 伤害爆发", requires: "capacitor", weapon: "laser" },
     refraction: { name: "光棱折射", description: "每次发射额外折射至 12 米内最多 4 名敌人，各 100 伤害", requires: "plasmaBurst", weapon: "laser" },
-    stellar: { name: "恒星射线", description: "1.5 米宽束、250 伤害、8 米 120 首爆并折射 6 名敌人", requires: "refraction", weapon: "laser" },
+    stellar: { name: "恒星射线", description: "预热缩至 0.75 秒；1.5 米宽束、250 伤害、8 米 120 首爆并折射 6 名敌人", requires: "refraction", weapon: "laser" },
     blast: { name: "巨型弹头", description: "火箭爆炸半径提升至 10 米，中心伤害提升至 100", weapon: "rocket" },
     fire: { name: "烈焰地带", description: "留下 5 米燃烧区，持续 4 秒，每半秒 15 伤害", requires: "blast", weapon: "rocket" },
     chain: { name: "尸爆连锁", description: "击杀感染者触发 6 米、80 伤害尸爆；尸爆不递归", requires: "fire", weapon: "rocket" },

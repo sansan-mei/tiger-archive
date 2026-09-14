@@ -61,6 +61,56 @@ test('scatter adds bounded close-range hits, knocks enemies back without enterin
   assert.ok(b.valid(near.x,near.z,near.floor,near));
   S.validateSnapshot(b.snapshot());
 });
+test('bipod main projectile deals 36 fully built, 21 at tier three and 13 before deployment',()=>{
+  for(const [tier,deploy,damage] of [[5,90,36],[3,90,21],[5,89,13],[5,0,13]]) {
+    const {b,p,s}=make('rapid',tier);s.deploy=deploy;
+    const target=enemy(b,0),rear=enemy(b,1,-14),side=enemy(b,2,-18,58),hp=target.hp,rearHp=rear.hp,sideHp=side.hp;
+    b.shoot(p);const shot=b.bullets[0];assert.equal(shot.damage,damage);
+    assert.equal(p.cooldown,Math.round(18/(1+deploy/90)));
+    b.resolveHit({kind:'tank',id:target.id,point:{x:target.x+1,y:1.5,z:55}},shot);
+    assert.equal(target.hp,hp-damage);assert.equal(rear.hp,rearHp);assert.equal(side.hp,sideHp);
+    assert.equal(b.events.filter(e=>e.type==='beam').length,0);
+    assert.ok(target.slowUntil>b.tick);
+    S.validateSnapshot(b.snapshot());
+  }
+});
+test('bipod fire-time bonuses survive rollout, crawl, tier acquisition and checkpoint/replica transport; switching keeps only base damage',()=>{
+  for(const mode of ['rollout','crawl','switch','base-switch','tier-up']) {
+    const {b,p,s,u}=make('rapid',mode==='tier-up'?3:5);
+    s.deploy=mode==='base-switch'?0:90;
+    const a=new S.Authority(),r=new S.Replica();a.battle=b;r.welcome(a.attach('peer','p'));
+    b.shoot(p);const shot=b.bullets[0];assert.ok(shot);
+    const firedDamage=mode==='base-switch'?13:mode==='tier-up'?21:36;
+    assert.equal(shot.damage,firedDamage);
+    if(mode.includes('switch')) {
+      b.pve.pending.p=1;b.pve.choices.p=['pistol','regen','haste'];b.pve.choiceIds.p=b.pve.nextChoiceId++;
+      assert.ok(b.chooseUpgrade('p',0,'pistol'));
+    } else if(mode==='tier-up') {u.guardPlate=1;u.fortress=1;}
+    const input=mode==='crawl'?{fire:true,forward:true,brake:true}:mode==='rollout'?{forward:true}:{};
+    // Real movement and in-flight projectile simulation, checked on every tick.
+    for(let i=0;i<3;i++) {
+      a.commands.set('p',input);a.peers.get('peer').lastTick=b.tick;a.step();
+      if(mode==='crawl')assert.equal(s.deploy,90);
+      if(mode==='rollout')assert.ok(s.deploy<90);
+      S.validateSnapshot(b.snapshot());
+      const result=r.receive(a.statePacket({network:true}));assert.equal(result.ok,true,result.reason);
+    }
+    assert.ok(b.bullets.includes(shot));assert.equal(shot.damage,firedDamage);
+    const copy=make('rapid').b;copy.restore(b.snapshot());assert.deepEqual(copy.snapshot(),b.snapshot());
+    const target=enemy(b,0),hp=target.hp;
+    b.resolveHit({kind:'tank',id:target.id,point:{x:target.x+1,y:1.5,z:55}},shot);
+    assert.equal(hp-target.hp,mode.includes('switch')?13:firedDamage);
+  }
+});
+test('bipod projectile checkpoint rejects forged bonus flags and damage',()=>{
+  const {b,p,s}=make('rapid');s.deploy=90;b.shoot(p);
+  for(const mutate of [x=>x.branchBelt=false,x=>x.branchBelt='yes',x=>delete x.branchBelt,
+    x=>x.branchFortress=false,x=>x.branchFortress='yes',x=>x.damage=37,x=>x.weaponType='rocket']) {
+    const bad=b.snapshot();mutate(bad.bullets[0]);assert.throws(()=>S.validateSnapshot(bad),/Invalid projectile/);
+  }
+  const bad=b.snapshot();bad.pve.upgrades.p.fortress=0;
+  assert.throws(()=>S.validateSnapshot(bad),/Invalid projectile/);
+});
 test('bipod builds up only when firing in place; guarded crawl retains deployment and switching cannot refresh shield',()=>{
   const {b,p,s}=make('rapid');
   for(let i=0;i<90;i++){b.tick++;B.move(b,p,{fire:true});}
@@ -169,13 +219,13 @@ test('charge visuals and HUD use normal, returned and baseline laser charge dura
     }
   }
 });
-test('charge balance v40 rejects v39 checkpoints and welcomes',()=>{
-  assert.equal(C.VERSION,40);
-  const {b}=make('laser'),old=b.snapshot();old.version=39;
+test('bipod balance v41 rejects v40 checkpoints and welcomes',()=>{
+  assert.equal(C.VERSION,41);
+  const {b}=make('laser'),old=b.snapshot();old.version=40;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
   assert.throws(()=>b.restore(old),/snapshot/i);
   const a=new S.Authority();a.battle=b;
-  const welcome=a.attach('peer','p');welcome.version=39;
+  const welcome=a.attach('peer','p');welcome.version=40;
   assert.throws(()=>new S.Replica().welcome(welcome));
 });
 test('napalm reduces direct damage, caps fire zones and ignites only one generation of embers',()=>{

@@ -201,7 +201,8 @@
       const ownerEntity=s.entities.find((e)=>e.id===b.owner),upgrades=s.pve?.upgrades?.[b.owner],
         baseDamage=b.weaponType==="standard"&&b.critical&&upgrades?.judgment
           ?200:C.WEAPONS[b.weaponType]?.damage*(b.critical?C.WEAPONS[b.weaponType]?.criticalMultiplier||1:1),
-        expectedDamage=Math.round(baseDamage*(b.branchBoost?1.5:b.branchNapalm?0.6:1));
+        // Persist fire-time bonuses: deployment and equipped weapon may change in flight.
+        expectedDamage=Math.round(baseDamage*(b.branchBoost?1.5:b.branchNapalm?0.6:1))+(b.branchBelt?8:0)+(b.branchFortress?15:0);
       if (
         !plain(b) ||
         !integer(b.id, 1) ||
@@ -224,6 +225,8 @@
         (b.branchBoost!==undefined && (typeof b.branchBoost!=="boolean" || b.weaponType!=="pistol" || !upgrades?.lightMagazine)) ||
         (b.branchNapalm!==undefined && (b.branchNapalm!==true || b.weaponType!=="rocket" || !upgrades?.napalm)) ||
         (b.branchInferno!==undefined && (typeof b.branchInferno!=="boolean" || b.weaponType!=="rocket" || !upgrades?.napalm || b.branchInferno&&!upgrades.inferno)) ||
+        (b.branchBelt!==undefined && (b.branchBelt!==true || b.weaponType!=="rapid" || !upgrades?.piercingBelt)) ||
+        (b.branchFortress!==undefined && (b.branchFortress!==true || !b.branchBelt || !upgrades?.fortress)) ||
         b.damage!==expectedDamage
       ) throw new Error("Invalid projectile");
     }

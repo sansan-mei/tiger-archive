@@ -33,7 +33,7 @@ test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy he
     assert.equal(C.PVE.healthFor(type,1,wave),
       Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
   }
-  assert.equal(C.VERSION,40);
+  assert.equal(C.VERSION,41);
   S.validateSnapshot(b.snapshot());
 });
 test("PvE uses the ground-only woodland while PvP retains its floors and ramps",()=>{
@@ -71,7 +71,7 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
 test('v36 weapon branches reject pre-branch checkpoints',()=>{
-  assert.equal(C.VERSION,40);
+  assert.equal(C.VERSION,41);
   const old=create().snapshot();old.version=35;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
