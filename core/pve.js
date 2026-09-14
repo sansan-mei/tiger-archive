@@ -56,6 +56,10 @@
         !b.pve.pending[id] || offerId !== b.pve.choiceIds[id] || !b.pve.choices[id]?.includes(choice)) return false;
     const p = b.getEntity(id), upgrades = b.pve.upgrades[id];
     if (!p || p.forfeited || !p.alive) return false;
+    const reward=rewards[choice];
+    if (!reward || (reward.requires && !upgrades[reward.requires]) ||
+        (reward.weapon && reward.weapon!==p.weaponType) || !R.branches.allowed(upgrades,choice) ||
+        (R.caps[choice] && upgrades[choice]>=R.caps[choice])) return false;
     if (Object.hasOwn(upgrades, choice)) upgrades[choice] = Math.min(R.caps[choice], upgrades[choice] + 1);
     else {
       p.weaponType = choice;
@@ -66,6 +70,11 @@
       p.fireHeld = false;
       p.needsRelease = true;
     }
+    if (!Object.hasOwn(upgrades,choice)) R.branches.reset(b,p);
+    if (choice==='lightMagazine' || (!Object.hasOwn(upgrades,choice) && p.weaponType==='pistol' && upgrades.lightMagazine)) {
+      p.ammo=4; p.cooldown=0; R.branches.reload(b,p);
+    }
+    if (choice==='chargeCore') { p.charge=0; p.fireHeld=false; p.needsRelease=true; }
     R.complete(b, p, rewards);
     return true;
   }
@@ -189,6 +198,7 @@
       pve.choices = {};
       pve.choiceIds = {};
       pve.enemyAttacks = [];
+      pve.branchZones = []; pve.branchEchoes = [];
       pve.boss.telegraph = null;
       b.emit("end", { winnerId: null });
       return;

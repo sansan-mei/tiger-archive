@@ -199,8 +199,9 @@
       throw new Error("Invalid projectiles");
     for (const b of s.bullets) {
       const ownerEntity=s.entities.find((e)=>e.id===b.owner),upgrades=s.pve?.upgrades?.[b.owner],
-        expectedDamage=b.weaponType==="standard"&&b.critical&&upgrades?.judgment
-          ?200:C.WEAPONS[b.weaponType]?.damage*(b.critical?C.WEAPONS[b.weaponType]?.criticalMultiplier||1:1);
+        baseDamage=b.weaponType==="standard"&&b.critical&&upgrades?.judgment
+          ?200:C.WEAPONS[b.weaponType]?.damage*(b.critical?C.WEAPONS[b.weaponType]?.criticalMultiplier||1:1),
+        expectedDamage=Math.round(baseDamage*(b.branchBoost?1.5:b.branchNapalm?0.6:1));
       if (
         !plain(b) ||
         !integer(b.id, 1) ||
@@ -220,6 +221,9 @@
         (b.doomsday&&(b.weaponType!=="rocket"||!upgrades?.doomsday||s.pve.rocketShots[b.owner]!==0)) ||
         !integer(b.ownerLife,0,ownerEntity.deaths) ||
         (b.critical && !C.WEAPONS[b.weaponType].criticalHits) ||
+        (b.branchBoost!==undefined && (typeof b.branchBoost!=="boolean" || b.weaponType!=="pistol" || !upgrades?.lightMagazine)) ||
+        (b.branchNapalm!==undefined && (b.branchNapalm!==true || b.weaponType!=="rocket" || !upgrades?.napalm)) ||
+        (b.branchInferno!==undefined && (typeof b.branchInferno!=="boolean" || b.weaponType!=="rocket" || !upgrades?.napalm || b.branchInferno&&!upgrades.inferno)) ||
         b.damage!==expectedDamage
       ) throw new Error("Invalid projectile");
     }

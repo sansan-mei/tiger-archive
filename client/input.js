@@ -201,6 +201,7 @@
     ArrowRight: "right",
     Space: "fire",
     KeyF: "fire",
+    KeyC: "brake",
     ShiftLeft: "ability",
     ShiftRight: "ability",
   };

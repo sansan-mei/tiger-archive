@@ -190,6 +190,8 @@
       Systems.pve.progression.onDeath(this, target, owner, Systems.pve.rewards);
     }
     pveHit(hit, shot, before) { Systems.pve.progression.onHit(this, hit, shot, before); }
+    pveWeapon(body) { return this.mode === "pve" ? Systems.pve.progression.branches.weapon(this,body) : WEAPONS[body.weaponType]; }
+    pveBranch(action,...args) { if(this.mode === "pve") return Systems.pve.progression.branches[action](this,...args); }
     pveModuleDamage(target,shot,amount) { return Systems.pve.progression.moduleDamage(this,target,shot,amount); }
     pveFire(hit, shot) { Systems.pve.progression.fireZone(this, hit, shot); }
     releaseControl(id) {

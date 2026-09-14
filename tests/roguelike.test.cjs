@@ -73,7 +73,7 @@ test('three-choice offers always include a non-weapon reward when one is eligibl
 });
 test('final shockwave layer keeps three choices after other non-weapon rewards cap',()=>{
   const b=make(),p=b.entities[0];
-  Object.assign(b.pve.upgrades[p.id],R.caps,{modShockwave:2});
+  Object.assign(b.pve.upgrades[p.id],R.caps,{modShockwave:2},Object.fromEntries(Object.keys(R.branches.caps).map(k=>[k,0])));
   b.pve.level=20;
   for(let seed=1;seed<=128;seed++) {
     b.pve.rng=Math.imul(seed,2654435761)>>>0;
@@ -118,7 +118,7 @@ test('offers enforce evolution prerequisites and stop increasing capped passives
   R.addExperience(b,100,C.PVE.rewards);R.addExperience(copy,100,C.PVE.rewards);
   assert.deepEqual(copy.pve.choices,b.pve.choices);
 });
-test('every weapon has exactly five gated exclusive evolution tiers',()=>{
+test('each original weapon route preserves its five gated evolution tiers',()=>{
   const expected={
     pistol:['pierce','ricochet','lightning','conductor','thunder'],
     standard:['heavyShell','execution','penetrator','earthquake','judgment'],
@@ -126,7 +126,7 @@ test('every weapon has exactly five gated exclusive evolution tiers',()=>{
     laser:['wideBeam','capacitor','plasmaBurst','refraction','stellar'],
     rocket:['blast','fire','chain','cluster','doomsday'],
   };
-  const routes=Object.groupBy(Object.entries(R.rewards).filter(([,r])=>r.weapon),([,r])=>r.weapon);
+  const routes=Object.groupBy(Object.entries(R.rewards).filter(([key,r])=>r.weapon&&!R.branches.rewards[key]),([,r])=>r.weapon);
   for(const [weapon,keys] of Object.entries(expected)) {
     assert.deepEqual(routes[weapon].map(([key])=>key),keys,weapon);
     keys.forEach((key,i)=>assert.equal(R.rewards[key].requires,i?keys[i-1]:undefined,key));
@@ -408,7 +408,7 @@ test('boss arrival and zombie-slot reuse clear all stale module statuses',()=>{
   S.validateSnapshot(b.snapshot());
 });
 test('five-tier counters and prerequisites survive checkpoints and reject forgery',()=>{
-  const b=make(),p=b.entities[0],u=b.pve.upgrades[p.id],keys=Object.keys(R.rewards).filter(k=>R.rewards[k].weapon);
+  const b=make(),p=b.entities[0],u=b.pve.upgrades[p.id],keys=Object.keys(R.rewards).filter(k=>R.rewards[k].weapon&&!R.branches.rewards[k]);
   for(const key of keys)u[key]=1;
   Object.assign(b.pve.hits,{[p.id]:1});Object.assign(b.pve.rapidHits,{[p.id]:4});Object.assign(b.pve.rocketShots,{[p.id]:2});
   const saved=b.snapshot();S.validateSnapshot(saved);const copy=make();copy.restore(saved);assert.deepEqual(copy.pve,b.pve);

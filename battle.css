@@ -135,3 +135,9 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 @keyframes formation-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:700px){#pve-formation{right:16px;top:220px;width:260px;padding:10px}#pve-formation strong{font-size:16px}}
 @media(prefers-reduced-motion:reduce){#pve-formation{animation:none}}
+
+#pve-choices button[data-branch="true"]{border-color:#8fd9c1}
+#crawl-button{display:none;position:fixed;right:110px;bottom:125px;width:52px;height:52px;border-radius:50%;z-index:10;background:#243b31cc;color:#fff3cf;border:1px solid #8fd9c1;touch-action:none}
+@media(pointer:coarse){#crawl-button{display:block}}
+
+#pve-rewards{max-height:65vh;overflow-y:auto;box-sizing:border-box}

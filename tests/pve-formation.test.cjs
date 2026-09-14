@@ -97,3 +97,22 @@ test('formation cue respects suspended audio and releases its three short notes'
     assert.equal(gains[i].released, true);
   });
 });
+
+test('new branch cards preview the route and all five new ultimates can celebrate', () => {
+  for (const route of C.PVE.progression.branches.routes.filter(r => C.PVE.progression.branches.rewards[r.keys[0]])) {
+    const { ui, $, state, sounds } = setup();
+    state.entities[0].weaponType = route.weapon;
+    state.pve.choices.me = [route.keys[0], 'regen', 'haste'];
+    state.pve.choiceIds.me = 1; state.pve.pending.me = 1;
+    ui.update(state, 'me', 0);
+    const card = $('pve-choices').children[0];
+    assert.equal(card.dataset.branch, 'true');
+    assert.ok(card.children[0].textContent.includes(route.label));
+    assert.ok(card.children[1].textContent.includes(C.PVE.rewards[route.keys.at(-1)].name));
+    assert.match(card.children[1].textContent, /锁定/);
+    state.pve.upgrades.me[route.keys.at(-1)] = 1;
+    ui.update(state, 'me', 10);
+    assert.equal(sounds(), 1);
+    assert.ok(ui.summary(state, 'me').includes(route.label));
+  }
+});

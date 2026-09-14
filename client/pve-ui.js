@@ -2,10 +2,9 @@
 (window.TankClient ??= {}).createPveUI = function ({ C, $, choose, onFormation = () => {} }) {
   const panel = $("pve-rewards"), cards = $("pve-choices");
   let current = null, signature = "", deferred = false, match = null;
-  const routes = [
-    ["thunder", "雷电流"], ["judgment", "重炮流"], ["metalStorm", "压制流"],
-    ["stellar", "光棱流"], ["doomsday", "核爆流"],
-  ].map(([key, name]) => ({ key, label: name, ...C.PVE.rewards[key] }));
+  const branches = C.PVE.progression.branches;
+  const routes = branches.routes.map(route => ({ key: route.keys.at(-1), label: route.label,
+    ...C.PVE.rewards[route.keys.at(-1)] }));
   const toast = $("pve-formation"), badge = $("pve-formed");
   let seen = null, toastUntil = 0;
   function formed(state, id) {
@@ -64,11 +63,12 @@
         $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);
         $("pve-xp").max = C.PVE.progression.xpNeeded(pve.level); $("pve-xp").value = pve.xp;
         const acquired=Object.entries(pve.upgrades[id]).filter(([,level])=>level>0);
+        const selected=branches.routes.filter(route=>acquired.some(([key])=>route.keys.includes(key)));
         const ordinary=acquired.filter(([key])=>!C.PVE.rewards[key]?.module)
           .map(([key,level])=>C.PVE.rewards[key].name+" "+level);
         const modules=acquired.filter(([key])=>C.PVE.rewards[key]?.module)
           .map(([key,level])=>C.PVE.rewards[key].name+(C.PVE.progression.caps[key]>1?" "+level+"级":""));
-        $("pve-build").textContent=[ordinary.length?ordinary.join(" · "):"",
+        $("pve-build").textContent=[selected.length?"路线："+selected.map(route=>route.label).join(" / "):"",ordinary.length?ordinary.join(" · "):"",
           modules.length?"通用模块 "+modules.length+"："+modules.join(" · "):""].filter(Boolean).join(" ｜ ") || "击杀升级，打造自己的流派";
         $("pve-boss").textContent = boss ? bossName + " " + Math.ceil(boss.hp) + "/" + boss.maxHp +
           (pve.boss.telegraph ? " · 红圈即将爆发，离开落点！" : boss.hp < boss.maxHp/2 ? " · 狂暴" : "") :
@@ -100,7 +100,14 @@
         const ultimate = routes.find(route => route.key === key);
         if (ultimate) button.dataset.ultimate = "true";
         title.textContent = (index + 1) + " · " + (ultimate ? "终极进阶｜" : C.PVE.rewards[key].module ? "通用模块｜" : "") + C.PVE.rewards[key].name;
-        detail.textContent = C.PVE.rewards[key].description;
+        const branch = branches.routeFor(key), fork = branch?.keys[0] === key;
+        if (fork) {
+          button.dataset.branch = "true";
+          title.textContent = (index + 1) + " · 分支：" + branch.label + "｜" + C.PVE.rewards[key].name;
+        }
+        detail.textContent = C.PVE.rewards[key].description + (fork
+          ? "。选择后锁定本武器路线。后续：" + branch.keys.slice(1).map(k => C.PVE.rewards[k].name).join(" → ") +
+            "。终极：" + C.PVE.rewards[branch.keys.at(-1)].description : "");
         button.append(title, detail);
         button.addEventListener("click", () => select(index));
         return button;

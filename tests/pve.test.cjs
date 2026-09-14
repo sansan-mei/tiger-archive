@@ -33,7 +33,7 @@ test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy he
     assert.equal(C.PVE.healthFor(type,1,wave),
       Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
   }
-  assert.equal(C.VERSION,35);
+  assert.equal(C.VERSION,36);
   S.validateSnapshot(b.snapshot());
 });
 test("PvE uses a ground-only authority map while PvP keeps all floors and ramps",()=>{
@@ -69,9 +69,9 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
-test('v35 automatic risk rules reject older checkpoints',()=>{
-  assert.equal(C.VERSION,35);
-  const old=create().snapshot();old.version=34;
+test('v36 weapon branches reject pre-branch checkpoints',()=>{
+  assert.equal(C.VERSION,36);
+  const old=create().snapshot();old.version=35;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
 test('v32 pursuit rule still rejects v31 checkpoints',()=>{

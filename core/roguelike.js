@@ -2,9 +2,10 @@
 (function(root, factory) {
   const node = typeof module === "object" && module.exports;
   const api = factory(node ? require("./content.js") : root.TankContent,
-    node ? require("./modules.js") : root.TankSystems.modules);
+    node ? require("./modules.js") : root.TankSystems.modules,
+    node ? require("./branches.js") : root.TankSystems.branches);
   if (node) module.exports = api; else (root.TankSystems ??= {}).roguelike = api;
-})(typeof window === "undefined" ? globalThis : window, function(C,M) {
+})(typeof window === "undefined" ? globalThis : window, function(C,M,B) {
   "use strict";
   const rewards = Object.freeze({
     pistol: { name: "换装小手枪", description: "切换至小手枪，成长为雷神弹匣" },
@@ -33,7 +34,7 @@
     chain: { name: "尸爆连锁", description: "击杀感染者触发 6 米、80 伤害尸爆；尸爆不递归", requires: "fire", weapon: "rocket" },
     cluster: { name: "集束弹头", description: "主爆炸后产生 5 个 4 米、50 伤害集束爆炸", requires: "chain", weapon: "rocket" },
     doomsday: { name: "末日弹头", description: "每第 3 发变为 16 米、200 伤害核爆，并留下 8 米辐射区", requires: "cluster", weapon: "rocket" },
-    ...M.rewards,
+    ...M.rewards, ...B.rewards,
   });
   const caps = Object.freeze({ haste:3, regen:3,
     pierce:1, ricochet:1, lightning:1, conductor:1, thunder:1,
@@ -41,7 +42,7 @@
     suppression:1, crossfire:1, multiCross:1, rupture:1, metalStorm:1,
     wideBeam:1, capacitor:1, plasmaBurst:1, refraction:1, stellar:1,
     blast:1, fire:1, chain:1, cluster:1, doomsday:1,
-    ...M.caps });
+    ...M.caps, ...B.caps });
   const xpNeeded = level => 40 + (level - 1) * 20;
   const point = e => ({x:e.x,y:e.y+1.5,z:e.z});
   const enemies = b => b.entities.filter(e => e.tankType === "zombie" && e.alive);
@@ -55,7 +56,7 @@
       b.pve.upgrades[p.id] = Object.fromEntries(Object.keys(caps).map(k=>[k,0]));
       b.pve.pending[p.id]=0; b.pve.hits[p.id]=0; b.pve.rapidHits[p.id]=0; b.pve.rocketShots[p.id]=0;
     }
-    M.initialize(b);
+    M.initialize(b); B.initialize(b);
   }
   function random(b) {
     let n=b.pve.rng; n^=n<<13; n^=n>>>17; n^=n<<5;
@@ -67,9 +68,11 @@
     const pool=Object.keys(allRewards).filter(key=>{
       const r=allRewards[key];
       return key!==p.weaponType && (!caps[key] || upgrades[key]<caps[key]) &&
-        (!r.requires || upgrades[r.requires]>0) && (!r.weapon || r.weapon===p.weaponType);
+        (!r.requires || upgrades[r.requires]>0) && (!r.weapon || r.weapon===p.weaponType) && B.allowed(upgrades,key);
     });
-    const choices=[];
+    const forks=B.routes.filter(r=>r.weapon===p.weaponType&&upgrades[r.shared]>0&&pool.includes(r.keys[0]));
+    const choices=forks.length===2?forks.map(r=>r.keys[0]):[];
+    for(const key of choices)pool.splice(pool.indexOf(key),1);
     while(pool.length && choices.length<3) {
       const candidates=choices.length===2 && choices.every(key=>Object.hasOwn(C.WEAPONS,key))
         ? pool.filter(key=>!Object.hasOwn(C.WEAPONS,key)) : pool;
@@ -113,6 +116,7 @@
     return targets;
   }
   function onDeath(b,target,owner,allRewards) {
+    B.death(b,target);
     if(target.tankType!=="zombie")return;
     M.onDeath(b,target,owner);
     if(["boss","titan"].includes(target.zombieType)) {
@@ -135,6 +139,7 @@
     const u=b.pve.upgrades[shot.owner],target=b.getEntity(hit.id),owner=b.getEntity(shot.owner),from=hit.point;
     if(!u||!target||!owner)return;
     M.onHit(b,hit,shot,before);
+    B.hit(b,hit,shot,before);
     if(owner.weaponType!==shot.weaponType)return;
     if(shot.weaponType==="pistol") {
       const excluded=[hit.id];
@@ -206,6 +211,7 @@
     }
   }
   function fireZone(b,hit,shot) {
+    B.fireZone(b,hit,shot);
     const u=b.pve.upgrades[shot.owner],owner=b.getEntity(shot.owner);
     if(!u||shot.weaponType!=="rocket"||owner?.weaponType!=="rocket")return;
     if(u.fire) {
@@ -227,7 +233,7 @@
     }
   }
   function tick(b) {
-    M.tick(b);
+    M.tick(b); B.tick(b);
     for(const zone of b.pve.hazards)if(b.tick>=zone.nextTick&&b.tick<=zone.until) {
       zone.nextTick=b.tick+30;
       const from={x:zone.x,y:zone.y+1.35,z:zone.z},budget={owner:zone.owner,remaining:3};
@@ -333,7 +339,7 @@
       (boss.stage===1&&!boss.spawned&&!bosses.some(e=>e.zombieType==="boss"&&!e.alive))||
       (boss.defeated&&!bosses.some(e=>e.zombieType==="titan"&&!e.alive)))throw Error("Inconsistent boss state");
     if(s.entities.some(e=>e.tankType==="zombie"&&!int(e.slowUntil)))throw Error('Invalid slow status');
-    M.validate(s);
+    M.validate(s); B.validate(s);
   }
-  return Object.freeze({rewards,caps,xpNeeded,initialize,offer,addExperience,complete,onDeath,onHit,moduleDamage:M.directDamage,fireZone,tick,bossAttack,validate});
+  return Object.freeze({branches:B,rewards,caps,xpNeeded,initialize,offer,addExperience,complete,onDeath,onHit,moduleDamage:M.directDamage,fireZone,tick,bossAttack,validate});
 });

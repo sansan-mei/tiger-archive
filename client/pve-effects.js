@@ -3,6 +3,7 @@
   const rings=new Map(), geometry=new T.RingGeometry(.86,1,40),
     lineGeometry=new T.BoxGeometry(4.2,.04,1), orbGeometry=new T.IcosahedronGeometry(.26,1);
   const materials={warning:new T.MeshBasicMaterial({color:0xff534c,transparent:true,opacity:.85,side:T.DoubleSide,depthWrite:false}),
+    trail:new T.MeshBasicMaterial({color:0x6ee7ff,transparent:true,opacity:.35,depthWrite:false}),
     fire:new T.MeshBasicMaterial({color:0xffa23a,transparent:true,opacity:.6,side:T.DoubleSide,depthWrite:false}),
     coneWarn:new T.MeshBasicMaterial({color:0xffc66a,transparent:true,opacity:.9,side:T.DoubleSide,depthWrite:false}),
     runnerWarn:new T.MeshBasicMaterial({color:0xff654b,transparent:true,opacity:.75,depthWrite:false}),
@@ -12,6 +13,8 @@
     const zones=[];
     if(state.mode==='pve' && state.status==='playing') {
       for(const h of state.pve.hazards)zones.push({...h,key:'fire'+h.id,kind:'fire'});
+      for(const area of state.pve.branchZones||[]) zones.push({key:'branch'+area.id,kind:area.weapon==='laser'?'trail':'fire',
+        x:area.from.x,y:area.from.y-1.5,z:area.from.z,tx:area.to.x,tz:area.to.z,radius:area.radius});
       state.pve.boss.telegraph?.zones.forEach((z,i)=>zones.push({...z,key:'warning'+i,kind:'warning'}));
       for(const a of state.pve.enemyAttacks||[]) {
         const y=state.entities.find(e=>e.id===a.owner)?.y||0, key='attack'+a.owner+':'+a.phase;
@@ -26,15 +29,15 @@
     for(const z of zones) {
       let mesh=rings.get(z.key);
       if(!mesh){
-        mesh=new T.Mesh(z.kind==='runnerWarn'?lineGeometry:z.kind==='throw'?orbGeometry:geometry,materials[z.kind]);
-        if(z.kind!=='runnerWarn'&&z.kind!=='throw')mesh.rotation.x=-Math.PI/2;
+        mesh=new T.Mesh(['runnerWarn','trail'].includes(z.kind)?lineGeometry:z.kind==='throw'?orbGeometry:geometry,materials[z.kind]);
+        if(!['runnerWarn','trail','throw'].includes(z.kind))mesh.rotation.x=-Math.PI/2;
         mesh.userData.aimIgnore=true;scene.add(mesh);rings.set(z.key,mesh);
       }
-      if(z.kind==='runnerWarn') {
+      if(z.kind==='runnerWarn'||z.kind==='trail') {
         const dx=z.tx-z.x,dz=z.tz-z.z;
         mesh.position.set((z.x+z.tx)/2,z.y+.09,(z.z+z.tz)/2);
         // The dash hits within 2m of the moving zombie, including just beyond either endpoint.
-        mesh.scale.set(1,1,Math.hypot(dx,dz)+4.2);mesh.rotation.y=Math.atan2(dx,dz);
+        mesh.scale.set(z.kind==='trail'?z.radius*2/4.2:1,1,Math.hypot(dx,dz)+(z.kind==='trail'?0:4.2));mesh.rotation.y=Math.atan2(dx,dz);
       } else {
         mesh.position.set(z.x,z.y+(z.kind==='throw'?0:.08),z.z);
         mesh.scale.setScalar(z.radius||1);

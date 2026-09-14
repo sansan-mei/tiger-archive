@@ -16,10 +16,11 @@
       body.needsRelease = true;
     }
     const spec = C.unitSpec(body),
-      weapon = WEAPONS[body.weaponType],
+      weapon = battle.pveWeapon(body),
       ability = ABILITIES[spec.ability];
     if (body.falling) battle.tickFall(body);
     if (!body.alive) return;
+    battle.pveBranch("move",body,input);
     if (body.abilityCooldown) body.abilityCooldown--;
     if (body.abilityUntil <= battle.tick) body.barrier = 0;
     if (
@@ -36,7 +37,7 @@
     body.abilityHeld = input.ability === true;
     if (body.cooldown) body.cooldown--;
     if (weapon.magazineSize && body.ammo === 0 && !body.cooldown)
-      body.ammo = weapon.magazineSize;
+      { body.ammo = weapon.magazineSize; battle.pveBranch("reload",body); }
     if (!input.fire) body.needsRelease = false;
     if (!body.falling) {
       const strafe = spec.movement === "strafe" && body.controller === "human";
@@ -66,6 +67,9 @@
             ? spec.speed * (body.boostUntil > battle.tick ? 1.35 : 1)
             : 0;
       }
+      const crawling = battle.mode==='pve' && body.weaponType==='rapid' && battle.pve.upgrades[body.id]?.fortress &&
+        battle.pve.branchState[body.id]?.deploy===90 && input.brake && input.fire && !input.ability;
+      if(crawling && (input.forward||input.reverse||input.left||input.right)) desired=spec.speed*.25;
       if (body.slowUntil > battle.tick) desired *= 0.55;
       if (active) {
         desired *= ability.speedFactor;
@@ -82,7 +86,7 @@
         -spec.accel * DT,
         spec.accel * DT,
       );
-      if (input.brake) body.speed = 0;
+      if (input.brake && !crawling) body.speed = 0;
       const nx = body.x - Math.cos(body.heading) * body.speed * DT,
         nz = body.z + Math.sin(body.heading) * body.speed * DT;
       const surface = battle.surface(body, nx, nz);
@@ -131,7 +135,13 @@
       body.pitch = body.controller === "human"
         ? input.aimPitch
         : body.pitch + clamp(input.aimPitch - body.pitch, -1.6 * DT, 1.6 * DT);
-    if (weapon.trigger === "delayed") {
+    if (weapon.trigger === "release") {
+      if(input.fire && !body.needsRelease && !body.cooldown) body.charge=Math.min(weapon.charge,body.charge+1);
+      else if(!input.fire && body.fireHeld && body.charge) {
+        if(!input.cancelFire && !body.cooldown) battle.shoot(body,weapon.minPower+(1-weapon.minPower)*body.charge/weapon.charge);
+        body.charge=0;
+      }
+    } else if (weapon.trigger === "delayed") {
       // A rising edge commits one fixed warm-up. Releasing never changes damage or timing.
       if (
         body.charge ||

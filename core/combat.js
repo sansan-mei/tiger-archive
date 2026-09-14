@@ -33,6 +33,9 @@
         ability.frontDot;
     if (frontal) amount = Math.ceil(amount * ability.damageFactor);
     target.lastDamageTick = battle.tick;
+    const branch = battle.pve?.branchState?.[target.id];
+    const guardDamage = branch && branch.guardUntil>battle.tick ? Math.min(branch.guard,amount) : 0;
+    if(guardDamage){branch.guard-=guardDamage;amount-=guardDamage;}
     const barrierDamage = Math.min(target.barrier, amount);
     target.barrier -= barrierDamage;
     amount -= barrierDamage;
@@ -45,8 +48,8 @@
       id: target.id,
       owner,
       hp: target.hp,
-      amount: hullDamage + shieldDamage + barrierDamage,
-      shieldDamage: shieldDamage + barrierDamage,
+      amount: hullDamage + shieldDamage + barrierDamage + guardDamage,
+      shieldDamage: shieldDamage + barrierDamage + guardDamage,
       frontal,
       critical,
       ...point,
@@ -91,7 +94,7 @@
     if(chainBudget)battle.pveChainBudget=chainBudget;
     const spec = shot.weaponType === "rocket" && routeActive
       ? { ...base, splashRadius: nuclear ? 16 : upgrades.blast ? 10 : base.splashRadius,
-          splashDamage: nuclear ? 200 : upgrades.blast ? 100 : base.splashDamage }
+          splashDamage: upgrades.napalm ? Math.round((upgrades.blast?100:base.splashDamage)*.6) : nuclear ? 200 : upgrades.blast ? 100 : base.splashDamage }
       : base;
     if (hit.kind === "tank") {
       const target = battle.getEntity(hit.id), wasAlive = target?.alive,
@@ -107,7 +110,10 @@
           { x: shot.dx, z: shot.dz },
           shot.critical === true,
         );
-      if (applied && battle.mode === "pve") battle.pveHit(hit, shot, statusBefore);
+      if (applied && battle.mode === "pve") {
+        if(statusBefore)statusBefore.directKilled=!!wasAlive&&!target.alive;
+        battle.pveHit(hit, shot, statusBefore);
+      }
       if (routeActive && wasAlive && !target.alive) shot.pveKills = (shot.pveKills || 0) + 1;
       // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
       if (
@@ -184,10 +190,10 @@
     body.lastDamageTick = battle.tick;
     const base = WEAPONS[body.weaponType],
       upgrades = battle.mode === "pve" ? battle.pve.upgrades[body.id] : null;
-    let spec = base;
+    let spec = battle.pveWeapon(body);
     if (body.weaponType === "laser" && upgrades?.wideBeam)
       spec = { ...spec, beamRadius: upgrades.stellar ? 1.5 : 1,
-        damage: upgrades.stellar ? 250 : upgrades.capacitor ? 150 : base.damage };
+        damage: upgrades.chargeCore ? 240 : upgrades.stellar ? 250 : upgrades.capacitor ? 150 : base.damage };
     if (body.weaponType === "rapid" && upgrades?.metalStorm)
       spec = { ...spec, cooldown: Math.round(base.cooldown / 2) };
     const c = Math.cos(body.pitch),
@@ -239,6 +245,7 @@
       dz: dir.z,
       life: spec.life,
     };
+    battle.pveBranch("prepare",body,shot);
     battle.emit("shot", {
       critical,
       id: body.id,
@@ -249,6 +256,7 @@
       dy: dir.y,
       dz: dir.z,
     });
+    // Wide energy beams may graze the ground; full width still collides with cover and bodies.
     const beamRadius = spec.delivery === "ray" ? spec.beamRadius || 0 : 0;
     if (spec.delivery === "ray") {
       const end = {
@@ -260,6 +268,7 @@
         ignoreIds = [];
       let hit = battle.collision(start, end, body.id, {
           radius: beamRadius,
+          floorRadius: Math.min(beamRadius, 0.5),
           ignoreIds,
         }),
         blocker = null;
@@ -272,6 +281,7 @@
         ignoreIds.push(hit.id);
         hit = battle.collision(start, end, body.id, {
           radius: beamRadius,
+          floorRadius: Math.min(beamRadius, 0.5),
           ignoreIds,
         });
       }
@@ -284,12 +294,14 @@
       });
       shot.rayTargetIds = hits.filter(hit=>hit.kind==="tank").map(hit=>hit.id);
       for (const rayHit of hits) battle.resolveHit(rayHit, shot);
+      battle.pveBranch("afterShot",body,shot,start,blocker?blocker.point:end);
       if (upgrades?.stellar && (shot.pveKills || 0) >= 3)
         body.cooldown = Math.max(1, Math.ceil(body.cooldown / 2));
     } else {
       const near = battle.collision(start, muzzle, body.id);
       if (near) battle.resolveHit(near, shot);
       else battle.bullets.push(shot);
+      battle.pveBranch("afterShot",body,shot,start);
     }
     return true;
   }

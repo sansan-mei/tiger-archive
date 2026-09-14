@@ -146,7 +146,7 @@
     a,
     b,
     owner = null,
-    { bodies = true, radius = 0, ignoreIds = [] } = {},
+    { bodies = true, radius = 0, floorRadius = radius, ignoreIds = [] } = {},
   ) {
     // Swept beam: expand solid obstacles and bodies equally, so the wider beam cannot cut through cover.
     const sweep = (start, end, min, max, verticalRadius = radius) =>
@@ -180,6 +180,7 @@
             b,
             { x: q.x0, y: level.y - 0.6, z: q.z0 },
             { x: q.x1, y: level.y, z: q.z1 },
+            floorRadius,
           ),
           { kind: "floor", id: level.id },
         );

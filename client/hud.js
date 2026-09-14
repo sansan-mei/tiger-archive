@@ -62,14 +62,15 @@
   }
   // Mouse orbit is independent of the chassis; a centered reticle guides turret aim.
   function update({ truth, p, state, target }) {
-    const weapon = C.WEAPONS[p.weaponType],
+    const weapon = truth.mode === "pve" ? C.PVE.progression.branches.weapon(truth,p) : C.WEAPONS[p.weaponType],
       tank = C.TANKS[p.tankType];
     $("hp-number").textContent = Math.ceil(p.hp);
-    $("shield-readout").hidden = p.barrier <= 0;
-    $("shield-bar").hidden = p.barrier <= 0;
-    $("shield-number").textContent = Math.ceil(p.barrier);
+    const branch=truth.pve?.branchState?.[p.id], guard=branch?.guardUntil>truth.tick?branch.guard:0, shield=p.barrier+guard;
+    $("shield-readout").hidden = shield <= 0;
+    $("shield-bar").hidden = shield <= 0;
+    $("shield-number").textContent = Math.ceil(shield);
     $("shield-bar").max = C.ABILITIES.barrier.barrier;
-    $("shield-bar").value = p.barrier;
+    $("shield-bar").value = shield;
     const ability = C.ABILITIES[tank.ability];
     $("ability-status").textContent =
       "Shift · " +
@@ -133,6 +134,12 @@
             "/" +
             weapon.criticalHits +
             " · 直接命中积攒";
+    if (weapon.trigger === "release") $("weapon-description").textContent = "按住蓄力，松开发射 · 满蓄力 240 伤害";
+    if (p.weaponType === "rapid" && truth.pve?.upgrades[p.id]?.bipod)
+      $("weapon-description").textContent = "架枪展开 " + Math.round(branch.deploy/90*100) + "%" +
+        (truth.pve.upgrades[p.id].fortress ? " · 开火时按住 C / 缓行按钮移动" : " · 站定持续开火加速");
+    if (p.weaponType === "pistol" && truth.pve?.upgrades[p.id]?.lightMagazine)
+      $("weapon-description").textContent += branch.burstUntil>truth.tick ? " · 爆发中" : " · 强化弹剩余 " + branch.bonus;
     const seconds = truth.mode === "pve"
       ? Math.floor(truth.tick / 60)
       : Math.max(0, Math.ceil((C.RULES.duration - truth.tick) / 60));
