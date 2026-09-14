@@ -33,16 +33,17 @@ test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy he
     assert.equal(C.PVE.healthFor(type,1,wave),
       Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
   }
-  assert.equal(C.VERSION,36);
+  assert.equal(C.VERSION,38);
   S.validateSnapshot(b.snapshot());
 });
-test("PvE uses a ground-only authority map while PvP keeps all floors and ramps",()=>{
+test("PvE and PvP both use the ground-only garden with distinct starts",()=>{
   const pve=create(),pvp=new C.Battle();
   assert.equal(pve.map.levels.length,1);assert.equal(pve.map.ramps.length,0);
   assert.equal(pve.map.dropExits.length,0);assert.equal(pve.map.spawns.length,8);
   assert.ok([...pve.map.obstacles,...pve.map.pickups,...pve.map.spawns].every(x=>x.floor===0));
   assert.ok(pve.entities.every(e=>e.floor===0));
-  assert.equal(pvp.map.levels.length,3);assert.ok(pvp.map.ramps.length>0);
+  assert.equal(pvp.map.levels.length,1);assert.equal(pvp.map.ramps.length,0);
+  assert.deepEqual(pvp.map.terrain,pve.map.terrain);assert.notDeepEqual(pvp.map.spawns,pve.map.spawns);
   S.validateSnapshot(pve.snapshot());
   const upper=pve.snapshot();Object.assign(upper.entities[0],{floor:1,y:8});
   assert.throws(()=>S.validateSnapshot(upper),/Invalid entity state/);
@@ -70,7 +71,7 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
 test('v36 weapon branches reject pre-branch checkpoints',()=>{
-  assert.equal(C.VERSION,36);
+  assert.equal(C.VERSION,38);
   const old=create().snapshot();old.version=35;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
@@ -182,6 +183,7 @@ test('fast bosses go around solid cover and reach the player instead of orbiting
   for(const type of ['boss','titan']){
     const b=create(),p=b.entities[0],z=enemies(b).at(-1),wave=type==='boss'?8:16,
       hp=C.PVE.healthFor(type,1,wave);
+    b.map.obstacles=C.clone(C.MAP.obstacles.filter(o=>o.floor===0));delete b.map.terrain;
     Object.assign(p,{x:-28,z:11,hp:10000,maxHp:10000,protectedUntil:0});
     Object.assign(z,{x:-7,z:11,y:0,floor:0,alive:true,hp,maxHp:hp,
       zombieType:type,heading:Math.PI,protectedUntil:0,
@@ -230,6 +232,7 @@ test('clear waves revive teammates; all dead loses and never uses PvP respawn', 
 test('eight players and thirty-two zombies stay within packet bounds and pass replica validation', () => {
   const a=new S.Authority({mode:'pve', participants:participants(8)}), b=a.battle;
   const replica=new S.Replica();replica.welcome(a.attach('peer','p0'));b.start();
+  for(const player of b.entities.filter(e=>e.tankType==='human'))player.protectedUntil=10000;
   b.pve.nextWaveAt=1; b.pve.wave=10;markMidBossDefeated(b);
   for(let i=0;i<660;i++){
     a.step();

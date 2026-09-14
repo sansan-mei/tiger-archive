@@ -1,6 +1,6 @@
 /* Quaternius nature skins; the shared map owns solid rock and trunk collisions. */
 (window.TankClient ??= {}).createEnvironment = function ({
-  T, C, floorGroups, covers,
+  T, C, floorGroups, covers, style,
   fetchImpl = (...args) => globalThis.fetch(...args), onError = () => {},
 }) {
   const controller = new AbortController();
@@ -18,6 +18,7 @@
       const names = ['CommonTree_3', 'CommonTree_5', 'Pine_5', 'Bush_Common_Flowers',
         'Grass_Common_Short', 'Flower_3_Group', 'Rock_Medium_1', 'Rock_Medium_2'];
       for (const name of names) if (!models.has(name)) throw Error('Missing nature model: ' + name);
+      style?.restyle(models);
       const groups = C.MAP.levels.map(() => new T.Group()), replacements = new Map();
       const batches = new Map(), matrix = new T.Object3D();
       function plant(name, floor, x, y, z, size, rotation = 0, rampOnly = false) {
@@ -52,13 +53,13 @@
       }
       for (const level of C.MAP.levels) {
         const rects = C.deckRects(C.MAP, level);
-        for (let i = 0; i < (level.id ? 300 : 3200); i++) {
+        for (let i = 0; i < (level.id ? 300 : style ? 12000 : 3200); i++) {
           const x = (random() * 2 - 1) * (level.bound - 3), z = (random() * 2 - 1) * (level.bound - 3);
           if (!rects.some(q => x > q.x0 + 1 && x < q.x1 - 1 && z > q.z0 + 1 && z < q.z1 - 1)) continue;
           if (Math.abs(x) < 7 || (!level.id && (Math.abs(z) < 6 || Math.abs(Math.hypot(x,z) - 102) < 6))) continue;
           if (C.MAP.ramps.some(r => Math.abs(x - r.a.x) < r.width/2 + 2 && z > Math.min(r.a.z,r.b.z) - 3 && z < Math.max(r.a.z,r.b.z) + 3)) continue;
           if (C.MAP.obstacles.some(o => o.floor === level.id && Math.abs(x-o.x)<o.w/2+1.5 && Math.abs(z-o.z)<o.d/2+1.5)) continue;
-          plant(i % 5 === 0 ? 'Flower_3_Group' : 'Grass_Common_Short', level.id, x, level.y+.01, z, .35+random()*.6, random()*Math.PI*2);
+          plant(i % 17 === 0 ? 'Flower_3_Group' : 'Grass_Common_Short', level.id, x, level.y+.01, z, .35+random()*.6, random()*Math.PI*2);
         }
       }
       // A distant forest forms the horizon, outside all playable collision bounds.
@@ -69,15 +70,28 @@
         plant(names[i%3], 0, x, -.3, z, 11+random()*9, random()*Math.PI*2);
       }
       for (const {name, floor, rampOnly, entries} of batches.values()) {
+        const parts = new Map();
         for (const source of models.get(name).children) {
-          const mesh = new T.InstancedMesh(source.geometry, source.material, entries.length);
+          source.updateMatrix();
+          const key = source.geometry.uuid + ':' + source.material.uuid;
+          if (!parts.has(key)) parts.set(key, []);
+          parts.get(key).push(source);
+        }
+        for (const sources of parts.values()) {
+          const source = sources[0];
+          const mesh = new T.InstancedMesh(source.geometry, source.material, entries.length * sources.length);
           mesh.name = 'nature-' + name;
           mesh.userData.rampOnly = rampOnly;
           if (rampOnly) { mesh.visible = mode !== 'pve'; rampMeshes.push(mesh); }
           mesh.userData.aimIgnore = !/Bark/.test(source.material.name);
-          // Solid trunks are represented by shared-map collision; foliage is decorative.
           mesh.castShadow = true; mesh.receiveShadow = true;
-          entries.forEach((m, i) => mesh.setMatrixAt(i, m));
+          const combined = new T.Matrix4();
+          entries.forEach((m, i) => sources.forEach((part, j) => {
+            const index = i * sources.length + j;
+            mesh.setMatrixAt(index, combined.multiplyMatrices(m, part.matrix));
+            if (source.material.name === 'garden-foliage')
+              mesh.setColorAt(index, style.treeColor(m.elements[12], m.elements[14]));
+          }));
           mesh.computeBoundingSphere(); groups[floor].add(mesh);
         }
       }

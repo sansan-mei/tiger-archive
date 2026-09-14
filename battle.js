@@ -656,13 +656,15 @@
         ) +
         "rad)";
     engine?.update(p, truth.status === "playing" && !session.suspended);
+    pickupViews.forEach((view,i)=>{if(i>=truth.pickups.length)view.visible=false;});
     truth.pickups.forEach((pickup, i) => {
       const view = pickupViews[i];
+      view.position.x=pickup.x;view.position.z=pickup.z;
       view.visible = pickup.readyAt <= truth.tick;
       if (!reduced) {
         view.rotation.y = time * 0.001;
         view.position.y =
-          C.MAP.levels[pickup.floor].y + 1.3 + Math.sin(time * 0.002 + i) * 0.2;
+          C.groundHeight(C.mapForMode(truth.mode),pickup.x,pickup.z,pickup.floor) + 1.3 + Math.sin(time * 0.002 + i) * 0.2;
       }
     });
     hudTime += dt;

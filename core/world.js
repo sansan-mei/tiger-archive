@@ -10,7 +10,7 @@
     const radius = TANKS[body.tankType].radius;
     const flat = (floor) => ({
       floor,
-      y: battle.map.levels[floor].y,
+      y: C.groundHeight(battle.map,x,z,floor),
       rampId: null,
       rampDir: 0,
     });
@@ -77,7 +77,8 @@
     const level = battle.map.levels[floor];
     if (!level) return false;
     const radius = (body ? TANKS[body.tankType].radius : 3.1) + margin,
-      y = surface?.y ?? level.y;
+      y = surface?.y ?? C.groundHeight(battle.map,x,z,floor);
+    if (battle.map.terrain && [[0,0],[radius,0],[-radius,0],[0,radius],[0,-radius]].some(([dx,dz])=>C.terrainHeight(battle.map,x+dx,z+dz,floor)<-.35)) return false;
     // Driving may overhang an upper deck until its center loses support.
     // Navigation still keeps a full footprint away from the edge.
     const bound = (allowDrop && floor > 0 ? battle.map.levels[0] : level).bound;
@@ -172,7 +173,17 @@
         { kind: "cover", id: o.id },
       );
     }
-    for (const level of battle.map.levels)
+    if (battle.map.terrain) {
+      const steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.5));
+      const distance=t=>a.y+(b.y-a.y)*t-C.groundHeight(battle.map,a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t)-floorRadius;
+      let previous=distance(0);
+      for(let i=1;i<=steps;i++){
+        const t=i/steps,next=distance(t);
+        if(previous>0&&next<=0){let lo=(i-1)/steps,hi=t;for(let j=0;j<10;j++){const mid=(lo+hi)/2;if(distance(mid)>0)lo=mid;else hi=mid;}check(hi,{kind:'floor',id:0});break;}
+        previous=next;
+      }
+    }
+    for (const level of battle.map.terrain ? [] : battle.map.levels)
       for (const q of deckRects(battle.map, level)) {
         check(
           sweep(

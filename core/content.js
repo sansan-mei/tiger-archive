@@ -6,12 +6,13 @@
     node ? require("./network-state.js") : root.TankNetworkState,
     node ? require("./map.js") : root.TankMap,
     node ? require("./math.js") : root.TankMath,
+    node ? require("./folio-map.js") : root.TankFolioMap,
   );
   if (node) module.exports = api;
   else root.TankContent = api;
 })(
   typeof window === "undefined" ? globalThis : window,
-  function (Plugins, Abilities, NetworkState, MAP, Maths) {
+  function (Plugins, Abilities, NetworkState, MAP, Maths, FolioMap) {
     const {
       clone,
       clamp,
@@ -28,7 +29,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 36,
+    const VERSION = 38,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -62,22 +63,21 @@
     const unitSpec = (body) => body.tankType === "zombie"
       ? ZOMBIE_SPECS[body.zombieType || "walker"] : TANKS[body.tankType];
     const PLAYER_TANKS = Object.freeze(Object.fromEntries(Object.entries(TANKS).filter(([, spec]) => !spec.enemyOnly)));
-    const PVE_MAP = Object.freeze({
-      ...MAP,
-      id: MAP.id + "-pve-ground-v1",
-      levels: Object.freeze(MAP.levels.slice(0, 1).map((level) => Object.freeze({ ...level }))),
-      obstacles: Object.freeze(MAP.obstacles.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
-      ramps: Object.freeze([]),
-      dropExits: Object.freeze([]),
-      pickups: Object.freeze(MAP.pickups.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
-      spawns: Object.freeze(MAP.spawns.map(({ x, z }) => Object.freeze({ x, z, floor: 0 }))),
-    });
+    const PVE_MAP = Object.freeze(FolioMap);
     const mapForMode = (mode) => mode === "pve" ? PVE_MAP : MAP;
     const WEAPONS = Object.freeze(
       Object.fromEntries(
         Object.entries(Plugins.weapons).map(([id, p]) => [id, p.spec]),
       ),
     );
+    function terrainHeight(map, x, z, floor = 0) {
+      if (!map.terrain || floor) return map.levels[floor].y;
+      const t=map.terrain,fx=clamp((x+t.bound)/t.cell,0,t.size-1),fz=clamp((z+t.bound)/t.cell,0,t.size-1);
+      const ix=Math.min(t.size-2,Math.floor(fx)),iz=Math.min(t.size-2,Math.floor(fz)),u=fx-ix,v=fz-iz;
+      const a=t.heights[iz*t.size+ix],b=t.heights[iz*t.size+ix+1],c=t.heights[(iz+1)*t.size+ix],d=t.heights[(iz+1)*t.size+ix+1];
+      return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+    }
+    const groundHeight = (map,x,z,floor=0) => Math.max(0,terrainHeight(map,x,z,floor));
     function shotOrigin(body) {
       const spec = TANKS[body.tankType], mount = spec.gunMount;
       if (!mount) return { x: body.x, y: body.y + 2.2, z: body.z };
@@ -165,6 +165,8 @@
       ZOMBIE_SPECS,
       unitSpec,
       shotOrigin,
+      groundHeight,
+      terrainHeight,
       WEAPONS,
       MAP,
       PVE_MAP,

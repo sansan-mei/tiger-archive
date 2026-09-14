@@ -87,7 +87,7 @@
           tankType: p.tankType,
           weaponType: p.weaponType,
           x: s.x,
-          y: this.map.levels[s.floor].y,
+          y: C.groundHeight(this.map,s.x,s.z,s.floor),
           z: s.z,
           floor: s.floor,
           heading: -Math.PI / 2,

@@ -36,7 +36,7 @@
           Object.assign(body, {
             x: s.x,
             z: s.z,
-            y: battle.map.levels[s.floor].y,
+            y: C.groundHeight(battle.map,s.x,s.z,s.floor),
             floor: s.floor,
             alive: true,
             hp: body.maxHp,

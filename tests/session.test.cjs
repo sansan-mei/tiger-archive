@@ -290,7 +290,7 @@ test("live authority/replica delivery remains valid through a complete eight-veh
     if (i % 90 === 0)
       maxBytes = Math.max(
         maxBytes,
-        JSON.stringify(s.authority.statePacket()).length,
+        JSON.stringify(s.authority.statePacket({ network: true })).length,
       );
   }
   assert.equal(s.current().status, "finished");

@@ -13,6 +13,11 @@
     mc.strokeStyle = floor > 0 ? "#e79e35" : "#718974";
     mc.lineWidth = 1;
     mc.strokeRect(-b, -b, b * 2, b * 2);
+    if (modeMap.terrain) {
+      mc.fillStyle = "#70b9bd";
+      for(let x=-b;x<b;x+=8)for(let z=-b;z<b;z+=8)
+        if(C.terrainHeight(modeMap,x+4,z+4)<-.35)mc.fillRect(x,z,8,8);
+    }
     mc.fillStyle = "#a88e73";
     for (const o of modeMap.obstacles)
       if (o.floor === floor)

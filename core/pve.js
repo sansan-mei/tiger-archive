@@ -92,7 +92,7 @@
       if (!b.valid(x, zz, target.floor, z)) continue;
       delete b.pve.moduleStatus[z.id];
       b.pve.enemyAttacks = b.pve.enemyAttacks.filter(a=>a.owner!==z.id);
-      Object.assign(z, { x, z: zz, y: b.map.levels[target.floor].y, floor: target.floor,
+      Object.assign(z, { x, z: zz, y: C.groundHeight(b.map,x,zz,target.floor), floor: target.floor,
         zombieType, maxHp, slowUntil: 0,
         alive: true, hp: maxHp, speed: 0, cooldown: 0, charge: 0, criticalProgress: 0,
         falling: false, fallVelocity: 0, fallVX: 0, fallVZ: 0, rampId: null, rampDir: 0,
@@ -109,7 +109,7 @@
           const spawnPoint = b.map.spawns.find((s) => b.valid(s.x, s.z, s.floor, p));
           if (!spawnPoint) continue;
           Object.assign(p, { x: spawnPoint.x, z: spawnPoint.z, floor: spawnPoint.floor,
-            y: b.map.levels[spawnPoint.floor].y, alive: true, hp: p.maxHp,
+            y: C.groundHeight(b.map,spawnPoint.x,spawnPoint.z,spawnPoint.floor), alive: true, hp: p.maxHp,
             falling: false, fallVelocity: 0, fallVX: 0, fallVZ: 0, rampId: null, rampDir: 0,
             protectedUntil: b.tick + 120, respawnAt: b.tick, speed: 0 });
           b.emit("respawn", { id: p.id });

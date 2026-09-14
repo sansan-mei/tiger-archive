@@ -152,7 +152,7 @@
           throw new Error("Invalid ramp state");
       } else if (
         !e.falling &&
-        (e.y !== modeMap.levels[e.floor].y || e.rampDir !== 0)
+        (Math.abs(e.y - C.groundHeight(modeMap,e.x,e.z,e.floor)) > .00001 || e.rampDir !== 0)
       )
         throw new Error("Invalid floor height");
       if (e.rampId === null && !e.falling)
@@ -540,7 +540,7 @@
       this.sync();
     }
     sync() {
-      const result = this.replica.receive(this.authority.statePacket());
+      const result = this.replica.receive(this.authority.statePacket({ network: true }));
       if (!result.ok) throw new Error(result.reason);
       return result.events;
     }

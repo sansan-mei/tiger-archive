@@ -1,10 +1,10 @@
 /* Sand trails and rock embankments share the authority's exact sloping surfaces. */
 (window.TankClient ??= {}).createRampTerrain = function ({T, C, floorGroups}) {
   const materials = {
-    sand: new T.MeshToonMaterial({color: 0xcdb486}),
-    grass: new T.MeshToonMaterial({color: 0x80b866}),
-    earth: new T.MeshToonMaterial({color: 0x948369}),
-    stone: new T.MeshToonMaterial({color: 0x999b80}),
+    sand: new T.MeshStandardMaterial({color: 0xd5af79}),
+    grass: new T.MeshStandardMaterial({color: 0x9ca366}),
+    earth: new T.MeshStandardMaterial({color: 0x93837b}),
+    stone: new T.MeshStandardMaterial({color: 0xb7ada3}),
   };
   function wedge(parent, name, x0, x1, z0, z1, top, bottom, material) {
     const geometry = new T.BufferGeometry();

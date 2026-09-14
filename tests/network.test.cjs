@@ -293,6 +293,8 @@ test('a real cone cast, flight and hit remain valid through Authority to Replica
 });
 test('cone projectile hits an exposed player once and cannot pass solid cover',()=>{
   const b=create(),p=b.entities[0],z=enemies(b)[0],wave=4;
+  // A fixed rock fixture keeps this attack test independent of the selected map.
+  b.map.obstacles=C.clone(C.MAP.obstacles.filter(o=>o.floor===0));delete b.map.terrain;
   Object.assign(p,{x:0,z:55,protectedUntil:0});
   Object.assign(z,{x:12,z:55,zombieType:'cone',alive:true,protectedUntil:0,
     hp:C.PVE.healthFor('cone',1,wave),maxHp:C.PVE.healthFor('cone',1,wave)});
@@ -312,6 +314,8 @@ test('cone projectile hits an exposed player once and cannot pass solid cover',(
 });
 test('runner dash hits once up close and recovers from a rock collision',()=>{
   const b=create(),p=b.entities[0],z=enemies(b)[0],wave=6;
+  // A fixed rock fixture keeps this attack test independent of the selected map.
+  b.map.obstacles=C.clone(C.MAP.obstacles.filter(o=>o.floor===0));delete b.map.terrain;
   Object.assign(p,{x:0,z:55,protectedUntil:0});
   Object.assign(z,{x:5,z:55,zombieType:'runner',alive:true,protectedUntil:0,
     hp:C.PVE.healthFor('runner',1,wave),maxHp:C.PVE.healthFor('runner',1,wave)});

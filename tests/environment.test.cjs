@@ -8,14 +8,15 @@ const untextured = structuredClone(data); delete untextured.images; delete untex
 for (const material of untextured.materials) delete material.map;
 const context = vm.createContext({window: {}, AbortController, setTimeout, clearTimeout});
 vm.runInContext(fs.readFileSync(require.resolve('../client/environment.js'), 'utf8'), context);
-function setup(fetchImpl) {
+vm.runInContext(fs.readFileSync(require.resolve('../client/woodland-style.js'), 'utf8'), context);
+function setup(fetchImpl, style) {
   const floorGroups = C.MAP.levels.map(() => new T.Group());
   const covers = new Map(C.MAP.obstacles.map(o => {
     const group = new T.Group(); group.add(new T.Mesh(new T.BoxGeometry(), new T.MeshBasicMaterial()));
     floorGroups[o.floor].add(group); return [o.id, group];
   }));
   const errors = [];
-  return {...context.window.TankClient.createEnvironment({T,C,floorGroups,covers,fetchImpl,onError:e=>errors.push(e)}),floorGroups,covers,errors};
+  return {...context.window.TankClient.createEnvironment({T,C,floorGroups,covers,style,fetchImpl,onError:e=>errors.push(e)}),floorGroups,covers,errors};
 }
 test('selected public nature kit has shared embedded textures, finite geometry and normalized rocks', () => {
   assert.equal(data.metadata.generator, 'Quaternius Stylized Nature MegaKit');
@@ -98,4 +99,40 @@ test('PvE hazard positions accept the expanded arena but reject coordinates beyo
   assert.throws(()=>S.validateSnapshot(s));
   s.pve.boss.telegraph.zones[0].x=100;s.pve.boss.telegraph.zones[0].y=8;
   assert.throws(()=>S.validateSnapshot(s),/Invalid boss warning/);
+});
+
+test('Folio foliage preserves collisions, batches crowns and supplies ground contact shadows', async () => {
+  const style=context.window.TankClient.createWoodlandStyle({T,loadTextures:false});
+  const before=JSON.stringify(C.MAP);
+  const s=setup(async()=>({ok:true,json:async()=>untextured}),style);
+  assert.ok(await s.ready);
+  style.addDetails(C,s.floorGroups);
+  const leaves=[],trunks=[];
+  for(const group of s.floorGroups) group.traverse(o=>{
+    if(o.material?.name==='garden-foliage')leaves.push(o);
+    if(o.material?.name==='Bark_Garden')trunks.push(o);
+  });
+  assert.ok(leaves.length>0 && leaves.length<=9);
+  assert.ok(trunks.length>0);
+  for(const mesh of leaves) {
+    assert.ok(mesh.isInstancedMesh && mesh.instanceColor);
+    assert.equal(mesh.userData.aimIgnore,true);
+    assert.equal(mesh.material.alphaTest,.3);
+    assert.ok([...mesh.geometry.attributes.position.array,...mesh.instanceMatrix.array].every(Number.isFinite));
+    assert.ok(mesh.count>0 && mesh.count%5===0);
+    const a=new T.Matrix4(),b=new T.Matrix4();mesh.getMatrixAt(0,a);mesh.getMatrixAt(1,b);
+    assert.notDeepEqual(a.elements,b.elements,'crown lobes retain their local offsets');
+  }
+  assert.ok(trunks.every(t=>!t.userData.aimIgnore));
+  for(const group of s.floorGroups) {
+    const shadow=group.getObjectByName('garden-contact-shadows');
+    assert.equal(shadow.count,C.MAP.obstacles.filter(o=>o.floor===s.floorGroups.indexOf(group)).length);
+    assert.equal(shadow.userData.aimIgnore,true);
+  }
+  for(const o of C.MAP.obstacles.filter(o=>o.kind!=='tree')) {
+    const box=new T.Box3().setFromObject(s.covers.get(o.id));
+    assert.ok(Math.abs(box.min.x-(o.x-o.w/2))<.001);
+    assert.ok(Math.abs(box.max.y-(C.MAP.levels[o.floor].y+o.h))<.001);
+  }
+  assert.equal(JSON.stringify(C.MAP),before);
 });
