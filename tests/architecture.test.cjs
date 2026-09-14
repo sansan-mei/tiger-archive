@@ -64,9 +64,9 @@ test("one inventory covers browser dependencies, public allowlist and Docker sou
     ["app-manifest.js", "client/bootstrap.js"],
   );
 });
-test("bootstrap loads sequentially and displays a useful error instead of continuing after failure", async () => {
+test("bootstrap preloads every dependency before ordered execution and stops after failure", async () => {
   for (const fail of [false, true]) {
-    const loaded = [],
+    const loaded = [], preloaded = [],
       nodes = { "load-error": {}, "start-button": {} };
     const context = vm.createContext({
       window: { TankAppManifest: manifest },
@@ -75,6 +75,10 @@ test("bootstrap loads sequentially and displays a useful error instead of contin
         getElementById: (id) => nodes[id],
         head: {
           appendChild(script) {
+            if (script.rel === "preload") {
+              assert.equal(script.as, "script"); preloaded.push(script.href); return;
+            }
+            assert.deepEqual(preloaded, [...manifest.scripts]);
             loaded.push(script.src);
             if (fail) script.onerror();
             else script.onload();

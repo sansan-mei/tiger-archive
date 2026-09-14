@@ -4,15 +4,30 @@ window.TankModelAssets = (() => {
   return {
     load(T, fetchImpl = (...args) => globalThis.fetch(...args)) {
       if (pending) return pending;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
+      // Each download has its own budget. A slow arsenal must not consume the
+      // character's timeout and unexpectedly leave the old human appearance.
+      async function download(url) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          const response = await fetchImpl(url, { signal: controller.signal });
+          if (!response.ok) throw new Error("Model unavailable: " + url);
+          return await response.json();
+        } finally { clearTimeout(timer); }
+      }
+      const downloads = ["arsenal", "paimon", "public-weapons"].map(name =>
+        download("client/models/" + name + ".json").then(
+          data => ({ data }), error => ({ error }),
+        ),
+      );
+      async function read(index) {
+        const result = await downloads[index];
+        if (result.error) throw result.error;
+        return result.data;
+      }
       pending = (async () => {
         try {
-          const response = await fetchImpl("client/models/arsenal.json", {
-            signal: controller.signal,
-          });
-          if (!response.ok) throw new Error("Arsenal unavailable");
-          const data = await response.json();
+          const data = await read(0);
           if (data.metadata?.generator !== "Blender arsenal v1")
             throw new Error("Unexpected arsenal");
           const kit = new T.ObjectLoader().parse(data);
@@ -34,11 +49,7 @@ window.TankModelAssets = (() => {
               throw new Error("Missing turret pivot");
           // Character failure must not discard the existing vehicle/weapon library.
           try {
-            const characterResponse = await fetchImpl("client/models/paimon.json", {
-              signal: controller.signal,
-            });
-            if (!characterResponse.ok) throw new Error("Character unavailable");
-            const characterData = await characterResponse.json();
+            const characterData = await read(1);
             if (characterData.metadata?.generator !== "Paimon skinned character")
               throw new Error("Unexpected character");
             const character = await new T.ObjectLoader().parseAsync(characterData);
@@ -49,9 +60,7 @@ window.TankModelAssets = (() => {
             console.warn("角色外观加载失败，保留原人类模型：", error.message);
           }
           try {
-            const response = await fetchImpl("client/models/public-weapons.json", {signal: controller.signal});
-            if (!response.ok) throw new Error("Weapons unavailable");
-            const data = await response.json();
+            const data = await read(2);
             if (data.metadata?.generator !== "Quaternius public weapons") throw new Error("Unexpected weapon library");
             const kit = await new T.ObjectLoader().parseAsync(data);
             for (const name of ["pistol", "standard", "rapid", "rocket", "laser"])
@@ -65,8 +74,6 @@ window.TankModelAssets = (() => {
         } catch (error) {
           console.warn("机甲外观加载失败，保留程序化模型：", error.message);
           return false;
-        } finally {
-          clearTimeout(timer);
         }
       })();
       return pending;

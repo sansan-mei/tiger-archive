@@ -58,7 +58,7 @@
 - 单位及武器参数放在各自插件；技能参数放在 core/abilities.js，注册器派生插件的技能时间字段。
 - UI 技能说明、模拟参数和状态校验使用同一份技能定义。
 - app-manifest.js 维护插件列表与浏览器脚本依赖顺序；Node catalog、顺序加载器和 HTTP 静态白名单共同读取。服务私有文件不会因为增加目录而自动公开。
-- client/bootstrap.js 按依赖顺序加载，失败时停止并显示具体资源错误。新增普通插件只需加入 manifest.plugins；新增其他浏览器模块需放在 manifest.scripts 的正确位置。
+- client/bootstrap.js 先用 preload 并行预取脚本，再按依赖顺序执行；失败时停止并显示具体资源错误。新增普通插件只需加入 manifest.plugins；新增其他浏览器模块需放在 manifest.scripts 的正确位置。
 - README 数值表从配置生成：`node scripts/balance-docs.cjs --write`。此命令只写文档，测试会检查内容是否过期。
 
 ## 广播与恢复分离
@@ -105,7 +105,7 @@ client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和�
 
 ## 卡通美术资源
 
-`client/model-assets.js` 异步读取 `client/models/arsenal.json`，缓存 Blender 原型。`tank-model.js` 优先组装已加载外观，沿用共享配置推导的 `weaponLength`、炮塔/武器枢轴与涂装材质；未加载、加载失败或未知模型插件使用原程序化外观钩子。`client/units.js` 在加载完成时按当前会话重建外观，避免恢复过期的单位配置。每个活跃实例独立拥有几何；缓存原型与其他玩家不会被该实例的 dispose 释放。
+`client/model-assets.js` 并行下载 arsenal、paimon、public-weapons 三个模型库，每份下载独立设置 8 秒超时，并缓存解析后的原型。角色或公开武器失败时保留对应的原外观。`tank-model.js` 优先组装已加载外观，沿用共享配置推导的 `weaponLength`、炮塔/武器枢轴与涂装材质；未加载、加载失败或未知模型插件使用原程序化外观钩子。`client/units.js` 在加载完成时按当前会话重建外观，避免恢复过期的单位配置。每个活跃实例独立拥有几何；缓存原型与其他玩家不会被该实例的 dispose 释放。
 
 静态几何按父节点和材质合并，既有 `client/units.js` 继续驱动移动、后坐、摆腿、护盾和红色标记。外观不进入房间快照。模型预算与离线预览见 ART.md。
 

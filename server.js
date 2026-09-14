@@ -2,6 +2,8 @@
 const http = require("node:http"),
   fs = require("node:fs"),
   path = require("node:path");
+const { pipeline } = require("node:stream");
+const { createGzip } = require("node:zlib");
 const { performance } = require("node:perf_hooks");
 const { WebSocketServer } = require("ws");
 const { RoomServer } = require("./room-server.js");
@@ -127,20 +129,46 @@ function createApp({
         ".webmanifest": "application/manifest+json; charset=utf-8",
         ".png": "image/png",
       };
-      res.writeHead(200, {
+      const requestHeaders = req.headers || {};
+      const etag = `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}-${stat.ctimeMs.toString(16)}"`;
+      const headers = {
         "Content-Type": types[path.extname(file)],
-        "Content-Length": stat.size,
+        "ETag": etag,
+        "Last-Modified": stat.mtime.toUTCString(),
+        "Vary": "Accept-Encoding",
         "Cache-Control": "no-cache",
         "Content-Security-Policy":
           "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      });
+      };
+      const matches = requestHeaders["if-none-match"];
+      const unchanged = matches !== undefined
+        ? matches.split(",").some(tag => tag.trim() === "*" || tag.trim().replace(/^W\//, "") === etag.slice(2))
+        : Number.isFinite(Date.parse(requestHeaders["if-modified-since"])) &&
+          Math.floor(stat.mtimeMs / 1000) <= Date.parse(requestHeaders["if-modified-since"]) / 1000;
+      if (unchanged) {
+        res.writeHead(304, headers);
+        res.end();
+        return;
+      }
+      const encodings = new Map((requestHeaders["accept-encoding"] || "").toLowerCase().split(",").map(entry => {
+        const [name, ...params] = entry.trim().split(";");
+        const quality = params.map(p => p.trim()).find(p => p.startsWith("q="));
+        return [name, quality === undefined ? 1 : Number(quality.slice(2))];
+      }));
+      const gzip = stat.size >= 1024 && /\.(?:js|json|css|html|webmanifest)$/.test(file) &&
+        (encodings.get("gzip") ?? encodings.get("*") ?? 0) > 0;
+      if (gzip) headers["Content-Encoding"] = "gzip";
+      else headers["Content-Length"] = stat.size;
+      res.writeHead(200, headers);
       if (req.method === "HEAD") {
         res.end();
         return;
       }
-      const stream = fs.createReadStream(file);
-      stream.on("error", () => res.destroy());
-      stream.pipe(res);
+      // Streaming level-1 compression uses asynchronous zlib, with bounded buffers.
+      // pipeline also cancels disk/compression work when the client disconnects.
+      const streams = [fs.createReadStream(file)];
+      if (gzip) streams.push(createGzip({ level: 1 }));
+      pipeline(...streams, res, () => {});
     });
   });
   server.requestTimeout = 10000;

@@ -70,9 +70,11 @@ docker-compose push tank
 
 | 资源类型 | 策略 | 说明 |
 |----------|------|------|
-| HTML/JS/CSS | 网络优先 | 始终获取最新版本，避免协议不兼容 |
-| 模型、音频、Three.js | 缓存优先 | 大文件，版本化，离线可用 |
+| HTML/JS/CSS | HTTP 缓存，每次校验 | ETag / Last-Modified 未变化时返回 304 |
+| 模型、音频、Three.js | HTTP 缓存，每次校验 | 复用未变化的文件；不提供离线游戏缓存 |
 | `/api/*`、`/ws` | 不缓存 | 多人联机数据，必须实时 |
+
+静态资源使用 `Cache-Control: no-cache`，允许存储但使用前必须向服务器校验。源码和 release 模式均支持 gzip：对至少 1 KiB 的 JS、JSON、CSS、HTML 等文本文件按客户端协商异步压缩；PNG、MP3 不重复压缩。无需生成预压缩文件，服务器代码更新并重启后生效。
 
 ### 版本更新流程
 

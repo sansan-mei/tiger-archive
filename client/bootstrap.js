@@ -1,6 +1,13 @@
-/* Classic scripts load sequentially without a bundler or development server. */
+/* Preload in parallel; execute sequentially and stop at the first failed dependency. */
 (async () => {
   try {
+    for (const href of window.TankAppManifest.scripts) {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "script";
+      link.href = href;
+      document.head.appendChild(link);
+    }
     for (const src of window.TankAppManifest.scripts)
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");

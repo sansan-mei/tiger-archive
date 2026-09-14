@@ -286,3 +286,34 @@ test("both hands stay on the lowered weapon grips through aim, walking and recoi
     view.dispose();
   }
 });
+
+test('model downloads start together and out-of-order completion retains Paimon', async () => {
+  const b = browser(), requests = new Map();
+  const loading = b.TankModelAssets.load(T, (url, {signal}) => new Promise(resolve => {
+    requests.set(url, {resolve, signal});
+  }));
+  assert.equal(requests.size, 3, 'all model downloads start before the arsenal resolves');
+  assert.equal(new Set([...requests.values()].map(r => r.signal)).size, 3);
+  for (const name of ['public-weapons', 'paimon', 'arsenal']) {
+    const url = 'client/models/' + name + '.json';
+    requests.get(url).resolve(await fetchKit(url));
+  }
+  assert.equal(await loading, true);
+  const view = b.createTankModel(T, {tankType:'human', weaponType:'pistol'});
+  assert.equal(view.tank.getObjectByName('human').userData.rig, 'paimon-skinned');
+  view.dispose();
+});
+
+test('an early optional rejection is handled while the arsenal is still downloading', async () => {
+  const b = browser(); let resolveArsenal;
+  const loading = b.TankModelAssets.load(T, url => url.includes('paimon')
+    ? Promise.reject(Error('Character offline'))
+    : url.includes('arsenal') ? new Promise(resolve => { resolveArsenal = resolve; }) : fetchKit(url));
+  await new Promise(resolve => setImmediate(resolve));
+  resolveArsenal(await fetchKit('client/models/arsenal.json'));
+  assert.equal(await loading, true);
+  const view = b.createTankModel(T, {tankType:'human', weaponType:'pistol'});
+  assert.equal(view.assetSource, 'blender');
+  assert.equal(view.tank.getObjectByName('human').userData.rig, undefined);
+  view.dispose();
+});
