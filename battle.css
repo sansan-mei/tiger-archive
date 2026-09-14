@@ -141,3 +141,66 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 @media(pointer:coarse){#crawl-button{display:block}}
 
 #pve-rewards{max-height:65vh;overflow-y:auto;box-sizing:border-box}
+
+/* Phone HUD: edge-mounted essentials, with the center reserved for the battlefield. */
+@media (max-width:700px), (pointer:coarse) and (max-height:600px), (max-width:1000px) and (max-height:500px) {
+  #arena{--hud-top:max(10px,env(safe-area-inset-top));--hud-left:max(12px,env(safe-area-inset-left));--hud-right:max(12px,env(safe-area-inset-right));--hud-bottom:max(16px,env(safe-area-inset-bottom))}
+  .topbar{padding:0;top:var(--hud-top);left:auto;right:var(--hud-right);background:none}
+  .topbar .logo,.mission,.map-box,.score-panel,.controls-hint,.telemetry>.eyebrow,
+  .telemetry-bottom,#ability-status,#boost-status,#weapon-description,#network-quality,
+  #pve-build,#pve-formed,.aim-lock-label{display:none!important}
+  #pause-btn{width:44px;min-width:44px;min-height:44px;padding:0;font-size:10px}
+  .telemetry{left:var(--hud-left);top:var(--hud-top);width:126px;padding:8px 10px;background:#fff8e7cf;box-shadow:none;backdrop-filter:none}
+  .hp-number{margin:0 0 5px;gap:5px}.hp-number strong{font:700 23px/1.1 Arial,sans-serif}.hp-number span{font-size:9px}
+  .shield-readout{font-size:9px;margin:4px 0 2px}
+  .weapon{left:auto;right:calc(var(--hud-right) + 52px);top:var(--hud-top);bottom:auto;transform:none;width:140px;padding:7px 9px;background:#fff8e7cf;box-shadow:none;backdrop-filter:none}
+  .weapon .eyebrow{font-size:10px;letter-spacing:0}.weapon>strong{font-size:11px;letter-spacing:0;margin:4px 0}.weapon progress{height:3px}
+  #pve-progress{left:var(--hud-left);top:calc(var(--hud-top) + 76px);transform:none;width:126px;padding:5px 8px;border-radius:6px;background:#fff8e7bd;text-align:left}
+  #pve-level{font-size:10px;font-weight:600}#pve-progress progress{height:3px;margin:4px 0 0}
+  #pve-progress #pve-boss{display:none;font-size:10px;line-height:1.4;margin-top:4px}
+  #pve-progress[data-boss-active="true"] #pve-boss{display:block}
+  #event-notice{top:calc(var(--hud-top) + 116px);max-width:calc(100vw - 32px);white-space:normal;text-align:center;font-size:10px;padding:5px 9px;margin:0}
+  #event-notice[data-critical="true"]{font-size:12px}
+  #respawn-status{top:35%;width:auto;max-width:80%;padding:10px;font-size:12px}
+  .touch-controls{display:grid;position:absolute;left:var(--hud-left);bottom:var(--hud-bottom);grid-template-columns:repeat(3,44px);gap:4px;z-index:6}
+  .touch-controls [data-action=forward]{grid-column:2}
+  .touch-controls [data-action=left]{grid-column:1;grid-row:2}
+  .touch-controls [data-action=reverse]{grid-column:2;grid-row:2}
+  .touch-controls [data-action=right]{grid-column:3;grid-row:2}
+  #fire-button span{font-size:10px}
+  .touch-controls button{touch-action:none;user-select:none;width:44px;height:44px;border-radius:12px;background:#fff5dca6}
+  #fire-button{display:flex;position:absolute;align-items:center;justify-content:center;flex-direction:column;border-radius:50%;touch-action:none;right:var(--hud-right);bottom:var(--hud-bottom);width:66px;height:66px;font-size:25px;z-index:6;background:#c58264b8}
+  #ability-button{display:block;position:absolute;border-radius:50%;touch-action:none;right:calc(var(--hud-right) + 76px);bottom:var(--hud-bottom);width:48px;height:48px;font-size:11px;z-index:6;background:#eaf5eeb8}
+  #crawl-button{display:block;right:calc(var(--hud-right) + 76px);bottom:calc(var(--hud-bottom) + 56px);width:44px;height:44px;font-size:10px;background:#243b3199;z-index:6}
+  .ramp-status{bottom:calc(var(--hud-bottom) + 112px);font-size:10px;max-width:90vw;white-space:normal;text-align:center}
+  #pve-toggle{left:auto;right:var(--hud-right);bottom:calc(var(--hud-bottom) + 118px);transform:none;min-height:44px;padding:8px 12px;font-size:12px}
+  #pve-rewards{left:var(--hud-left);right:var(--hud-right);bottom:calc(var(--hud-bottom) + 168px);transform:none;width:auto;max-height:calc(100dvh - var(--hud-top) - var(--hud-bottom) - 190px);padding:10px;border-radius:10px;overscroll-behavior:contain}
+  #pve-rewards>strong{font-size:12px;margin-bottom:8px}#pve-rewards>small{display:none}
+  #pve-choices{gap:6px}#pve-choices button{padding:9px 7px;min-height:44px}#pve-choices strong{font-size:12px;line-height:1.4}#pve-choices span{font-size:11px;line-height:1.5;margin-top:5px}
+  #pve-formation{right:var(--hud-right);top:calc(var(--hud-top) + 76px);width:min(190px,48vw);padding:7px 10px;box-shadow:none}
+  #pve-formation small,#pve-formation-detail{display:none}#pve-formation strong{font-size:12px;margin:0;line-height:1.5}
+  .enemy-tag{width:64px;font-size:0}.enemy-tag>div{margin-top:0;height:3px}
+  .overlay{padding:max(10px,env(safe-area-inset-top)) var(--hud-right) max(10px,env(safe-area-inset-bottom)) var(--hud-left)}
+  .menu{padding:16px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px)}
+  .menu h1{font-size:24px}.menu #menu-description{font-size:11px;margin-bottom:12px}
+  .menu #loadout-summary,.menu .menu-guide{display:none}.menu .garage{padding:8px;margin-bottom:10px}
+  .menu select,.menu input{font-size:16px!important}.menu button{min-height:44px}
+  .menu .network-panel{margin-top:10px;padding:10px}.menu .network-panel label{font-size:11px}
+}
+@media (max-width:360px) {
+  .telemetry{width:104px;padding:8px}.hp-number strong{font-size:21px}
+  .weapon{width:124px}#pve-progress{width:104px}
+  .touch-controls{grid-template-columns:repeat(3,44px);gap:2px}
+}
+@media (pointer:coarse) and (max-height:450px), (max-width:1000px) and (max-height:450px) {
+  #pve-progress{top:calc(var(--hud-top) + 70px)}
+  #pve-rewards{left:calc(var(--hud-left) + 150px);right:calc(var(--hud-right) + 140px);bottom:calc(var(--hud-bottom) + 10px);max-height:calc(100dvh - var(--hud-top) - var(--hud-bottom) - 84px)}
+  #pve-choices{grid-template-columns:1fr}#pve-choices button{padding:8px}
+}
+
+/* The mobile movement pad has one captured pointer; the other hand stays free. */
+#move-joystick{width:128px;height:128px;display:none;border:1px solid #fff6db80;border-radius:50%;background:#f5ecd22b;box-shadow:inset 0 0 0 12px #fff5db12;touch-action:none;user-select:none;-webkit-user-select:none}
+#move-joystick .joystick-ring{position:absolute;inset:22px;border:1px dashed #fff5db80;border-radius:50%;pointer-events:none}
+#joystick-thumb{position:absolute;left:50%;top:50%;width:52px;height:52px;transform:translate(-50%,-50%);border:1px solid #fff9e9bb;border-radius:50%;background:#fff5dca6;box-shadow:0 3px 12px #243b3126;pointer-events:none}
+#move-joystick.held{background:#f5ecd247;border-color:#fff9e9c9}#move-joystick.held #joystick-thumb{background:#fff5dce0}
+@media(pointer:coarse), (max-width:700px), (max-width:1000px) and (max-height:500px){#move-joystick{display:block;position:absolute;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));z-index:6}}

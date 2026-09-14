@@ -45,6 +45,7 @@
     "tank-model.js",
     "client/woodland-style.js",
     "client/folio-scene.js",
+    "client/atmosphere.js",
     "client/scene.js",
     "client/recoil.js",
     "client/camera.js",

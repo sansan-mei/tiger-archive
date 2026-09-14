@@ -199,7 +199,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     innerWidth: 1280,
     innerHeight: 800,
     devicePixelRatio: 1,
-    matchMedia: () => ({ matches: true }),
+    matchMedia: (query) => ({ matches: !query.includes("max-width") || process.env.TIGER_TEST_MOBILE === "1" }),
     addEventListener: (k, fn) => {
       (windowEvents[k] ??= []).push(fn);
     },
@@ -268,8 +268,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     const forward = { x: -Math.cos(heading), z: Math.sin(heading) };
     assert.ok(
       renderedCamera.position.y - driver.y > 4 &&
-        renderedCamera.position.y - driver.y < 7,
-      "low chase camera height",
+        renderedCamera.position.y - driver.y < 30,
+      "garden camera stays elevated without losing the player",
     );
     assert.ok(
       (renderedCamera.position.x - driver.x) * forward.x +
@@ -281,7 +281,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
       new (require("three").Vector3)(),
     );
     assert.ok(
-      gaze.x * forward.x + gaze.z * forward.z > 0.9,
+      gaze.x * forward.x + gaze.z * forward.z > 0.7,
       "camera faces the road ahead",
     );
   }
@@ -394,8 +394,11 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     Math.abs(renderedCamera.position.y - oldHeight) > 1,
     "vertical movement changes orbit elevation",
   );
+  const gardenFacing=renderedCamera.getWorldDirection(new (require("three").Vector3)());
+  const gardenHorizontal=Math.hypot(gardenFacing.x,gardenFacing.z);
+  pivot.set(e.x+gardenFacing.x/gardenHorizontal*5,e.y+3.2,e.z+gardenFacing.z/gardenHorizontal*5);
   assert.ok(
-    Math.abs(renderedCamera.position.distanceTo(pivot) - 12) < 0.001,
+    Math.abs(renderedCamera.position.distanceTo(pivot) - 36) < 0.001,
     "pitch preserves orbit radius",
   );
   const direction = renderedCamera.getWorldDirection(
@@ -567,6 +570,12 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     survival.damage(z, 1000, survival.entities[0].id, z);
   }
   advance(12);
+  if (process.env.TIGER_TEST_MOBILE === "1") {
+    assert.equal(nodes.get("pve-rewards").hidden, true, "mobile upgrades wait for a tap");
+    assert.equal(nodes.get("pve-toggle").hidden, false);
+    nodes.get("pve-toggle").emit("click");
+    advance(6);
+  }
   assert.equal(nodes.get("pve-rewards").hidden, false,
     JSON.stringify({playerAlive:survival.entities[0].alive,pending:survival.pve.pending[survival.entities[0].id],xp:survival.pve.xp,aliveEnemies:ordinary.filter(z=>z.alive).length,nextWaveAt:survival.pve.nextWaveAt,status:survival.status}));
   assert.equal(nodes.get("pve-choices").children.length, 3);
@@ -587,6 +596,11 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   survival.pve.choices[modulePlayer.id]=["modEmber","haste","regen"];
   survival.pve.choiceIds[modulePlayer.id]=survival.pve.nextChoiceId++;
   advance(12);
+  if (process.env.TIGER_TEST_MOBILE === "1") {
+    assert.equal(nodes.get("pve-rewards").hidden, true, "the next mobile offer stays stowed after a selection");
+    nodes.get("pve-toggle").emit("click");
+    advance(6);
+  }
   assert.match(nodes.get("pve-choices").children[0].children[0].textContent,/通用模块/);
   for(const fn of documentEvents.keydown || [])fn({code:"Digit1",preventDefault(){},repeat:false});
   advance(12);

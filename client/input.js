@@ -39,12 +39,19 @@
     state.aimRevision++;
     cameraRig.lastPointer = null;
   }
-  state.mouseKnown = false;
+  state.mouseKnown = cameraRig.isTouchLayout?.() === true;
   state.activeAim = null;
   state.aimRevision = 0;
   let mouseFire = false,
     keys = new Set(),
     touch = new Map();
+  const joystick = $("move-joystick"), thumb = $("joystick-thumb");
+  let stickPointer = null, stickX = 0, stickY = 0, stickUsed = false;
+  function resetStick() {
+    stickPointer = null; stickX = stickY = 0;
+    thumb.style.transform = "translate(-50%, -50%)";
+    joystick.classList.remove("held");
+  }
   const status = () =>
     getSession().online && getSession().suspended
       ? "paused"
@@ -56,6 +63,7 @@
     state.activeAim = null;
     cameraRig.lastPointer = null;
     keys.clear();
+    resetStick(); stickUsed = false;
     touch.clear();
     mouseFire = false;
     document
@@ -148,6 +156,7 @@
       lockMouse();
       return;
     }
+    cameraRig.lastPointer = null;
     updatePointer(e);
     if (document.pointerLockElement !== canvas)
       canvas.setPointerCapture(e.pointerId);
@@ -167,6 +176,7 @@
   for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
     canvas.addEventListener(name, () => {
       mouseFire = false;
+      cameraRig.lastPointer = null;
       if (getSession().online)
         getSession().input(
           command(
@@ -184,8 +194,8 @@
       if (status() !== "playing") return;
       e.preventDefault();
       cameraRig.zoom = Math.max(
-        8,
-        Math.min(18, cameraRig.zoom + e.deltaY * 0.01),
+        22,
+        Math.min(52, cameraRig.zoom + e.deltaY * 0.025),
       );
     },
     { passive: false },
@@ -265,6 +275,33 @@
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && status() === "playing") pause();
   });
+  function sendStick() {
+    const session = getSession(), player = session.current().entities.find(e => e.id === getPlayerId());
+    if (session.online && player) session.input(command(player), true);
+  }
+  function moveStick(e) {
+    const rect = joystick.getBoundingClientRect(), radius = rect.width * .32;
+    const dx = e.clientX - rect.left - rect.width / 2, dy = e.clientY - rect.top - rect.height / 2;
+    const distance = Math.hypot(dx, dy), scale = distance > radius ? radius / distance : 1;
+    stickX = dx * scale / radius; stickY = dy * scale / radius;
+    thumb.style.transform = `translate(calc(-50% + ${dx * scale}px), calc(-50% + ${dy * scale}px))`;
+  }
+  joystick.addEventListener("pointerdown", e => {
+    if (status() !== "playing" || stickPointer !== null || e.button > 0) return;
+    e.preventDefault(); stickPointer = e.pointerId; stickUsed = true;
+    joystick.setPointerCapture(e.pointerId); joystick.classList.add("held");
+    moveStick(e); sendStick();
+  });
+  joystick.addEventListener("pointermove", e => {
+    if (e.pointerId !== stickPointer) return;
+    e.preventDefault(); moveStick(e);
+  });
+  for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
+    joystick.addEventListener(name, e => {
+      if (e.pointerId !== stickPointer) return;
+      resetStick(); sendStick();
+    });
+  window.addEventListener("resize", () => { if (stickPointer !== null) { resetStick(); sendStick(); } });
   for (const b of [
     ...document.querySelectorAll("[data-action]"),
     $("fire-button"),
@@ -309,6 +346,22 @@
     }
     for (const key of keys) input[bindings[key]] = true;
     for (const v of touch.values()) input[v] = true;
+    if (stickUsed && !["forward", "reverse", "left", "right"].some(action =>
+      [...keys].some(key => bindings[key] === action))) {
+      if (Math.hypot(stickX, stickY) > .16) {
+        const yaw = C.wrap((cameraRig.viewYaw ?? player.heading) - Math.atan2(stickX, -stickY));
+        if (C.TANKS[player.tankType].movement === "strafe") {
+          input.moveYaw = yaw; input.forward = true;
+        } else {
+          // Preserve tank turning speed while steering toward the screen-relative stick direction.
+          const delta = C.wrap(yaw - player.heading), reverse = Math.abs(delta) > Math.PI / 2;
+          const turn = reverse ? C.wrap(delta + Math.PI) : delta;
+          input.left = turn > .06; input.right = turn < -.06;
+          input.forward = !reverse && Math.abs(turn) < .8;
+          input.reverse = reverse && Math.abs(turn) < .8;
+        }
+      } else input.brake = true;
+    }
     if (input.fire && state.mouseKnown && !state.freeLook && !state.activeAim)
       refreshAim(player);
     if (state.freeLook && savedLook) {

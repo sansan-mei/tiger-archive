@@ -86,6 +86,10 @@
         : p.abilityCooldown
           ? "冷却 " + Math.ceil(p.abilityCooldown / 60) + "s"
           : "就绪");
+    $("ability-button").textContent = p.abilityUntil > truth.tick
+      ? "生效中" : p.abilityCooldown ? Math.ceil(p.abilityCooldown / 60) + "s" : "技能";
+    $("ability-button").ariaLabel = ability.name + " · " +
+      (p.abilityUntil > truth.tick ? "生效中" : p.abilityCooldown ? "冷却 " + Math.ceil(p.abilityCooldown / 60) + " 秒" : "就绪");
     $("max-hp").textContent = p.maxHp;
     $("hp-bar").max = p.maxHp;
     $("hp-bar").value = p.hp;

@@ -1,5 +1,6 @@
 /* Small wave HUD and keyboard/touch reward choices; sends intentions only. */
 (window.TankClient ??= {}).createPveUI = function ({ C, $, choose, onFormation = () => {} }) {
+  const compact = () => window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-height: 600px), (max-width: 1000px) and (max-height: 500px)").matches === true;
   const panel = $("pve-rewards"), cards = $("pve-choices");
   let current = null, signature = "", deferred = false, match = null;
   const branches = C.PVE.progression.branches;
@@ -13,7 +14,10 @@
   const toggle = $("pve-toggle");
   toggle.addEventListener("click", () => { deferred = !deferred; });
   function select(index) {
-    if (current?.options[index]) choose(current.wave, current.options[index], current.offerId);
+    if (current?.options[index]) {
+      choose(current.wave, current.options[index], current.offerId);
+      if (compact()) deferred = true;
+    }
   }
   document.addEventListener("keydown", (event) => {
     if (event.repeat || /^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName)) return;
@@ -37,7 +41,7 @@
       const options = pve?.choices[id];
       const matchKey = state.mode + ":" + state.matchId + ":" + state.epoch + ":" + id;
       if (match !== matchKey) {
-        match = matchKey; deferred = false; signature = ""; seen = null; toastUntil = 0;
+        match = matchKey; deferred = compact(); signature = ""; seen = null; toastUntil = 0;
       }
       const completed = pve ? formed(state, id) : [];
       const fresh = completed.filter(route => seen && !seen.has(route.key));
@@ -60,7 +64,10 @@
         (route.weapon === weapon ? " · " + route.name : "（换回对应武器生效）")).join(" ｜ ");
       $("pve-progress").hidden = !pve;
       if (pve) {
-        $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);
+        $("pve-level").textContent = compact()
+          ? "第 " + pve.wave + " 波 · Lv." + pve.level
+          : "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);
+        $("pve-progress").dataset.bossActive = String(!!boss);
         $("pve-xp").max = C.PVE.progression.xpNeeded(pve.level); $("pve-xp").value = pve.xp;
         const acquired=Object.entries(pve.upgrades[id]).filter(([,level])=>level>0);
         const selected=branches.routes.filter(route=>acquired.some(([key])=>route.keys.includes(key)));
@@ -85,12 +92,12 @@
       $("enemy-capacity").textContent = pve ? ` / ${C.PVE.MAX_ZOMBIES - 1} 僵尸` : " / 7";
       const alive = state.entities.find(e=>e.id===id)?.alive;
       toggle.hidden = !options || state.status !== "playing" || !alive;
-      toggle.textContent = (deferred ? "U 展开升级" : "U 暂存升级") + " · 待选 " + (pve?.pending[id] || 0);
+      toggle.textContent = (deferred ? (compact() ? "升级" : "U 展开升级") : (compact() ? "收起" : "U 暂存升级")) + " · 待选 " + (pve?.pending[id] || 0);
       panel.hidden = toggle.hidden || deferred;
       if (!options || state.status !== "playing") { current = null; signature = ""; return; }
       current = { wave: pve.wave, options, offerId: pve.choiceIds[id] };
       if (panel.hidden) return;
-      $("pve-reward-title").textContent = "升级！剩余 " + pve.pending[id] + " 次 · 三选一（1 / 2 / 3）";
+      $("pve-reward-title").textContent = "升级！剩余 " + pve.pending[id] + (compact() ? " 次 · 三选一" : " 次 · 三选一（1 / 2 / 3）");
       const next = state.epoch + ":" + current.offerId + ":" + options.join(",");
       if (signature === next) return;
       signature = next;

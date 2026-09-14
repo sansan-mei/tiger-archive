@@ -15,22 +15,22 @@
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
-  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMapping = T.NoToneMapping;
   renderer.toneMappingExposure = 1.0;
   const scene = new T.Scene();
-  scene.background = new T.Color(0xbec3cf);
-  scene.fog = new T.Fog(0xc9c3ba, 115, 310);
-  const camera = new T.PerspectiveCamera(65, 1, 0.1, 500);
-  scene.add(new T.HemisphereLight(0xffebd0, 0x70617d, 1.25));
-  const sun = new T.DirectionalLight(0xffd5a0, 2.8);
+  scene.background = new T.Color(0xffc982);
+  scene.fog = new T.Fog(0xffd093, 95, 230);
+  const camera = new T.PerspectiveCamera(25, 1, 0.1, 500);
+  scene.add(new T.HemisphereLight(0xfff0d2, 0x787193, 1.0));
+  const sun = new T.DirectionalLight(0xffefcf, 1.8);
   sun.position.set(-36, 48, 28);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, {
-    left: -45,
-    right: 45,
-    top: 45,
-    bottom: -45,
+    left: -65,
+    right: 65,
+    top: 65,
+    bottom: -65,
     near: 1,
     far: 160,
   });
@@ -80,8 +80,10 @@
     cloudMesh.setMatrixAt(i, transform.matrix);
   }
   clouds.add(cloudMesh);
+  clouds.visible = false;
   const folio = window.TankClient.createFolioScene({T,C,style,onError:error=>failure("原地图加载失败："+error.message)});
   floorGroups[0].add(folio.root);
+  const atmosphere=window.TankClient.createAtmosphere({T,renderer,scene,camera,sun,style,folio});
   function setMapMode() {
     floorGroups[0].visible = true;
     folio.root.visible = true;
@@ -89,6 +91,7 @@
   return {
     environmentReady: Promise.all([style.ready, folio.ready]),
     setMapMode,
+    renderFrame: atmosphere.render,
     renderer,
     scene,
     camera,

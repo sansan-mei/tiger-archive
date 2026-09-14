@@ -5,6 +5,31 @@
   let seed = 2731;
   const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
   const solid = (color) => new T.MeshStandardMaterial({ color, roughness: 1, metalness: 0 });
+  const time = {value:0}, weatherLight={value:new T.Color().setRGB(1.08,1.01,.91)},
+    weatherShade={value:new T.Color().setRGB(.52,.47,.68)}, wind={value:.35};
+  function setWeather({light,shade,wind:amount}){weatherLight.value.copy(light);weatherShade.value.copy(shade);wind.value=amount;}
+  // WebGL port of Folio's MeshDefaultMaterial: palette colors and tinted shadows.
+  function decorate(material) {
+    if(material.userData.folioStyled) return material;
+    material.userData.folioStyled=true;
+    const before = material.onBeforeCompile;
+    material.onBeforeCompile = shader => {
+      before.call(material, shader);
+      shader.uniforms.folioTime = time;
+      shader.uniforms.folioLight=weatherLight;shader.uniforms.folioShadeColor=weatherShade;
+      shader.fragmentShader='uniform vec3 folioLight; uniform vec3 folioShadeColor;\n'+shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+        vec3 folioNormal = inverseTransformDirection(normal, viewMatrix);
+        float coreShade = 1.0-smoothstep(-.25,1.0,dot(folioNormal,normalize(vec3(-25.,52.,20.))));
+        float folioShade = max(coreShade,1.0-getShadowMask());
+        outgoingLight = mix(diffuseColor.rgb * folioLight,diffuseColor.rgb * folioShadeColor,folioShade*.72) + totalEmissiveRadiance;
+        #include <opaque_fragment>
+      `);
+    };
+    material.customProgramCacheKey = () => 'folio-palette-v2-'+material.name;
+    return material;
+  }
   const leafFallback = new T.DataTexture(new Uint8Array([255,255,255,255]), 1, 1);
   leafFallback.needsUpdate = true;
   const slabFallback = new T.DataTexture(new Uint8Array([200,200,200,255]), 1, 1);
@@ -25,18 +50,19 @@
 
   // Overlapping leaf cards with outward normals make soft, leafy crowns instead
   // of solid polygon blobs. Unlike the reference's fixed camera, cards face all axes.
-  const positions = [], normals = [], uvs = [];
+  const positions = [], normals = [], uvs = [], centers = [], corners = [];
   const point = new T.Vector3(), normal = new T.Vector3();
-  for (let i = 0; i < 140; i++) {
-    const radius = .35 + .65 * Math.cbrt(random());
+  for (let i = 0; i < 80; i++) {
+    const radius = 1 - Math.pow(random(),3);
     const y = random() * 2 - 1, phi = random() * Math.PI * 2;
     point.set(Math.sqrt(1-y*y)*Math.cos(phi), y, Math.sqrt(1-y*y)*Math.sin(phi)).multiplyScalar(radius);
-    const card = new T.PlaneGeometry(1.05 + random()*.25, 1.05 + random()*.25).toNonIndexed();
-    card.rotateZ(random()*Math.PI*2); card.rotateY(random()*Math.PI*2); card.rotateX(random()*Math.PI);
+    const card = new T.PlaneGeometry(.8, .8).toNonIndexed();
+    card.rotateZ(random()*Math.PI*2);
     card.translate(point.x,point.y,point.z);
     const p = card.attributes.position;
     for (let j=0;j<p.count;j++) {
       positions.push(p.getX(j),p.getY(j),p.getZ(j));
+      centers.push(point.x,point.y,point.z);corners.push(p.getX(j)-point.x,p.getY(j)-point.y);
       normal.set(p.getX(j),p.getY(j)*.7+.35,p.getZ(j)).normalize();
       normals.push(normal.x,normal.y,normal.z);
       uvs.push(card.attributes.uv.getX(j),card.attributes.uv.getY(j));
@@ -47,22 +73,45 @@
   crown.setAttribute('position',new T.Float32BufferAttribute(positions,3));
   crown.setAttribute('normal',new T.Float32BufferAttribute(normals,3));
   crown.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+  crown.setAttribute('folioCenter',new T.Float32BufferAttribute(centers,3));
+  crown.setAttribute('folioCorner',new T.Float32BufferAttribute(corners,2));
   crown.computeBoundingSphere();
+  const billboard = shader => {
+    shader.uniforms.folioTime=time;shader.uniforms.folioWind=wind;
+    shader.vertexShader='attribute vec3 folioCenter; attribute vec2 folioCorner; uniform float folioTime; uniform float folioWind;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>', `
+      mat4 folioMatrix = modelMatrix;
+      #ifdef USE_INSTANCING
+        folioMatrix = modelMatrix * instanceMatrix;
+      #endif
+      vec4 folioWorld = folioMatrix * vec4(folioCenter,1.);
+      vec4 mvPosition = viewMatrix * folioWorld;
+      float folioScale = length(folioMatrix[0].xyz);
+      float flutter = sin(folioTime*1.4 + folioWorld.x*.35 + folioWorld.z*.27)*.07*folioWind;
+      mvPosition.xy += (folioCorner + vec2(flutter,flutter*.35)) * folioScale;
+      gl_Position = projectionMatrix * mvPosition;
+    `);
+  };
+  foliage.onBeforeCompile=billboard; decorate(foliage);
+  const foliageDepth = new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide,alphaMap:foliage.alphaMap,alphaTest:.3});
+  foliageDepth.onBeforeCompile=billboard;
+  foliageDepth.customProgramCacheKey=()=> 'folio-leaf-depth-v2';
+  ready.then(()=>{foliageDepth.alphaMap=foliage.alphaMap;foliageDepth.needsUpdate=true;});
   const bark = solid(0x766052); bark.name = 'Bark_Garden';
   const stone = solid(0xb7ada3); stone.name = 'garden-stone';
-  const grass = solid(0xa8af64); grass.name = 'garden-grass';
+  const grass = solid(0xb8b62e); grass.name = 'garden-grass';
   const blades = [], bladeColors = [];
   for (let i=0;i<7;i++) {
     const angle = random()*Math.PI*2, x=(random()-.5)*.8,z=(random()-.5)*.8;
-    const width=.09+random()*.07, height=.45+random()*.55;
+    const width=.035+random()*.045, height=.35+random()*.3;
     const dx=Math.cos(angle)*width,dz=Math.sin(angle)*width;
     blades.push(x-dx,0,z-dz,x+dx,0,z+dz,x+dx*.8,height,z+dz*.8);
-    bladeColors.push(.65,.70,.45,.65,.70,.45,1,1,.8);
+    bladeColors.push(.88,.9,.75,.88,.9,.75,1,1,1);
   }
   const grassGeometry = new T.BufferGeometry();
   grassGeometry.setAttribute('position',new T.Float32BufferAttribute(blades,3));
   grassGeometry.setAttribute('color',new T.Float32BufferAttribute(bladeColors,3));
-  grassGeometry.computeVertexNormals();grass.side=T.DoubleSide;grass.vertexColors=true;
+  grassGeometry.setAttribute('normal',new T.Float32BufferAttribute(Array.from({length:blades.length},(_,i)=>i%3===1?1:0),3));grass.side=T.DoubleSide;grass.vertexColors=true;
   function restyle(models) {
     for (const name of ['CommonTree_3','CommonTree_5','Pine_5']) {
       const tree = models.get(name);
@@ -138,5 +187,5 @@
       shadows.computeBoundingSphere();floorGroups[level.id].add(shadows);
     }
   }
-  return { ready, ground, restyle, treeColor, addDetails, crown, foliage, grassGeometry, grass };
+  return { setWeather, decorate, foliageDepth, update: t=>{time.value=t*.001;}, ready, ground, restyle, treeColor, addDetails, crown, foliage, grassGeometry, grass };
 };

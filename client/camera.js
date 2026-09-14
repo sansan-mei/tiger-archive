@@ -7,29 +7,34 @@
   getPlayerId,
   getMode = () => "pvp",
 }) {
+  const isTouchLayout = () => window.innerWidth <= 700 ||
+    (window.innerWidth <= 1000 && window.innerHeight <= 500) ||
+    (window.innerHeight <= 600 && window.matchMedia?.("(pointer: coarse)").matches === true);
+  const defaultPitch = () => isTouchLayout() ? .72 : .6;
+  const pivot = new T.Vector3(0, 3.2, 52);
   const state = {
     viewYaw: null,
-    viewPitch: 0.2,
+    viewPitch: defaultPitch(),
     lastPointer: null,
     cameraHeading: 0,
-    cameraElevation: 0.2,
-    zoom: 12,
+    cameraElevation: defaultPitch(),
+    zoom: 36,
     look: new T.Vector3(0, 1, 52),
   };
   function updateChaseCamera(body, dt, snap = false) {
     if (snap) {
       state.viewYaw = null;
-      state.viewPitch = 0.2;
+      state.viewPitch = defaultPitch();
       state.lastPointer = null;
       state.cameraHeading = body.heading;
-      state.cameraElevation = 0.2;
+      state.cameraElevation = defaultPitch();
     }
     const local = body.id === getPlayerId();
     const map = C.mapForMode(getMode()), heading =
       local
         ? (state.viewYaw ?? body.heading)
         : body.heading;
-    const distance = state.zoom * (window.innerWidth < 700 ? 1.1 : 1),
+    const distance = state.zoom + (window.innerWidth < 700 ? 14 : 0),
       ease = snap || reduced ? 1 : 1 - Math.exp(-dt * 8);
     state.cameraHeading = local ? heading : C.turn(
       state.cameraHeading,
@@ -50,7 +55,10 @@
         pivotHeight = Math.min(pivotHeight, ceiling - body.y - 0.25);
       }
     // A spherical orbit: pitch changes camera height and horizontal radius around one pivot.
-    state.look.lerp(new T.Vector3(body.x, body.y + pivotHeight, body.z), ease);
+    pivot.lerp(new T.Vector3(body.x, body.y + pivotHeight, body.z), ease);
+    state.look.copy(pivot);
+    // Keep the center ray ahead of the muzzle with the higher diorama camera.
+    state.look.addScaledVector(forward, 5);
     const horizontal = distance * Math.cos(state.cameraElevation);
     camera.position.set(
       state.look.x - forward.x * horizontal,
@@ -108,5 +116,5 @@
       );
     camera.lookAt(state.look);
   }
-  return Object.assign(state, { update: updateChaseCamera });
+  return Object.assign(state, { update: updateChaseCamera, isTouchLayout });
 };

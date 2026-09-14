@@ -24,6 +24,7 @@
     sun,
     floorGroups,
     setMapMode,
+    renderFrame,
     clouds,
     mat,
     block,
@@ -306,7 +307,7 @@
     clearInput();
     deathShown = false;
     observing = false;
-    input.state.mouseKnown = false;
+    input.state.mouseKnown = cameraRig.isTouchLayout();
     input.state.activeAim = null;
     hitTime = damageTime = noticeTime = 0;
     $("event-notice").textContent = "";
@@ -682,7 +683,7 @@
           : "";
       }
     }
-    renderer.render(scene, camera);
+    renderFrame(time, target, cameraRig.look);
   }
   canvas.addEventListener("webglcontextlost", (e) => {
     e.preventDefault();
@@ -702,7 +703,7 @@
     clearInput();
     deathShown = false;
     observing = false;
-    input.state.mouseKnown = false;
+    input.state.mouseKnown = cameraRig.isTouchLayout();
     input.state.activeAim = null;
     $("game-overlay").hidden = false;
     $("network-entry").hidden = false;
@@ -822,7 +823,7 @@
         clearInput();
         deathShown = false;
         observing = false;
-        input.state.mouseKnown = false;
+        input.state.mouseKnown = cameraRig.isTouchLayout();
         input.state.activeAim = null;
         const p = snapshot.entities.find((e) => e.id === playerId);
         cameraRig.update(p, 0, true);
