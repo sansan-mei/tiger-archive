@@ -12,6 +12,7 @@
     (window.innerHeight <= 600 && window.matchMedia?.("(pointer: coarse)").matches === true);
   const defaultPitch = () => isTouchLayout() ? .72 : .6;
   const pivot = new T.Vector3(0, 3.2, 52);
+  let collisionFraction = 1;
   const state = {
     viewYaw: null,
     viewPitch: defaultPitch(),
@@ -23,6 +24,7 @@
   };
   function updateChaseCamera(body, dt, snap = false) {
     if (snap) {
+      collisionFraction = 1;
       state.viewYaw = null;
       state.viewPitch = defaultPitch();
       state.lastPointer = null;
@@ -66,7 +68,8 @@
       state.look.z - forward.z * horizontal,
     );
     // Pull the camera in when a wall lies behind the vehicle, rather than looking through it.
-    const anchor = { x: body.x, y: body.y + pivotHeight, z: body.z };
+    // Match the rendered boom origin, not the unsmoothed body/network position.
+    const anchor = pivot;
     let fraction = 1;
     const floor = body.rampId
       ? map.ramps.find((r) => r.id === body.rampId).b.floor
@@ -108,11 +111,15 @@
       );
       if (hit !== null) fraction = Math.min(fraction, Math.max(0, hit - 0.04));
     }
-    if (fraction < 1)
+    // Obstructions are a hard limit; only the outward recovery is damped.
+    const recoveryEase = dt > 0 ? (reduced ? 1 : 1 - Math.exp(-dt * 8)) : 0;
+    collisionFraction = fraction < collisionFraction ? fraction :
+      collisionFraction + (fraction - collisionFraction) * recoveryEase;
+    if (collisionFraction < 1)
       camera.position.set(
-        anchor.x + (camera.position.x - anchor.x) * fraction,
-        anchor.y + (camera.position.y - anchor.y) * fraction,
-        anchor.z + (camera.position.z - anchor.z) * fraction,
+        anchor.x + (camera.position.x - anchor.x) * collisionFraction,
+        anchor.y + (camera.position.y - anchor.y) * collisionFraction,
+        anchor.z + (camera.position.z - anchor.z) * collisionFraction,
       );
     camera.lookAt(state.look);
   }

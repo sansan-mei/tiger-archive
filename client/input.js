@@ -94,11 +94,11 @@
       state.aimRevision++;
       state.activeAim = null;
       cameraRig.viewYaw = C.wrap(
-        (cameraRig.viewYaw ?? body.heading) - dx * 0.004,
+        (cameraRig.viewYaw ?? body.heading) - dx * 0.002,
       );
       cameraRig.viewPitch = Math.max(
         -0.12,
-        Math.min(0.8, cameraRig.viewPitch + dy * 0.003),
+        Math.min(0.8, cameraRig.viewPitch + dy * 0.0015),
       );
     }
     cameraRig.lastPointer = { x: e.clientX, y: e.clientY };

@@ -371,7 +371,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
       renderedCamera.position.z - pivot.z,
       renderedCamera.position.x - pivot.x,
     );
-  for (let i = 0; i < 24; i++) {
+  // Enough accumulated motion for a full turn at the lower mouse sensitivity.
+  for (let i = 0; i < 48; i++) {
     for (const fn of documentEvents.mousemove)
       fn({ clientX: 640, clientY: 400, movementX: 80, movementY: 0 });
     advance(3);
