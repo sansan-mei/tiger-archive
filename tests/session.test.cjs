@@ -124,10 +124,14 @@ test("authoritative delayed quake and chain explosions survive replica validatio
 test('shared module statuses and burst events survive Authority to Replica delivery',()=>{
   const a=new S.Authority({mode:'pve',matchId:'shared-modules',participants:[
     {id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]});
-  const b=a.battle;b.start();b.pve.nextWaveAt=100000;
+  const b=a.battle;b.start();b.pve.wave=4;b.pve.nextWaveAt=100000;
   const r=new S.Replica();r.welcome(a.attach('peer','p0'));
   const p=b.entities[0],targets=b.entities.filter(e=>e.tankType==='zombie').slice(0,3);
-  targets.forEach((z,i)=>Object.assign(z,{x:i===0?0:8+i,y:0,z:55,hp:z.maxHp,alive:true,protectedUntil:0}));
+  for(const z of b.entities.filter(e=>e.tankType==='zombie'))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
+  targets.forEach((z,i)=>{
+    const type=i<2?'bucket':'walker',hp=C.PVE.healthFor(type,1,4);
+    Object.assign(z,{x:i===0?0:8+i,y:0,z:55,zombieType:type,maxHp:hp,hp,alive:true,protectedUntil:0});
+  });
   Object.assign(b.pve.upgrades[p.id],{modEmber:1,modFracture:1,modCombustion:1,modOverload:1});
   for(let i=0;i<5;i++){
     const target=targets[i<4?0:1];

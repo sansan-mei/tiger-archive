@@ -62,7 +62,7 @@
           (boss?.alive ? bossName + " 战" : pve.nextWaveAt ? Math.max(0, Math.ceil((pve.nextWaveAt - state.tick) / 60)) + " 秒后下一波" : "待入场 " + pve.queue + " 只")
         : "8 分钟 · 先到 15 次击毁";
       $("score-title").textContent = pve ? "合作肉鸽 · 击败第 16 波泰坦" : "计分板 · 15 次击毁获胜";
-      $("enemy-capacity").textContent = pve ? " / 16 僵尸" : " / 7";
+      $("enemy-capacity").textContent = pve ? ` / ${C.PVE.MAX_ZOMBIES - 1} 僵尸` : " / 7";
       const alive = state.entities.find(e=>e.id===id)?.alive;
       toggle.hidden = !options || state.status !== "playing" || !alive;
       toggle.textContent = (deferred ? "U 展开升级" : "U 暂存升级") + " · 待选 " + (pve?.pending[id] || 0);

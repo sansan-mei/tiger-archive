@@ -6,7 +6,7 @@
   else (root.TankSystems ??= {}).pve = api;
 })(typeof window === "undefined" ? globalThis : window, function (C, R) {
   "use strict";
-  const MAX_REGULAR_ZOMBIES = 16, MAX_ZOMBIES = 17;
+  const MAX_REGULAR_ZOMBIES = 32, MAX_ZOMBIES = 33;
   const rewards = Object.freeze({
     ...R.rewards,
     haste: { name: "快速装填", description: "装填时间减少 10%，最多叠加 3 次" },
@@ -23,8 +23,9 @@
   const bossTypes = new Set(["boss", "titan"]);
   function healthFor(type, teamSize, wave = 1) {
     const teamScale = 1 + C.RULES.pveHealthPerPlayer * (teamSize - 1),
-      waveScale = 1 + C.RULES.pveHealthPerWave * (Math.max(1, wave) - 1);
-    return Math.round(C.ZOMBIE_SPECS[type].hp * teamScale * waveScale);
+      waveScale = 1 + C.RULES.pveHealthPerWave * (Math.max(1, wave) - 1),
+      ordinaryScale = bossTypes.has(type) ? 1 : 0.5;
+    return Math.round(C.ZOMBIE_SPECS[type].hp * ordinaryScale * teamScale * waveScale);
   }
   function rescaleHealth(b, teamSize, wave) {
     for (const z of zombies(b)) {

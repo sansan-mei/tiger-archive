@@ -2,6 +2,19 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const C=require('../battle-core.js'),S=require('../battle-session.js'),R=C.PVE.progression;
 function make(n=1,map=null) {const b=new C.Battle({mode:'pve',participants:Array.from({length:n},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol'})),...(map?{map}:{})});b.start();b.pve.nextWaveAt=100000;return b;}
 function enemy(b,i,x=0,z=55) {const e=b.entities.filter(e=>e.tankType==='zombie')[i];Object.assign(e,{x,z,y:0,floor:0,hp:e.maxHp,alive:true,protectedUntil:0});return e;}
+function waveFour(b) {
+  b.pve.wave=4;
+  for(const z of b.entities.filter(e=>e.tankType==='zombie')){
+    z.maxHp=C.PVE.healthFor(z.zombieType,b.pve.teamSize,4);
+    if(z.alive)z.hp=z.maxHp;
+  }
+  return b;
+}
+function bucket(b,i,x,z) {
+  const e=enemy(b,i,x,z);
+  e.zombieType='bucket';e.maxHp=C.PVE.healthFor('bucket',b.pve.teamSize,b.pve.wave);e.hp=e.maxHp;
+  return e;
+}
 function enterBossWave(b,wave=8) {
   for(const z of b.entities.filter(e=>e.tankType==='zombie'))Object.assign(z,{alive:false,hp:0,speed:0});
   Object.assign(b.pve.boss,{stage:wave===16?1:0,spawned:false,defeated:false,telegraph:null});
@@ -146,18 +159,18 @@ test('giant slayer raises direct damage against giants and bosses, not regular e
   assert.equal(C.PVE.progression.moduleDamage(b,boss,{owner:p.id},100),195);
 });
 test('shockwave direct hits damage only three nearby secondary targets',()=>{
-  const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),nearby=Array.from({length:4},(_,i)=>enemy(b,i+1,2+i*.5,55)),
+  const b=waveFour(make()),p=b.entities[0],primary=enemy(b,0,0,55),nearby=Array.from({length:4},(_,i)=>bucket(b,i+1,2+i*.5,55)),
     far=enemy(b,5,8,55);
   b.pve.upgrades[p.id].modShockwave=1;
   hit(b,p,primary);
   assert.equal(primary.hp,primary.maxHp-20);
-  assert.deepEqual(nearby.map(e=>e.hp),[50,50,50,80]);
+  assert.deepEqual(nearby.map(e=>e.maxHp-e.hp),[30,30,30,0]);
   assert.equal(far.hp,far.maxHp);
   assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===4).length,1);
 });
 test('shockwave gains ten secondary damage per level and caps at three',()=>{
   for(const [level,damage] of [[1,30],[2,40],[3,50]]) {
-    const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+    const b=waveFour(make()),p=b.entities[0],primary=enemy(b,0,0,55),side=bucket(b,1,2,55);
     b.pve.upgrades[p.id].modShockwave=level;
     hit(b,p,primary);
     assert.equal(side.maxHp-side.hp,damage,`level ${level}`);
@@ -166,8 +179,8 @@ test('shockwave gains ten secondary damage per level and caps at three',()=>{
 test('shockwave damage and explosion survive the authoritative network packet',()=>{
   const a=new S.Authority({mode:'pve',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]}),
     b=a.battle,p=b.entities[0];
-  b.start();b.pve.wave=1;b.pve.nextWaveAt=100000;
-  const primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  b.start();waveFour(b);b.pve.nextWaveAt=100000;
+  const primary=enemy(b,0,0,55),side=bucket(b,1,2,55);
   b.pve.upgrades[p.id].modShockwave=3;
   S.validateSnapshot(b.snapshot());
   const replica=new S.Replica();replica.welcome(a.attach('peer',p.id));
@@ -178,7 +191,7 @@ test('shockwave damage and explosion survive the authoritative network packet',(
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
   const received=replica.receive(packet);
   assert.equal(received.ok,true,received.reason);
-  assert.equal(replica.current.entities.find(e=>e.id===side.id).hp,30);
+  assert.equal(replica.current.entities.find(e=>e.id===side.id).hp,side.maxHp-50);
   assert.ok(received.events.some(e=>e.type==='explosion'&&e.radius===4));
 });
 test('v29 checkpoints and retired healing upgrades are rejected',()=>{
@@ -189,13 +202,13 @@ test('v29 checkpoints and retired healing upgrades are rejected',()=>{
   assert.throws(()=>S.validateSnapshot(saved),/Invalid run upgrade/);
 });
 test('an in-flight shot keeps shockwave after changing weapons',()=>{
-  const b=make(),p=b.entities[0],primary=enemy(b,0,0,55),side=enemy(b,1,2,55);
+  const b=waveFour(make()),p=b.entities[0],primary=enemy(b,0,0,55),side=bucket(b,1,2,55);
   p.weaponType='rapid';b.pve.upgrades[p.id].modShockwave=3;
   assert.equal(b.shoot(p),true);
   const shot=b.bullets[0];assert.ok(shot&&shot.weaponType==='rapid');
   p.weaponType='pistol';
   b.resolveHit({kind:'tank',id:primary.id,point:{x:primary.x+.6,y:1.5,z:primary.z}},shot);
-  assert.equal(side.hp,30);
+  assert.equal(side.hp,side.maxHp-50);
   assert.ok(b.events.some(e=>e.type==='explosion'&&e.radius===4));
 });
 test('eight-player shockwaves stay within the module and network event budgets',()=>{
@@ -351,7 +364,7 @@ test('module secondary effects respect walls and the per-tick proc budget',()=>{
   Object.assign(z,{hp:500,maxHp:500});
   Object.assign(b.pve.upgrades[p.id],{modEmber:1,modCombustion:1,modOverload:1,modShockwave:1});
   for(let i=0;i<10;i++)hit(b,p,z);
-  assert.equal(hidden.hp,80);
+  assert.equal(hidden.hp,hidden.maxHp);
   assert.ok(b.events.filter(e=>e.type==='explosion'&&e.radius===5).length<=4);
   assert.ok(b.events.filter(e=>e.type==='explosion'&&e.radius===4).length<=4);
   assert.ok(b.moduleProcCount<=4);
@@ -420,7 +433,7 @@ test('piercing and arcs respect solid cover',()=>{
   const b=make(),p=b.entities[0];Object.assign(p,{x:30,z:9});
   const a=enemy(b,0,25,9),hidden=enemy(b,1,10,9);
   Object.assign(b.pve.upgrades[p.id],{pierce:1,ricochet:1,lightning:1});b.pve.hits[p.id]=2;
-  hit(b,p,a);assert.equal(hidden.hp,80);
+  hit(b,p,a);assert.equal(hidden.hp,hidden.maxHp);
 });
 test('standard cannon evolves into a delayed ten-metre judgment strike',()=>{
   const b=make(),p=b.entities[0],elite=enemy(b,0,0,55),near=enemy(b,1,0,60),behind=enemy(b,2,-7,55);
@@ -498,7 +511,7 @@ test('rocket evolves into clustered fire and every third shot becomes doomsday',
 test('removed pulse never auto-damages or slows nearby zombies',()=>{
   const b=make(),z=enemy(b,0,7,55);
   b.tick=239;b.step();
-  assert.equal(z.hp,80);assert.equal(z.slowUntil,0);
+  assert.equal(z.hp,z.maxHp);assert.equal(z.slowUntil,0);
   assert.ok(!b.events.some(e=>e.type==='beam'));
   S.validateSnapshot(b.snapshot());
 });

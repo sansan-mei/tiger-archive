@@ -124,13 +124,13 @@
           ((input.aimLeft ? 1 : 0) - (input.aimRight ? 1 : 0)) * 1.8 * DT,
       );
     else if (input.aimYaw !== undefined)
-      body.aim = turn(
-        body.aim,
-        input.aimYaw,
-        (body.controller === "bot" ? 1.8 : 2.8) * DT,
-      );
+      body.aim = body.controller === "human"
+        ? wrap(input.aimYaw)
+        : turn(body.aim, input.aimYaw, 1.8 * DT);
     if (input.aimPitch !== undefined)
-      body.pitch += clamp(input.aimPitch - body.pitch, -1.6 * DT, 1.6 * DT);
+      body.pitch = body.controller === "human"
+        ? input.aimPitch
+        : body.pitch + clamp(input.aimPitch - body.pitch, -1.6 * DT, 1.6 * DT);
     if (weapon.trigger === "delayed") {
       // A rising edge commits one fixed warm-up. Releasing never changes damage or timing.
       if (

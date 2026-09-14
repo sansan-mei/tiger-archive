@@ -1,4 +1,4 @@
-/* Client-side aim assistance only; the server still limits turret speed and resolves hits. */
+/* Client-side aim assistance only; the server still resolves collisions and damage. */
 (window.TankClient ??= {}).createAimAssist = function () {
   let lockedId = null,
     revision = null,

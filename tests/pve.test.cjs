@@ -18,6 +18,24 @@ function clearWave(b) {
   b.step();
   if (!b.pve.choices[b.entities[0].id]) C.PVE.progression.addExperience(b, C.PVE.progression.xpNeeded(b.pve.level), C.PVE.rewards);
 }
+test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy health is halved',()=>{
+  const b=create(),roster=enemies(b);
+  assert.equal(roster.length,33);
+  assert.equal(roster.at(-1).id,'zombie_32');
+  assert.equal(C.PVE.MAX_ZOMBIES,33);
+  for(const type of ['walker','cone','runner','bucket','brute']){
+    const wave=C.ZOMBIE_SPECS[type].wave;
+    assert.equal(C.PVE.healthFor(type,1,wave),
+      Math.round(C.ZOMBIE_SPECS[type].hp*.5*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
+  }
+  for(const type of ['boss','titan']){
+    const wave=C.ZOMBIE_SPECS[type].wave;
+    assert.equal(C.PVE.healthFor(type,1,wave),
+      Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
+  }
+  assert.equal(C.VERSION,34);
+  S.validateSnapshot(b.snapshot());
+});
 test("PvE uses a ground-only authority map while PvP keeps all floors and ramps",()=>{
   const pve=create(),pvp=new C.Battle();
   assert.equal(pve.map.levels.length,1);assert.equal(pve.map.ramps.length,0);
@@ -44,16 +62,16 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   assert.throws(() => new C.Battle({participants:participants()}));
   const b=create(), p=b.entities[0];
   assert.equal(p.tankType, 'human'); assert.equal(p.weaponType,'pistol'); assert.equal(p.hp,80);
-  assert.equal(enemies(b).length,17); assert.ok(enemies(b).every(e=>!e.alive));
+  assert.equal(enemies(b).length,33); assert.ok(enemies(b).every(e=>!e.alive));
   p.kills=15; b.step(); assert.equal(b.status,'playing');
   assert.throws(()=>new C.Battle({participants:[{...participants()[0],tankType:'zombie'},...participants(2).slice(1)]}));
   b.tick=C.RULES.duration-1;b.step();assert.equal(b.status,'playing');S.validateSnapshot(b.snapshot());
   b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
-test('v33 trial and enemy specials reject v32 checkpoints',()=>{
-  assert.equal(C.VERSION,33);
-  const old=create().snapshot();old.version=32;
+test('v34 enlarged enemy pool and half-health rule reject v33 checkpoints',()=>{
+  assert.equal(C.VERSION,34);
+  const old=create().snapshot();old.version=33;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
 test('v32 pursuit rule still rejects v31 checkpoints',()=>{
@@ -82,7 +100,7 @@ test('PvE prevents direct, self and splash friendly fire while retaining zombie 
 });
 test('zombies close distance and melee at one-second intervals without projectiles or skills', () => {
   const b=create(), p=b.entities[0], z=enemies(b)[0];
-  Object.assign(p,{x:0,z:55}); Object.assign(z,{x:8,z:55,y:0,floor:0,alive:true,hp:80,heading:0});
+  Object.assign(p,{x:0,z:55}); Object.assign(z,{x:8,z:55,y:0,floor:0,alive:true,hp:z.maxHp,heading:0});
   b.pve.nextWaveAt = 100000; b.pve.wave=1;
   for(let i=0;i<200;i++) b.step();
   assert.ok(z.x<3, String(z.x)); assert.ok(p.hp<80); assert.equal(b.bullets.length,0); assert.equal(z.abilityUntil,0);
@@ -145,7 +163,7 @@ test('simultaneously blocked zombies invalidate stale paths but spread A-star wo
   assert.equal(calls,1);
   assert.ok(pack.slice(1).every(z=>z.brain.path.length===0&&z.brain.pathTick===0));
 });
-test('all seventeen zombie slots including the boss can replan without synchronized A-star bursts',()=>{
+test('all thirty-three zombie slots including the boss can replan without synchronized A-star bursts',()=>{
   const b=create(),p=b.entities[0],pack=enemies(b),route=b.route.bind(b),seen=new Set();
   Object.assign(p,{x:0,z:55});
   for(const [i,z] of pack.entries())Object.assign(z,{x:20+i,z:55,y:0,floor:0,alive:true,
@@ -158,7 +176,7 @@ test('all seventeen zombie slots including the boss can replan without synchroni
     for(const id of routed)seen.add(id);
   }
   assert.equal(seen.size,pack.length,'boss slot must get a route too');
-  assert.ok(seen.has('zombie_16'));
+  assert.ok(seen.has('zombie_32'));
 });
 test('fast bosses go around solid cover and reach the player instead of orbiting a waypoint',()=>{
   for(const type of ['boss','titan']){
@@ -192,10 +210,10 @@ test('wave rewards are validated once, persist and affect authority cooldown, he
   assert.equal(b.chooseUpgrade(p.id,1,'haste'),false);
   b.shoot(p); assert.equal(p.cooldown,22);
   b.pve.upgrades[p.id].regen=2; p.hp=50; b.tick=59; b.step(); assert.equal(p.hp,52);
-  const z=enemies(b)[0]; Object.assign(p,{x:0,z:55}); Object.assign(z,{x:4,z:55,y:0,floor:0,hp:80,alive:true,protectedUntil:0});
+  const z=enemies(b)[0]; Object.assign(p,{x:0,z:55}); Object.assign(z,{x:4,z:55,y:0,floor:0,hp:z.maxHp,alive:true,protectedUntil:0});
   b.bullets=[];b.pve.upgrades[p.id].modEmber=1;b.tick=239;
   b.pveHit({id:z.id,point:{x:z.x,y:1.5,z:z.z}},{owner:p.id,weaponType:'pistol'});
-  b.tick=298;b.step();assert.equal(z.hp,60);
+  b.tick=298;b.step();assert.equal(z.hp,z.maxHp-20);
   S.validateSnapshot(b.snapshot());
   const recovered=create(); recovered.restore(b.snapshot());
   for(let i=0;i<120;i++){b.step(); recovered.step();} assert.deepEqual(recovered.snapshot(),b.snapshot());
@@ -209,7 +227,7 @@ test('clear waves revive teammates; all dead loses and never uses PvP respawn', 
   b.damage(a,1000,null,a); other.protectedUntil=0;b.damage(other,1000,null,other);b.step();
   assert.equal(b.pve.result,'defeat'); S.validateSnapshot(b.snapshot());
 });
-test('eight players and sixteen zombies stay within packet bounds and pass replica validation', () => {
+test('eight players and thirty-two zombies stay within packet bounds and pass replica validation', () => {
   const a=new S.Authority({mode:'pve', participants:participants(8)}), b=a.battle;
   const replica=new S.Replica();replica.welcome(a.attach('peer','p0'));b.start();
   b.pve.nextWaveAt=1; b.pve.wave=10;markMidBossDefeated(b);
@@ -220,13 +238,25 @@ test('eight players and sixteen zombies stay within packet bounds and pass repli
       assert.equal(replica.receive(packet).ok,true, 'tick '+b.tick);
     }
   }
-  assert.equal(enemies(b).filter(e=>e.alive).length,16);
+  assert.ok(enemies(b).filter(e=>e.alive).length>16);
+  // Accelerate only this stress probe's spawn clock; keep the real spawn method and valid snapshots.
+  for(let i=0;i<64&&enemies(b).filter(e=>e.alive).length<32;i++){
+    b.pve.nextSpawnAt=b.tick;
+    a.step();
+    S.validateSnapshot(b.snapshot());
+  }
+  assert.equal(enemies(b).filter(e=>e.alive).length,32);
+  const crowdedPacket=a.statePacket({network:true});crowdedPacket.events=crowdedPacket.events.slice(-64);
+  assert.ok(Buffer.byteLength(JSON.stringify(crowdedPacket))<65536);
+  const crowdedResult=replica.receive(crowdedPacket);
+  assert.equal(crowdedResult.ok,true,crowdedResult.reason);
   b.pve.upgrades.p0.modEmber=1;b.pve.upgrades.p0.modFracture=1;
   for(const z of enemies(b).filter(e=>e.alive))b.pve.moduleStatus[z.id]={
     burnUntil:b.tick+240,burnNext:b.tick+60,burnOwner:'p0',fractureUntil:b.tick+240,fractureOwner:'p0'};
   const modulePacket=a.statePacket({network:true});
   assert.ok(Buffer.byteLength(JSON.stringify(modulePacket))<65536);
-  assert.equal(replica.receive(modulePacket).ok,true);
+  const moduleResult=replica.receive(modulePacket);
+  assert.equal(moduleResult.ok,true,moduleResult.reason);
   S.validateSnapshot(b.snapshot());
   for(const mutate of [s=>s.pve.upgrades.p0.haste=999,s=>s.pve.queue=1000,s=>s.entities.pop(),s=>s.pve.choices.p0=['injected']]){
     const bad=b.snapshot();mutate(bad);assert.throws(()=>S.validateSnapshot(bad));
@@ -327,7 +357,7 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   for (let n=1;n<=8;n++) {
     const b=create(n), z=enemies(b)[0];
     assert.equal(b.pve.teamSize,n);
-    assert.equal(z.maxHp,Math.round(80*(1+0.7*(n-1))));
+    assert.equal(z.maxHp,Math.round(40*(1+0.7*(n-1))));
     b.pve.nextWaveAt=1;b.step();
     const spawned=enemies(b).find(e=>e.alive);
     assert.equal(spawned.hp,spawned.maxHp);
@@ -338,9 +368,9 @@ test('zombie health scales for 1–8 participants and rescales remaining health 
   b.pve.nextWaveAt=10000;
   Object.assign(z,{alive:true,hp:70});
   b.damage(b.entities[1],1000,null,b.entities[1]);b.step();
-  assert.equal(b.pve.teamSize,4);assert.equal(z.maxHp,248);assert.equal(z.hp,70);
+  assert.equal(b.pve.teamSize,4);assert.equal(z.maxHp,124);assert.equal(z.hp,70);
   b.entities[1].forfeited=true;b.step();
-  assert.equal(b.pve.teamSize,3);assert.equal(z.maxHp,192);assert.equal(z.hp,55);
+  assert.equal(b.pve.teamSize,3);assert.equal(z.maxHp,96);assert.equal(z.hp,55);
   const dead=enemies(b)[1];assert.equal(dead.hp,0);assert.equal(dead.alive,false);
   S.validateSnapshot(b.snapshot());
 });
@@ -357,7 +387,7 @@ test('every PvE enemy gains seventy percent health per additional player', () =>
     for(const type of ['walker','cone','runner','bucket','brute']){
       const wave=C.ZOMBIE_SPECS[type].wave;
       assert.equal(C.PVE.healthFor(type,players,wave),
-        Math.round(C.ZOMBIE_SPECS[type].hp*(1+0.7*(players-1))*(1+0.05*(wave-1))),
+        Math.round(C.ZOMBIE_SPECS[type].hp*.5*(1+0.7*(players-1))*(1+0.05*(wave-1))),
         type+' at '+players+' players');
     }
   }
@@ -375,8 +405,8 @@ test('every PvE enemy gains seventy percent health per additional player', () =>
   S.validateSnapshot(final.snapshot());
 });
 test('zombie health gains five percent per wave on top of team scaling', () => {
-  assert.equal(C.PVE.healthFor('walker',1,1),80);
-  assert.equal(C.PVE.healthFor('walker',1,8),108);
+  assert.equal(C.PVE.healthFor('walker',1,1),40);
+  assert.equal(C.PVE.healthFor('walker',1,8),54);
   assert.equal(C.PVE.healthFor('titan',8,16),22715);
   const b=create();
   b.pve.wave=7;b.pve.nextWaveAt=1;b.step();

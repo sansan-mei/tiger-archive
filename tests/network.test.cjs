@@ -187,23 +187,89 @@ test('checkpoint restore continues an in-flight cone attack deterministically',(
   for(let i=0;i<25;i++){b.step();copy.step();}
   assert.deepEqual(copy.snapshot(),b.snapshot());
 });
-test('eight-player sixteen-caster warning packet stays inside wire limits',()=>{
+test('eight-player thirty-two-caster warning packet stays inside wire limits',()=>{
   const a=new S.Authority({mode:'pve',matchId:'warning-stress',participants:Array.from({length:8},(_,i)=>({id:'p'+i,controller:'human',tankType:'human',weaponType:'pistol',spawn:i}))}),b=a.battle;
   b.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));
   Object.assign(b.entities[0],{x:0,z:55});
   Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000});
+  assert.equal(enemies(b).length,33);
   for(const [i,z] of enemies(b).entries()){
     z.maxHp=C.PVE.healthFor(z.zombieType,8,4);
-    if(i===16)continue;
+    if(i===32)continue;
     Object.assign(z,{x:12+i*.04,z:55+i*.1,zombieType:'cone',maxHp:C.PVE.healthFor('cone',8,4),
       hp:C.PVE.healthFor('cone',8,4),alive:true,protectedUntil:0});
   }
   a.step();const packet=a.statePacket({network:true});packet.events=packet.events.slice(-64);
-  assert.equal(b.pve.enemyAttacks.length,16);
+  assert.equal(b.pve.enemyAttacks.length,32);
   assert.ok(Buffer.byteLength(JSON.stringify(packet))<65536);
   assert.equal(r.receive(packet).ok,true);
   S.validateSnapshot(b.snapshot());
+  b.pve.upgrades.p0.modEmber=1;b.pve.upgrades.p0.modFracture=1;
+  for(const z of enemies(b).filter(z=>z.alive))b.pve.moduleStatus[z.id]={
+    burnUntil:b.tick+240,burnNext:b.tick+60,burnOwner:'p0',fractureUntil:b.tick+240,fractureOwner:'p0'};
+  const combined=a.statePacket({network:true});combined.events=combined.events.slice(-64);
+  assert.ok(Buffer.byteLength(JSON.stringify(combined))<65536,'combined warnings and module status fit the room packet');
+  const result=r.receive(combined);assert.equal(result.ok,true,result.reason);
+  S.validateSnapshot(b.snapshot());
+  const previous=b.events.length;
+  for(let i=0;i<64;i++)b.emit('impact',{x:0,y:1,z:55});
+  a.history.push(...b.events.slice(previous));
+  for(let i=0;i<32;i++){
+    const player=b.entities[i%8];player.cooldown=0;
+    assert.equal(b.shoot(player),true);
+  }
+  const crowded=a.statePacket({network:true});crowded.events=crowded.events.slice(-64);
+  assert.equal(b.bullets.length,32);
+  assert.equal(crowded.events.length,64);
+  assert.ok(Buffer.byteLength(JSON.stringify(crowded))<65536,'32 enemies, warnings, statuses, shots and events fit the room packet');
+  const crowdedResult=r.receive(crowded);assert.equal(crowdedResult.ok,true,crowdedResult.reason);
+  S.validateSnapshot(b.snapshot());
 });
+test('crowded PvE fire zones deliver every authoritative damage event across a room broadcast',()=>{
+  for(const zoneCount of [3,12]){
+    const t=setup(),peers=Array.from({length:8},t.peer);
+    t.send(peers[0],'create',{mode:'pve'});
+    const code=peers[0].last('joined').code;
+    for(const p of peers.slice(1))t.send(p,'join',{code});
+    for(const p of peers)t.send(p,'ready',{ready:true});
+    t.send(peers[0],'start');
+    const room=t.rooms.rooms.get(code),b=room.authority.battle,roster=enemies(b);
+    Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000,nextHazard:zoneCount+1});
+    for(const [i,z] of roster.entries()){
+      z.maxHp=C.PVE.healthFor(z.zombieType,8,4);
+      if(i===32)continue;
+      Object.assign(z,{x:12+i*.02,z:55+i*.02,y:0,floor:0,zombieType:'cone',
+        maxHp:C.PVE.healthFor('cone',8,4),hp:C.PVE.healthFor('cone',8,4),alive:true,protectedUntil:0});
+    }
+    for(let i=0;i<zoneCount;i++){
+      const owner=room.seats[i%8].id;
+      b.pve.upgrades[owner].blast=1;b.pve.upgrades[owner].fire=1;
+      b.pve.hazards.push({id:i+1,owner,x:12,y:.15,z:55,radius:5,damage:15,until:240,nextTick:30});
+    }
+    S.validateSnapshot(b.snapshot());
+    t.tick(30);
+    S.validateSnapshot(b.snapshot());
+    const authoritative=b.events.filter(e=>e.type==='damage'&&e.tick===30).map(e=>e.eventId);
+    assert.equal(authoritative.length,zoneCount*32,zoneCount+' actual zones damage all 32 survivors');
+    const replica=new S.Replica();replica.welcome(peers[0].last('welcome'));
+    const delivered=[],crowded=peers[0].messages.filter(m=>m.type==='state'&&m.snapshot.tick===30);
+    for(const packet of peers[0].messages.filter(m=>m.type==='state')){
+      assert.ok(Buffer.byteLength(JSON.stringify(packet))<=65536,'each split state packet fits the transport');
+      assert.ok(packet.events.length<=256,'each split event list fits Replica validation');
+      const received=replica.receive(packet);
+      assert.equal(received.ok,true,received.reason);
+      delivered.push(...received.events.filter(e=>e.type==='damage'&&e.tick===30).map(e=>e.eventId));
+    }
+    if(zoneCount===12)assert.ok(crowded.length>1,'384 hits exceed one Replica event list');
+    assert.deepEqual(delivered,authoritative,'every authoritative hit is delivered once and in order');
+    t.tick(6);
+    const repeated=replica.receive(peers[0].last('state'));
+    assert.equal(repeated.ok,true,repeated.reason);
+    assert.equal(repeated.events.filter(e=>e.type==='damage'&&e.tick===30).length,0,'the next broadcast does not replay damage');
+    assert.deepEqual(peers[0].closed,[]);
+  }
+});
+
 test('a real cone cast, flight and hit remain valid through Authority to Replica',()=>{
   const a=new S.Authority({mode:'pve',matchId:'cone-wire',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'pistol'}]}),b=a.battle;
   b.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));

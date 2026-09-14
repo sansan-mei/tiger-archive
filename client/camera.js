@@ -24,18 +24,19 @@
       state.cameraHeading = body.heading;
       state.cameraElevation = 0.2;
     }
+    const local = body.id === getPlayerId();
     const map = C.mapForMode(getMode()), heading =
-      body.id === getPlayerId()
+      local
         ? (state.viewYaw ?? body.heading)
         : body.heading;
     const distance = state.zoom * (window.innerWidth < 700 ? 1.1 : 1),
       ease = snap || reduced ? 1 : 1 - Math.exp(-dt * 8);
-    state.cameraHeading = C.turn(
+    state.cameraHeading = local ? heading : C.turn(
       state.cameraHeading,
       heading,
       Math.abs(C.wrap(heading - state.cameraHeading)) * ease,
     );
-    state.cameraElevation += (state.viewPitch - state.cameraElevation) * ease;
+    state.cameraElevation += (state.viewPitch - state.cameraElevation) * (local ? 1 : ease);
     const forward = new T.Vector3(
       -Math.cos(state.cameraHeading),
       0,

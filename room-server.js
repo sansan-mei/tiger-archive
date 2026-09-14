@@ -17,6 +17,7 @@ class RoomServer {
     this.graceMs = graceMs;
     this.rooms = new Map();
     this.clients = new Map();
+    this.outboundEvents = new WeakMap();
     this.accumulator = 0;
   }
   connect(transport) {
@@ -317,11 +318,43 @@ class RoomServer {
     packet.events = packet.events.slice(-64);
     return packet;
   }
+  queueEvents(room, events) {
+    if (!events.length) return;
+    const pending = this.outboundEvents.get(room) || [];
+    pending.push(...events);
+    this.outboundEvents.set(room, pending);
+  }
   broadcastState(room) {
-    const data = JSON.stringify(this.packet(room)),
-      byteLength = Buffer.byteLength(data);
-    for (const seat of [...room.seats])
-      this.sendEncoded(this.clients.get(seat.clientId), data, byteLength);
+    const pending = this.outboundEvents.get(room);
+    if (!pending?.length) {
+      const data = JSON.stringify(this.packet(room)), byteLength = Buffer.byteLength(data);
+      for (const seat of [...room.seats])
+        this.sendEncoded(this.clients.get(seat.clientId), data, byteLength);
+      return;
+    }
+    let index = 0;
+    while (index < pending.length) {
+      const packet = this.packet(room);
+      packet.events = [];
+      let byteLength = Buffer.byteLength(JSON.stringify(packet));
+      while (index < pending.length && packet.events.length < 256) {
+        const event = pending[index], extra = Buffer.byteLength(JSON.stringify(event)) + (packet.events.length ? 1 : 0);
+        if (byteLength + extra > 65536) break;
+        packet.events.push(event);
+        byteLength += extra;
+        index++;
+      }
+      if (!packet.events.length) {
+        const data = JSON.stringify({ ...packet, events: [pending[index]] });
+        for (const seat of [...room.seats])
+          this.sendEncoded(this.clients.get(seat.clientId), data);
+        return;
+      }
+      const data = JSON.stringify(packet);
+      for (const seat of [...room.seats])
+        this.sendEncoded(this.clients.get(seat.clientId), data, byteLength);
+    }
+    this.outboundEvents.delete(room);
   }
   broadcastRoom(room) {
     const message = {
@@ -359,7 +392,9 @@ class RoomServer {
     if (e?.alive && a.battle.status === "playing") {
       const index = a.battle.events.length;
       a.battle.damage(e, e.hp, null, { x: e.x, y: e.y, z: e.z });
-      a.history.push(...a.battle.events.slice(index));
+      const events = a.battle.events.slice(index);
+      a.history.push(...events);
+      this.queueEvents(room, events);
       if (a.history.length > 256) a.history.splice(0, a.history.length - 256);
     }
   }
@@ -484,6 +519,7 @@ class RoomServer {
       recovered.set(room.code, room);
     }
     this.rooms = recovered;
+    this.outboundEvents = new WeakMap();
     this.accumulator = 0;
   }
   advance(seconds) {
@@ -514,7 +550,9 @@ class RoomServer {
         const b = room.authority.battle;
         b.status = "finished";
         b.winnerId = null;
-        room.authority.history.push(b.emit("end", { winnerId: null }));
+        const event = b.emit("end", { winnerId: null });
+        room.authority.history.push(event);
+        this.queueEvents(room, [event]);
       }
     }
     this.accumulator += Math.min(0.25, Math.max(0, seconds));
@@ -527,7 +565,7 @@ class RoomServer {
             if (client?.inputQueue?.length)
               room.authority.commands.set(seat.id, client.inputQueue.shift());
           }
-          room.authority.step();
+          this.queueEvents(room, room.authority.step());
           const b = room.authority.battle;
           if (b.tick % (b.mode === "pve" ? 6 : 3) === 0 || b.status === "finished")
             this.broadcastState(room);

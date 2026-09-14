@@ -1,6 +1,6 @@
 # 项目架构
 
-当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v33；开发规则以共享核心为准。
+当前采用分模块的 JavaScript 单体：浏览器负责操作和表现，Node 负责联机权威模拟。保留 CommonJS / 浏览器双入口，不引入打包器、ECS 框架或额外服务。协议 v34；开发规则以共享核心为准。
 
 ## 数据流
 
@@ -101,7 +101,7 @@ world.surface 按车体中心是否越过上层平台外缘决定下落，world.
 
 ## 辅助锁定
 
-client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和解除。client/input.js 在真实鼠标位移或清空操作时增加 aimRevision，并立即清除旧 activeAim；battle.js 提供投影、可见性、武器射程和当前实体，取返回的目标中心作为既有瞄准输入，并将准星画到目标投影位置。模块不产生开火输入，也不绕过服务端炮塔转速。
+client/aim-assist.js 独立管理候选范围、静止延迟、锁定保持和解除。client/input.js 在真实鼠标位移或清空操作时增加 aimRevision，并立即清除旧 activeAim；battle.js 提供投影、可见性、武器射程和当前实体，取返回的目标中心作为既有瞄准输入，并将准星画到目标投影位置。模块不产生开火输入；本机人类绝对 aimYaw/aimPitch 在权威 tick 即时生效，Bot 与键盘相对转向仍限速。client/camera.js 本机朝向即时跟随；battle.js 更新 camera.matrixWorld 后解算准星目标，鼠标/键盘强制开火前同步刷新缺失的 activeAim；联机仅本机模型使用当前角度显示，命中和远端模型仍由权威快照决定。
 
 ## 卡通美术资源
 

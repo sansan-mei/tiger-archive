@@ -122,7 +122,7 @@
       plain=o=>o&&typeof o==="object"&&!Array.isArray(o),
       tick=n=>Number.isSafeInteger(n)&&n>=0&&n<=s.tick+240;
     if(!plain(v.moduleStatus)||!plain(v.moduleHits)||
-      Object.keys(v.moduleStatus).length>17||Object.keys(v.moduleHits).length!==players.length||
+      Object.keys(v.moduleStatus).length>alive.size||Object.keys(v.moduleHits).length!==players.length||
       Object.entries(v.moduleHits).some(([id,n])=>!owners.has(id)||!Number.isSafeInteger(n)||n<0||n>4||
         (n>0&&!v.upgrades[id]?.modOverload)))throw Error("Invalid module state");
     for(const [id,state] of Object.entries(v.moduleStatus)) {

@@ -195,6 +195,7 @@
     notify,
     pause,
     resume,
+    refreshAim: (player) => refreshAim(player),
   });
   const {
     pointer,
@@ -467,6 +468,23 @@
         Math.abs(assistPoint.y) <= 1,
     };
   }
+  function refreshAim(player) {
+    input.state.activeAim = null;
+    if (!player?.alive || !input.state.mouseKnown || input.state.freeLook || status() !== "playing") return null;
+    // The camera pose must be current before projecting the centered reticle.
+    cameraRig.update(player, 0);
+    camera.updateMatrixWorld();
+    ray.setFromCamera(pointer, camera);
+    const hit = units.aimHit(ray, floorGroups.filter((group) => group.visible));
+    if (hit)
+      input.state.activeAim = { x: hit.point.x, y: hit.point.y, z: hit.point.z };
+    else {
+      plane.constant = -(player.y + 2.2);
+      if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
+      input.state.activeAim = { x: aimWorld.x, y: aimWorld.y, z: aimWorld.z };
+    }
+    return hit?.object.userData.entityId || null;
+  }
   let last = 0,
     hudTime = 0,
     frameSeconds = 1 / 60;
@@ -480,27 +498,7 @@
     roomBrowser.update(time, !$("game-overlay").hidden && !network?.room);
     const before = session.current(),
       localBefore = before.entities.find((e) => e.id === playerId);
-    input.state.activeAim = null;
-    let targetedId = null;
-    if (input.state.mouseKnown && !input.state.freeLook) {
-      ray.setFromCamera(pointer, camera);
-      const hit = units.aimHit(
-        ray,
-        floorGroups.filter((g) => g.visible),
-      );
-      targetedId = hit?.object.userData.entityId || null;
-      if (hit)
-        input.state.activeAim = {
-          x: hit.point.x,
-          y: hit.point.y,
-          z: hit.point.z,
-        };
-      else {
-        plane.constant = -(localBefore.y + 2.2);
-        if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
-        input.state.activeAim = { x: aimWorld.x, y: aimWorld.y, z: aimWorld.z };
-      }
-    }
+    let targetedId = refreshAim(localBefore);
     const weapon = C.WEAPONS[localBefore.weaponType];
     const assisted = aimAssist.update({
       time,
@@ -552,6 +550,12 @@
     const state = session.state(),
       truth = session.current(),
       p = truth.entities.find((e) => e.id === playerId);
+    if (session.online && p.alive && truth.status === "playing" && !session.suspended) {
+      const localView = state.entities.find((e) => e.id === playerId),
+        aim = command(p);
+      if (aim.aimYaw !== undefined) localView.aim = aim.aimYaw;
+      if (aim.aimPitch !== undefined) localView.pitch = aim.aimPitch;
+    }
     snapshot = state;
     if (!p.alive && !deathShown && truth.status === "playing") {
       deathShown = true;

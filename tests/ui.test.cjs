@@ -317,6 +317,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     fn({ code: "KeyQ", preventDefault() {}, repeat: false });
   advance(3);
   assert.equal(e.aim, aim);
+  Object.assign(e,{x:0,y:0,z:56,floor:0,rampId:null,rampDir:0,speed:0});
+  advance(60);
   const oldHeading = e.heading,
     oldCamera = renderedCamera.position.clone();
   nodes
@@ -324,8 +326,15 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     .emit("pointermove", { clientX: 600, clientY: 400 });
   nodes
     .get("battle-canvas")
-    .emit("pointermove", { clientX: 800, clientY: 320 });
-  advance(12);
+    .emit("pointermove", { clientX: 800, clientY: 440 });
+  advance(3);
+  const firstAim=room.authority.commands.get(e.id);
+  const look=renderedCamera.getWorldDirection(new (require("three").Vector3)());
+  const cameraYaw=Math.atan2(look.z,-look.x);
+  assert.ok(firstAim?.aimYaw!==undefined,'the next 30 Hz mouse input carries an absolute aim');
+  assert.ok(Math.abs(C.wrap(firstAim.aimYaw-cameraYaw))<.22,
+    'aim follows the rotated camera: '+JSON.stringify({aim:firstAim.aimYaw,cameraYaw,camera:renderedCamera.position.toArray(),player:{x:e.x,y:e.y,z:e.z},tick:room.authority.battle.tick}));
+  advance(9);
   assert.equal(e.heading, oldHeading, "mouse does not steer chassis");
   assert.ok(
     renderedCamera.position.distanceTo(oldCamera) > 1,
@@ -341,7 +350,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   Object.assign(e, {
     x: 0,
     y: 0,
-    z: 40,
+    z: 56,
     floor: 0,
     rampId: null,
     rampDir: 0,
@@ -397,6 +406,30 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
       0.99999,
     "pitch keeps the same look-at pivot",
   );
+  const previousAim=e.aim;
+  for(const fn of documentEvents.mousemove)
+    fn({clientX:640,clientY:400,movementX:120,movementY:0});
+  canvas.emit('pointerdown',{pointerType:'mouse',button:0,clientX:640,clientY:400,movementX:0,movementY:0,preventDefault(){},pointerId:1});
+  const pressed=room.authority.commands.get(e.id);
+  assert.equal(pressed?.fire,true);
+  assert.ok(pressed.aimYaw!==undefined,'immediate fire must include the new mouse aim even before the next frame');
+  assert.ok(Math.abs(C.wrap(pressed.aimYaw-previousAim))>.2,'the click must not reuse the prior turret direction');
+  advance(1);
+  const quickShot=room.authority.battle.events.find(event=>event.type==='shot'&&event.id===e.id);
+  assert.ok(quickShot,'the first authority tick fires');
+  assert.ok(Math.abs(quickShot.dx+Math.cos(pressed.aimYaw)*Math.cos(pressed.aimPitch))<1e-9);
+  let muzzleGlow;
+  renderedScene.traverse(o=>{if(o.name==='critical-muzzle-glow'&&o.userData.entityId===e.id)muzzleGlow=o;});
+  assert.ok(muzzleGlow,'the local weapon view exists');
+  const visualForward=new (require('three').Vector3)(-1,0,0).applyQuaternion(
+    muzzleGlow.parent.parent.getWorldQuaternion(new (require('three').Quaternion)()));
+  const visualYaw=Math.atan2(visualForward.z,-visualForward.x);
+  assert.ok(Math.abs(C.wrap(visualYaw-pressed.aimYaw))<.01,
+    'local muzzle/reticle mismatch: '+JSON.stringify({visualYaw,pressedYaw:pressed.aimYaw,sentYaw:room.authority.commands.get(e.id)?.aimYaw,authorityYaw:e.aim,heading:e.heading,tick:room.authority.battle.tick}));
+  const gunForward=new (require('three').Vector3)(-1,0,0).applyQuaternion(
+    muzzleGlow.parent.getWorldQuaternion(new (require('three').Quaternion)()));
+  assert.ok(Math.abs(Math.asin(gunForward.y)-pressed.aimPitch)<.01,'the local gun elevation follows the same-shot reticle');
+  canvas.emit('pointerup',{pointerId:1});advance(1);
   document.exitPointerLock();
   assert.equal(nodes.get("game-overlay").hidden, false);
   assert.equal(nodes.get("menu-title").textContent, "操作已暂停");
@@ -526,19 +559,35 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   const survival = coop.authority.battle;
   assert.equal(nodes.get("weapon-label").textContent, "小手枪 · 9/9");
   assert.match(nodes.get("mission-title").textContent, /CO-OP/);
+  assert.equal(nodes.get("enemy-capacity").textContent," / 32 僵尸");
   assert.match(nodes.get("battle-clock").textContent,/^已进行 00:/);
   const live = survival.entities.find((e) => e.tankType === "zombie" && e.alive);
   assert.ok(live);
   let zombieMesh;
   renderedScene.traverse((o) => { if (o.userData.entityId === live.id) zombieMesh = o; });
   assert.ok(zombieMesh);
+  // Fill the authoritative pool for a few frames to exercise all 32 visible client models.
+  const ordinary=survival.entities.filter(e=>e.tankType==="zombie").slice(0,-1);
+  const originalAlive=new Set(ordinary.filter(z=>z.alive).map(z=>z.id));
+  assert.equal(ordinary.length,32);
+  for(const [i,z] of ordinary.entries())if(!originalAlive.has(z.id))Object.assign(z,{
+    x:12+i*.03,z:55+i*.08,y:0,floor:0,alive:true,hp:z.maxHp,protectedUntil:0});
+  survival.pve.queue=0;advance(24);
+  const shown=new Set();
+  renderedScene.traverse(o=>{
+    if(o.parent===renderedScene&&o.visible&&ordinary.some(z=>z.id===o.userData.entityId))shown.add(o.userData.entityId);
+  });
+  assert.equal(shown.size,32,'all 32 authoritative zombies have visible scene models');
+  for(const z of ordinary)if(!originalAlive.has(z.id)){z.alive=false;z.hp=0;}
+  advance(6);
   survival.pve.queue = 0;
   for (const z of survival.entities.filter((e) => e.tankType === "zombie" && e.alive)) {
     z.protectedUntil = 0;
     survival.damage(z, 1000, survival.entities[0].id, z);
   }
   advance(12);
-  assert.equal(nodes.get("pve-rewards").hidden, false);
+  assert.equal(nodes.get("pve-rewards").hidden, false,
+    JSON.stringify({playerAlive:survival.entities[0].alive,pending:survival.pve.pending[survival.entities[0].id],xp:survival.pve.xp,aliveEnemies:ordinary.filter(z=>z.alive).length,nextWaveAt:survival.pve.nextWaveAt,status:survival.status}));
   assert.equal(nodes.get("pve-choices").children.length, 3);
   assert.match(nodes.get("pve-level").textContent, /Lv.2/);
   for (const fn of documentEvents.keydown || []) fn({ code: "KeyU", preventDefault() {}, repeat: false });

@@ -1,4 +1,4 @@
-# 多人接入边界（协议 v33）
+# 多人接入边界（协议 v34）
 
 ## 已实现
 
@@ -57,12 +57,12 @@ peerId 必须来自传输连接与认证映射，不能相信客户端自行声�
 
 welcome：
 
-    { version: 33, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
+    { version: 34, type: "welcome", pluginManifest, matchId, epoch, entityId, connection, tickRate: 60 }
 
 input：
 
     {
-      version: 33, type: "input", matchId, epoch, connection,
+      version: 34, type: "input", matchId, epoch, connection,
       seq, clientTick,
       input: {
         forward, reverse, left, right, brake, fire, interact,
@@ -76,7 +76,7 @@ ability 表示技能按键状态，由服务器检测按下边沿并执行冷却
 state（以下 snapshot 仅列主要字段；PvE 额外包含 `mode: "pve"` 和 `pve`）：
 
     {
-      version: 33, type: "state", matchId, epoch, snapshotSeq,
+      version: 34, type: "state", matchId, epoch, snapshotSeq,
       snapshot: { kind: "network", version, mapId, matchId, epoch, tick, status, winnerId,
                   nextBullet, nextEvent, entities, bullets, pickups, ... },
       events: [ { eventId, tick, epoch, type, ... } ],
@@ -107,7 +107,7 @@ resume 携带 code、token、version、pluginManifest。重新绑定后发放新
 
 权威核心负责八分钟/15 次击毁结束、四秒复活、两秒保护（开炮解除）、40 装甲维修和六秒加速；玩家不能通过输入直接指定生命、分数、补给或复活时间。snapshot 新增 pickups，实体新增 deaths、respawnAt、protectedUntil、boostUntil、forfeited；damage 事件附带实际伤害 amount，新增 respawn/pickup 事件。离场与重连超时会设置 forfeited，避免退出者反复复活。联机大厅的准备、返回大厅和新 epoch 再开局流程保持适用。
 
-协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v33 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
+协议 v14 引入 ability 布尔输入与 ability 事件，该能力在当前 v34 继续保留。护盾、临时屏障、最近交火 tick、技能有效期、冷却和按键边沿状态全部由权威核心维护并进入快照，检查点恢复时保留。车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4，握手拒绝旧清单。维修包随装甲数值调整为 40。
 
 ## 联机输入与同步超时修复
 
@@ -128,7 +128,7 @@ moveYaw 是人类相对镜头移动的参考方向，使用与 aimYaw 相同的�
 
 ## 公开房间列表
 
-`GET /api/rooms` 返回 `{ version: 33, rooms: [{ code, mode, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。`mode` 为 `pvp` 或 `pve`。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
+`GET /api/rooms` 返回 `{ version: 34, rooms: [{ code, mode, hostName, players, capacity, phase, joinable }] }`，响应禁止缓存。`mode` 为 `pvp` 或 `pve`。只列出当前权威服务进程管理的房间，不扫描其他实例；人数包含断线保留的席位。phase 为 lobby / playing / finished，只有 lobby 且人数小于 8 时可加入。列表不返回 token、连接 ID、玩家明细或检查点。
 
 浏览器在菜单可见且尚未加入房间时每 5 秒查询，支持手动刷新、空列表、错误提示与超时恢复。点击加入仍通过原 WebSocket join，服务器重新校验版本、容量和阶段，避免列表刷新后房间已开局或满员的竞态。创建房间继续使用原 create 流程。此功能新增 HTTP 接口，协议与 Redis 前缀保持 v14；需要重启 Node 服务加载接口。
 
@@ -251,3 +251,11 @@ PvE 只在全队阵亡或击败最终 Boss 后结算；取消权威模拟的 16 
 ## v33：猎场试炼与两种新攻击
 
 锥帽第 4 波起可预警投掷、疾跑第 6 波起可锁定直线扑击；攻击阶段与飞行坐标存于 `pve.enemyAttacks`，由服务端逐 tick 决定命中，实体地形遮挡仍有效，客户端仅按快照绘制预警/弹体/失衡。`trial` 只在第 4/10 波清场休整期存在；`riskyWave` 仅标记下一普通波，险进增加 4 个生成名额、每第 3 个优先疾跑、击杀经验 +25%。试炼指令核对当前房主席位、PvE 模式、playing 阶段、epoch、波次与清场状态；不依赖客户端传来的房主标记。无选择时保持稳进，清波后固定休整 15 秒自动开波；未领取的个人三选一保留，offerId 仍防重放。旧 `startWave` 指令不再支持。协议 v33 拒绝旧 v32 检查点/客户端，PvP 不变。
+
+## v34：32 只普通怪与非 Boss 半血
+
+PvE 普通怪槽位由 16 扩至 32，保留 1 个专用 Boss 槽位；普通波同屏上限 32，刷怪间隔和波次数量不变。五种非 Boss 感染者仅在 PvE 权威血量公式中乘 0.5，Boss 基础血量与 PvP 血量/伤害规则不变；人数和波次倍率照旧。攻击记录与可存活敌人的模块状态上限随槽位扩容，场上燃烧区/次爆上限不变。常规 PvE 仍以 10 Hz 广播；若单个广播间隔产生大量伤害事件，房间从真实逐 tick 结果暂存事件，按单包不超过 256 事件和 64KB 字节预算分成同 tick、递增 snapshotSeq 的连续状态包；不能仅截取 Authority 最近 64 条历史。快照结构和合法血量改变，协议升 v34；旧 v33 客户端和检查点拒绝继续，需重开房间。
+
+## v34：人类即时绝对瞄准
+
+人类玩家输入中的 `aimYaw/aimPitch` 在权威模拟该 tick 立即生效，开火使用同一角度；AI 与键盘 `aimLeft/aimRight` 的相对转向仍保留原限速。客户端本机鼠标镜头方向即时更新，更新相机世界矩阵后以中央准星射线计算世界目标；鼠标刚移动就开火时会在强制输入前同步刷新目标角。仅本机模型使用当前输入角做即时显示，远端玩家仍按网络插值，权威命中/遮挡不变。原有输入字段及协议版本 v34 不变。

@@ -10,6 +10,7 @@
   notify,
   pause,
   resume,
+  refreshAim = () => {},
 }) {
   const pointer = new T.Vector2(),
     ray = new T.Raycaster(),
@@ -307,6 +308,8 @@
     }
     for (const key of keys) input[bindings[key]] = true;
     for (const v of touch.values()) input[v] = true;
+    if (input.fire && state.mouseKnown && !state.freeLook && !state.activeAim)
+      refreshAim(player);
     if (state.freeLook && savedLook) {
       input.aimYaw = savedLook.aimYaw;
       input.aimPitch = savedLook.aimPitch;
