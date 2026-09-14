@@ -74,11 +74,11 @@ test('bipod builds up only when firing in place; guarded crawl retains deploymen
 });
 test('charged laser waits for release, cancel does not fire, full charge creates a clipped trail and delayed echo',()=>{
   const {b,p,s}=make('laser');
-  for(let i=0;i<110;i++)b.tickEntity(p,{fire:true});
-  assert.equal(p.charge,90);assert.equal(b.events.filter(e=>e.type==='shot').length,0);
+  for(let i=0;i<150;i++)b.tickEntity(p,{fire:true});
+  assert.equal(p.charge,120);assert.equal(b.events.filter(e=>e.type==='shot').length,0);
   b.tickEntity(p,{cancelFire:true});assert.equal(p.charge,0);assert.equal(b.events.filter(e=>e.type==='shot').length,0);
   b.tickEntity(p,{});
-  for(let i=0;i<90;i++)b.tickEntity(p,{fire:true});
+  for(let i=0;i<120;i++)b.tickEntity(p,{fire:true});
   b.tickEntity(p,{});
   assert.equal(b.events.filter(e=>e.type==='shot').length,1);assert.equal(b.pve.branchZones.length,1);assert.equal(b.pve.branchEchoes.length,1);
   S.validateSnapshot(b.snapshot());
@@ -87,15 +87,96 @@ test('charged laser waits for release, cancel does not fire, full charge creates
   assert.deepEqual(copy.snapshot(),b.snapshot());assert.equal(b.pve.branchEchoes.length,0);
   assert.ok(b.events.some(e=>e.type==='beam'&&e.radius===1.5));
   S.validateSnapshot(b.snapshot());
-  p.cooldown=0;s.chargeReady=1;b.tickEntity(p,{fire:true});assert.equal(b.pveWeapon(p).charge,54);
+  p.cooldown=0;s.chargeReady=1;b.tickEntity(p,{fire:true});assert.equal(b.pveWeapon(p).charge,72);
+  for(let i=1;i<100;i++)b.tickEntity(p,{fire:true});
+  assert.equal(p.charge,72);assert.equal(b.events.filter(e=>e.type==='shot').length,0);
+  b.tickEntity(p,{});assert.equal(b.pveWeapon(p).charge,120);
+  assert.equal(b.pve.branchEchoes.length,1);
 });
 test('laser energy return requires full charge and three targets; quick taps cannot create trails',()=>{
   const {b,p,s}=make('laser');
   for(let i=0;i<3;i++)enemy(b,i,-6-i*5);
   b.tickEntity(p,{fire:true});b.tickEntity(p,{});assert.equal(b.pve.branchZones.length,0);assert.equal(s.chargeReady,0);
   p.cooldown=0;
-  for(let i=0;i<90;i++)b.tickEntity(p,{fire:true});b.tickEntity(p,{});
+  for(let i=0;i<120;i++)b.tickEntity(p,{fire:true});b.tickEntity(p,{});
   assert.equal(s.chargeReady,1);assert.equal(b.pve.branchZones.length,1);
+});
+test('starfall deals 120 damage at tick 30 while the trail retains its six 20-damage ticks',()=>{
+  const {b,p}=make('laser');
+  for(let i=0;i<120;i++)b.tickEntity(p,{fire:true});b.tickEntity(p,{});
+  const zone=b.pve.branchZones[0];
+  assert.equal(zone.damage,20);assert.equal(zone.until,180);assert.equal(zone.nextTick,30);
+  assert.equal(b.pve.branchEchoes[0].at,30);
+  // Spawn after the direct shot so echo and trail damage can be measured independently.
+  const target=enemy(b,0,-8,56.2),hp=target.hp;
+  b.tick=29;B.tick(b);assert.equal(target.hp,hp);
+  b.tick=30;B.tick(b);assert.equal(target.hp,hp-120);
+  target.z=55;
+  assert.equal(b.pve.branchEchoes.length,0);
+  for(let tick=60;tick<=180;tick+=30) {
+    target.hp=hp;b.tick=tick-1;B.tick(b);assert.equal(target.hp,hp);
+    b.tick=tick;B.tick(b);assert.equal(target.hp,hp-20);
+  }
+  assert.equal(b.pve.branchZones.length,0);
+});
+test('charge-route checkpoints and replica accept the effective charge cap and reject overflow',()=>{
+  for(const ready of [0,1]) {
+    const {b,p,s}=make('laser'),cap=ready?72:120;s.chargeReady=ready;
+    const a=new S.Authority(),r=new S.Replica();a.battle=b;
+    r.welcome(a.attach('peer',p.id));
+    for(let tick=1;tick<=cap;tick++) {
+      b.step({p:{fire:true}});
+      assert.equal(p.charge,tick);
+      S.validateSnapshot(b.snapshot());
+      const result=r.receive(a.statePacket({network:true}));assert.equal(result.ok,true,result.reason);
+    }
+    const saved=b.snapshot(),copy=make('laser').b;copy.restore(saved);
+    const bad=b.snapshot();bad.entities[0].charge=cap+1;
+    assert.throws(()=>S.validateSnapshot(bad),/Invalid entity/);
+    for(let tick=0;tick<32;tick++) {
+      b.step();copy.step();assert.deepEqual(copy.snapshot(),b.snapshot());
+      S.validateSnapshot(b.snapshot());
+    }
+  }
+  const {b,p}=make('laser',0);p.charge=91;
+  assert.throws(()=>S.validateSnapshot(b.snapshot()),/Invalid entity/);
+});
+test('charge visuals and HUD use normal, returned and baseline laser charge durations',()=>{
+  const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),T=require('three');
+  const nodes=new Map(),context2d=new Proxy({}, {get:(o,k)=>o[k]??(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const element=()=>({style:{},dataset:{},replaceChildren(){},getContext:()=>context2d});
+  const $=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
+  const ctx=vm.createContext({window:{innerWidth:1280,innerHeight:800,TankBattle:C},document:{createElement:element}});
+  for(const file of ['core/abilities.js','plugins/registry.js','plugins/tanks/common.js',...require('../app-manifest.js').plugins,
+    'tank-model.js','client/recoil.js','client/units.js','client/hud.js'])
+    vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),ctx);
+  for(const [tier,ready,cap] of [[5,0,120],[5,1,72],[0,0,90]]) {
+    const {b,p,s}=make('laser',tier);s.chargeReady=ready;
+    const units=ctx.window.TankClient.createUnits({T,C,scene:new T.Scene(),floorGroups:[],reduced:true,effects:[],sound(){},
+      getEntities:()=>[p],getPlayerId:()=>p.id});
+    units.createViews();
+    const hud=ctx.window.TankClient.createHUD({C,$,getPlayerId:()=>p.id});
+    for(const ratio of [.5,1]) {
+      p.charge=cap*ratio;
+      const truth=b.snapshot(),state={...truth,entities:[p]};
+      units.update({state,truth,cameraFloor:0,camera:new T.PerspectiveCamera(),dt:1/60,time:0});
+      const view=units.views.get(p.id);
+      assert.ok(Math.abs(view.warning.material.opacity-(.35+.45*ratio))<1e-10);
+      assert.equal(view.glow.emissiveIntensity,1+ratio*5);
+      hud.update({truth,p,state,target:p});
+      assert.equal($('reload-bar').value,ratio);
+      assert.match($('reload-label').textContent,new RegExp(`${ratio*100}%`));
+    }
+  }
+});
+test('charge balance v40 rejects v39 checkpoints and welcomes',()=>{
+  assert.equal(C.VERSION,40);
+  const {b}=make('laser'),old=b.snapshot();old.version=39;
+  assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
+  assert.throws(()=>b.restore(old),/snapshot/i);
+  const a=new S.Authority();a.battle=b;
+  const welcome=a.attach('peer','p');welcome.version=39;
+  assert.throws(()=>new S.Replica().welcome(welcome));
 });
 test('napalm reduces direct damage, caps fire zones and ignites only one generation of embers',()=>{
   const {b,p}=make('rocket');
@@ -185,7 +266,7 @@ test('all five alternate routes stay protocol-valid during live movement, firing
     const {b,p}=make(weapon);
     for(let i=0;i<8;i++)enemy(b,i,-8-i*3,55+(i%2)*3);
     for(let tick=0;tick<240;tick++) {
-      b.step({p:{fire:weapon==='laser'?tick%100<95:true,forward:tick>180,brake:weapon==='rapid',aimYaw:0,aimPitch:0}});
+      b.step({p:{fire:weapon==='laser'?tick%150<125:true,forward:tick>180,brake:weapon==='rapid',aimYaw:0,aimPitch:0}});
       if(tick%10===0)S.validateSnapshot(b.networkSnapshot(),{network:true});
     }
     S.validateSnapshot(b.snapshot());

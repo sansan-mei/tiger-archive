@@ -271,6 +271,7 @@
         e.alive && e.barrier > 0;
       // Heavy deployment is armour reduction, not an energy shield.
       view.frontShield.visible = false;
+      const chargeWeapon = truth.mode === "pve" ? C.PVE.progression.branches.weapon(truth,e) : C.WEAPONS[e.weaponType];
       view.warning.visible = e.alive && view.tank.visible && e.charge > 0;
       if (view.warning.visible) {
         const start = new T.Vector3().copy(C.shotOrigin(e)),
@@ -289,7 +290,7 @@
           );
         view.warning.geometry.setFromPoints([start, end]);
         view.warning.material.opacity =
-          0.35 + 0.45 * (e.charge / C.WEAPONS[e.weaponType].charge);
+          0.35 + 0.45 * (e.charge / chargeWeapon.charge);
         if (!view.wasCharging) sound(true, 0.12);
       }
       view.wasCharging = e.charge > 0;
@@ -299,7 +300,7 @@
         e.criticalProgress >= view.weapon.criticalHits;
       view.glow.emissiveIntensity =
         (e.abilityUntil > truth.tick ? 4 : 1) +
-        (e.charge / (C.WEAPONS[e.weaponType].charge || 1)) * 5;
+        (e.charge / (chargeWeapon.charge || 1)) * 5;
       if (truth.status === "playing")
         for (const w of view.wheels) w.rotateY((e.speed * dt) / 0.43);
       if (view.label) {

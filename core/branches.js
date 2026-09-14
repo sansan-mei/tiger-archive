@@ -30,10 +30,10 @@
     piercingBelt:['穿甲弹链','完全展开后，直接命中额外贯穿后方一名敌人，造成 15 伤害'],
     guardPlate:['应急护板','完全展开获得 25 点护盾，持续 3 秒，冷却 10 秒'],
     fortress:['移动堡垒','完全展开追加两路侧向火力，各 12 伤害；开火时按住 C 或缓行按钮可缓慢移动并保持展开'],
-    chargeCore:['蓄能核心','按住蓄力、松开发射，1.5 秒蓄满造成 240 伤害；点射造成 60 伤害'],
+    chargeCore:['蓄能核心','按住蓄力、松开发射，2 秒蓄满造成 240 伤害；点射造成 60 伤害'],
     hotTrail:['灼热轨迹','满蓄力留下 3 秒灼烧带，每半秒 20 伤害'],
-    energyReturn:['能量回收','满蓄力命中至少 3 名敌人，下一次蓄力缩短至 0.9 秒'],
-    starfall:['天际贯星','满蓄力射击后，0.5 秒沿原路径追加一次更宽的 160 伤害扫射'],
+    energyReturn:['能量回收','满蓄力命中至少 3 名敌人，下一次蓄力缩短至 1.2 秒'],
+    starfall:['天际贯星','满蓄力射击后，0.5 秒沿原路径追加一次更宽的 120 伤害扫射'],
     napalm:['凝固燃料','火箭直击与爆炸伤害降低 40%；留下 6 秒火区，每半秒 20 伤害'],
     embers:['余火蔓延','火区内敌人被烧死时留下 3 米小火区，持续 3 秒；小火区不再扩散'],
     scorch:['焦土升温','同一火区连续灼烧的伤害逐次增加 5，最高每半秒 40；离开后重置'],
@@ -65,7 +65,7 @@
     if(!u||!s)return base;
     if(p.weaponType==='pistol'&&u.lightMagazine)return {...base,magazineSize:4,reloadTicks:45};
     if(p.weaponType==='rapid'&&u.bipod)return {...base,cooldown:Math.max(1,Math.round(base.cooldown/(1+s.deploy/90)))};
-    if(p.weaponType==='laser'&&u.chargeCore)return {...base,trigger:'release',charge:s.chargeReady?54:90,damage:240,minPower:.25};
+    if(p.weaponType==='laser'&&u.chargeCore)return {...base,trigger:'release',charge:s.chargeReady?72:120,damage:240,minPower:.25};
     return base;
   }
   function reload(b,p) {
@@ -207,7 +207,7 @@
     b.pve.branchZones=b.pve.branchZones.filter(a=>a.until>b.tick&&b.getEntity(a.owner)?.alive&&b.getEntity(a.owner).deaths===a.life&&b.getEntity(a.owner).weaponType===a.weapon);
     const jobs=b.pve.branchEchoes.filter(job=>job.at<=b.tick);
     b.pve.branchEchoes=b.pve.branchEchoes.filter(job=>job.at>b.tick);
-    for(const job of jobs){const p=b.getEntity(job.owner);if(p?.alive&&p.deaths===job.life&&p.weaponType==='laser')ray(b,p,job.from,job.to,160,1.5,33);}
+    for(const job of jobs){const p=b.getEntity(job.owner);if(p?.alive&&p.deaths===job.life&&p.weaponType==='laser')ray(b,p,job.from,job.to,120,1.5,33);}
   }
   function death(b,target) {
     if(target.tankType!=='zombie'){reset(b,target);return;}

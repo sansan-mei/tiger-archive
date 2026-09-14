@@ -102,7 +102,7 @@
         !number(e.pitch, -0.55, 0.55) ||
         !integer(e.ammo, 0, weapon.magazineSize || 0) ||
         !integer(e.cooldown, 0, weapon.magazineSize && e.ammo === 0 ? weapon.reloadTicks : weapon.cooldown) ||
-        !integer(e.charge, 0, weapon.charge) ||
+        !integer(e.charge, 0, s.mode === "pve" ? C.PVE.progression.branches.weapon(s,e).charge : weapon.charge) ||
         !integer(e.criticalProgress, 0, weapon.criticalHits || 0) ||
         (!e.alive && e.criticalProgress !== 0) ||
         !integer(e.kills, 0, 1000) ||

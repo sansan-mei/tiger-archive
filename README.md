@@ -2,7 +2,7 @@
 
 自由混战使用三层战场，僵尸合作生存使用无台阶的地面战场。支持本地训练（1 名玩家 + 7 AI）、WebSocket 自由混战（2–8 人）和僵尸合作生存（1–8 人），可使用现有 Redis 保存恢复检查点。
 
-当前协议 **v39**，十个内容插件（zombie 1.5.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
+当前协议 **v40**，十个内容插件（zombie 1.5.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
 
 ## 启动与操作
 
@@ -44,7 +44,7 @@
 
 ## 全武器进阶（当前 PvE）
 
-本节按当前协议 v39 的实际代码整理。定义来源：[core/roguelike.js](core/roguelike.js)、[core/branches.js](core/branches.js)；涉及伤害、贯穿和火区的说明同时核对权威执行逻辑。以下为节点效果，不是实测 DPS，也不包含通用模块叠加。
+本节按当前协议 v40 的实际代码整理。定义来源：[core/roguelike.js](core/roguelike.js)、[core/branches.js](core/branches.js)；涉及伤害、贯穿和火区的说明同时核对权威执行逻辑。以下为节点效果，不是实测 DPS，也不包含通用模块叠加。
 
 ### 解锁与分支规则
 
@@ -143,10 +143,10 @@
 
 路线：广角透镜 → 蓄能核心 → 灼热轨迹 → 能量回收 → 天际贯星。
 
-- **第 2 阶 · 蓄能核心**（`chargeCore`）：按住蓄力、松开发射，1.5 秒蓄满造成 240 伤害；点射造成 60 伤害
+- **第 2 阶 · 蓄能核心**（`chargeCore`）：按住蓄力、松开发射，2 秒蓄满造成 240 伤害；点射造成 60 伤害
 - **第 3 阶 · 灼热轨迹**（`hotTrail`）：满蓄力留下 3 秒灼烧带，每半秒 20 伤害
-- **第 4 阶 · 能量回收**（`energyReturn`）：满蓄力命中至少 3 名敌人，下一次蓄力缩短至 0.9 秒
-- **第 5 阶 · 天际贯星**（`starfall`）：满蓄力射击后，0.5 秒沿原路径追加一次更宽的 160 伤害扫射
+- **第 4 阶 · 能量回收**（`energyReturn`）：满蓄力命中至少 3 名敌人，下一次蓄力缩短至 1.2 秒
+- **第 5 阶 · 天际贯星**（`starfall`）：满蓄力射击后，0.5 秒沿原路径追加一次更宽的 120 伤害扫射
 
 ### 火箭筒
 
@@ -276,7 +276,7 @@
 
 ## 插件化版本
 
-车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v34 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
+车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v40 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
 
 ## 联机与部署文件
 
@@ -305,7 +305,7 @@
 
 开发源码保持可读，Docker 默认在构建阶段生成混淆后的前端；也可通过 `pnpm run build:client` 生成 public-dist，再用 `pnpm run start:release` 提供服务。发布模式不回退提供源码，Three.js 不混淆，不生成 source map。配置、调试开关和验证边界见 [OBFUSCATION.md](OBFUSCATION.md)。
 
-以下功能记录保留实现时的协议版本描述；当前统一使用 v34，以本文开头和「僵尸合作生存」部分为准。
+以下功能记录保留实现时的协议版本描述；当前统一使用 v40，以本文开头和「僵尸合作生存」部分为准。
 
 ## 坡道下穿
 

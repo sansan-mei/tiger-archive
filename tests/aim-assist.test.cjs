@@ -220,7 +220,7 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   assert.ok(zombieView.tank.quaternion.toArray().every(Number.isFinite));
   assert.ok(zombieView.tank.position.toArray().every(Number.isFinite));
   assert.ok(zombieView.limbs.every(limb=>Number.isFinite(limb.rotation.z)));
-  state.mode='pve';state.pve={moduleStatus:{zombie_0:{burnUntil:241,burnNext:61,burnOwner:'p1',fractureUntil:0}}};
+  state.mode='pve';state.pve={upgrades:{},branchState:{},moduleStatus:{zombie_0:{burnUntil:241,burnNext:61,burnOwner:'p1',fractureUntil:0}}};
   update(null);assert.equal(zombieView.paint.color.getHex(),0xff8c44);
   Object.assign(state.pve.moduleStatus.zombie_0,{burnUntil:0,fractureUntil:241});
   update(null);assert.equal(zombieView.paint.color.getHex(),0xe7cc68);
