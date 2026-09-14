@@ -33,7 +33,7 @@ test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy he
     assert.equal(C.PVE.healthFor(type,1,wave),
       Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
   }
-  assert.equal(C.VERSION,34);
+  assert.equal(C.VERSION,35);
   S.validateSnapshot(b.snapshot());
 });
 test("PvE uses a ground-only authority map while PvP keeps all floors and ramps",()=>{
@@ -69,9 +69,9 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   b.tick = 16*60*C.TICK_RATE-1; b.step(); assert.equal(b.pve.result,null);
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
-test('v34 enlarged enemy pool and half-health rule reject v33 checkpoints',()=>{
-  assert.equal(C.VERSION,34);
-  const old=create().snapshot();old.version=33;
+test('v35 automatic risk rules reject older checkpoints',()=>{
+  assert.equal(C.VERSION,35);
+  const old=create().snapshot();old.version=34;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
 test('v32 pursuit rule still rejects v31 checkpoints',()=>{
@@ -262,45 +262,48 @@ test('eight players and thirty-two zombies stay within packet bounds and pass re
     const bad=b.snapshot();mutate(bad);assert.throws(()=>S.validateSnapshot(bad));
   }
 });
-test('risk trial changes the actual next-wave composition and XP without leaking later',()=>{
-  const b=create(),p=b.entities[0];b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
-  for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
-  b.step();assert.equal(b.chooseTrial(4,'risk'),true);
+for (const previousWave of [4, 10]) test(`wave ${previousWave + 1} automatically adds enemies and XP without leaking later`,()=>{
+  const b=create(),p=b.entities[0];b.pve.wave=previousWave;b.pve.queue=0;b.pve.nextWaveAt=0;
+  if (previousWave > 8) {
+    b.pve.boss.stage = 1;
+    enemies(b).at(-1).zombieType = 'boss';
+  }
+  for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,previousWave);
+  b.step();
   b.tick=b.pve.nextWaveAt-1;b.step();
-  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
+  assert.equal(b.pve.wave,previousWave+1);assert.equal(b.pve.riskyWave,previousWave+1);
+  assert.equal(b.pve.queue+enemies(b).filter(z=>z.alive).length,4+(previousWave+1)*2+4);
   const first=enemies(b).find(z=>z.alive);
   assert.equal(first.zombieType,'runner');
   first.protectedUntil=0;b.damage(first,10000,p.id,first);
   assert.equal(b.pve.xp,Math.ceil(12*1.25));
   b.pve.queue=0;for(const z of enemies(b)){z.alive=false;z.hp=0;}
   b.pve.nextWaveAt=b.tick+1;b.step();
-  assert.equal(b.pve.wave,6);assert.equal(b.pve.riskyWave,0);
+  assert.equal(b.pve.wave,previousWave+2);assert.equal(b.pve.riskyWave,0);
   S.validateSnapshot(b.snapshot());
 });
-test('trial defaults safe after the ordinary 15-second break',()=>{
+test('risk starts automatically after the ordinary 15-second break',()=>{
   const b=create(2);b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
-  b.step();assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
+  b.step();assert.equal(b.pve.trial,undefined);
   const before=b.pve.nextWaveAt;
   assert.equal(before-b.tick,15*C.TICK_RATE,'the automatic break still lasts 15 seconds');
   assert.equal(typeof b.startNextWave,'undefined');
   b.step();assert.equal(b.pve.wave,4);
   assert.equal(b.pve.nextWaveAt,before);
   b.tick=b.pve.nextWaveAt-1;b.step();
-  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,0);
-  assert.equal(b.pve.queue+enemies(b).filter(z=>z.alive).length,4+5*2+3);
+  assert.equal(b.pve.wave,5);assert.equal(b.pve.riskyWave,5);
+  assert.equal(b.pve.queue+enemies(b).filter(z=>z.alive).length,4+5*2+3+4);
   S.validateSnapshot(b.snapshot());
 });
-test('v33 trial choice persists through the timed break without consuming upgrade cards',()=>{
+test('automatic risk preserves upgrade cards through the timed break',()=>{
   const b=create(),p=b.entities[0];
   b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of enemies(b))z.maxHp=C.PVE.healthFor(z.zombieType,1,4);
   C.PVE.progression.addExperience(b,C.PVE.progression.xpNeeded(b.pve.level),C.PVE.rewards);
   const cards=b.pve.choices[p.id].slice(),offerId=b.pve.choiceIds[p.id];
   b.step();
-  assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
-  assert.equal(b.chooseTrial(4,'risk'),true);
-  assert.equal(b.chooseTrial(4,'safe'),false,'one confirmed team decision');
+  assert.equal(b.pve.trial,undefined);
   const scheduled=b.pve.nextWaveAt;
   b.step();assert.equal(b.pve.wave,4);
   assert.equal(b.pve.nextWaveAt,scheduled);

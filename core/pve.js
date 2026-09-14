@@ -42,7 +42,7 @@
   }
   function initialize(b) {
     b.pve = { teamSize: survivors(b).length, wave: 0, nextWaveAt: 180, queue: 0, nextSpawnAt: 0, result: null,
-      trial: null, riskyWave: 0, enemyAttacks: [], choices: {}, upgrades: {} };
+      riskyWave: 0, enemyAttacks: [], choices: {}, upgrades: {} };
     R.initialize(b);
     const template = b.entities[0];
     for (let i = 0; i < MAX_ZOMBIES; i++) b.entities.push({
@@ -67,15 +67,6 @@
       p.needsRelease = true;
     }
     R.complete(b, p, rewards);
-    return true;
-  }
-  function chooseTrial(b, wave, choice) {
-    const p = b.pve;
-    if (b.mode !== "pve" || b.status !== "playing" || p.wave !== wave ||
-        !p.trial || p.trial.forWave !== wave + 1 || p.trial.choice !== null ||
-        !["safe", "risk"].includes(choice) || p.nextWaveAt <= b.tick || p.queue ||
-        zombies(b).some(z=>z.alive)) return false;
-    p.trial.choice = choice;
     return true;
   }
   function spawn(b, z, forcedType = null) {
@@ -197,7 +188,6 @@
       b.winnerId = null;
       pve.choices = {};
       pve.choiceIds = {};
-      pve.trial = null;
       pve.enemyAttacks = [];
       pve.boss.telegraph = null;
       b.emit("end", { winnerId: null });
@@ -229,8 +219,7 @@
     }
     if (pve.nextWaveAt) {
       if (b.tick < pve.nextWaveAt) return;
-      const risk = pve.trial?.forWave === pve.wave + 1 && pve.trial.choice === "risk";
-      pve.trial = null;
+      const risk = [5, 11].includes(pve.wave + 1);
       pve.nextWaveAt = 0;
       pve.wave++;
       pve.riskyWave = risk ? pve.wave : 0;
@@ -255,7 +244,6 @@
       // Dead teammates return only after the team clears a wave.
       resupply(b, players);
       pve.nextWaveAt = b.tick + 900;
-      pve.trial = [4, 10].includes(pve.wave) ? { forWave: pve.wave + 1, choice: null } : null;
     }
   }
   function validate(s) {
@@ -273,11 +261,6 @@
         (s.status === "finished") !== (p.result !== null)) throw new Error("Invalid PvE state");
     if (!int(p.riskyWave, 16) || (p.riskyWave !== 0 &&
         (![5, 11].includes(p.riskyWave) || p.riskyWave !== p.wave))) throw Error("Invalid PvE trial");
-    if (p.trial !== null && (!plain(p.trial) || Object.keys(p.trial).length !== 2 ||
-        ![4, 10].includes(p.wave) || p.trial.forWave !== p.wave + 1 ||
-        ![null, "safe", "risk"].includes(p.trial.choice) || !p.nextWaveAt ||
-        p.nextWaveAt <= s.tick || p.queue || enemies.some(z=>z.alive) ||
-        s.status !== "playing")) throw Error("Invalid PvE trial");
     const validAttackTimeline=(a,z)=>{
       const start=a.castTick+(a.kind==='cone'?48:42),
         dx=a.tx-a.ox,dz=a.tz-a.oz,range=Math.hypot(dx,dz),
@@ -320,5 +303,5 @@
           new Set(choices).size !== 3 || choices.some((c) => !Object.hasOwn(rewards, c))) throw new Error("Invalid PvE choices");
     }
   }
-  return Object.freeze({ MAX_ZOMBIES, rewards, progression: R, healthFor, typeFor, initialize, choose, chooseTrial, step, validate });
+  return Object.freeze({ MAX_ZOMBIES, rewards, progression: R, healthFor, typeFor, initialize, choose, step, validate });
 });

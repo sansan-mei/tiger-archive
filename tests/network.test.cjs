@@ -329,7 +329,7 @@ test('runner dash hits once up close and recovers from a rock collision',()=>{
   assert.deepEqual(z.brain.path,[],'wall stun clears stale route');
   S.validateSnapshot(b.snapshot());
 });
-test('PvE trial requires the current host and epoch while legacy early-wave commands are rejected',()=>{
+test('PvE risk is automatic after recovery and legacy trial commands are rejected',()=>{
   const ctx=setup(),host=ctx.peer(),guest=ctx.peer();
   ctx.send(host,'create',{mode:'pve'});const room=ctx.rooms.rooms.get(host.last('joined').code);
   ctx.send(guest,'join',{code:room.code});
@@ -337,17 +337,19 @@ test('PvE trial requires the current host and epoch while legacy early-wave comm
   ctx.send(host,'start');const b=room.authority.battle;
   b.pve.wave=4;b.pve.queue=0;b.pve.nextWaveAt=0;
   for(const z of b.entities.filter(e=>e.tankType==='zombie'))z.maxHp=C.PVE.healthFor(z.zombieType,2,4);
-  b.step();assert.deepEqual(b.pve.trial,{forWave:5,choice:null});
+  b.step();assert.equal(b.pve.trial,undefined);
   ctx.send(guest,'trial',{epoch:room.epoch,wave:4,choice:'risk'});
-  assert.equal(b.pve.trial.choice,null);assert.equal(guest.last('error').type,'error');
+  assert.equal(b.pve.trial,undefined);assert.equal(guest.last('error').type,'error');
   ctx.send(host,'trial',{epoch:room.epoch-1,wave:4,choice:'risk'});
-  assert.equal(b.pve.trial.choice,null);
+  assert.equal(b.pve.trial,undefined);
   ctx.send(host,'trial',{epoch:room.epoch,wave:4,choice:'risk'});
-  assert.equal(b.pve.trial.choice,'risk');
+  assert.equal(b.pve.trial,undefined);
   const recovered=new RoomServer({now:()=>0});recovered.restore(ctx.rooms.checkpoint());
-  assert.equal(recovered.rooms.get(room.code).authority.battle.pve.trial.choice,'risk');
+  const restored = recovered.rooms.get(room.code).authority.battle;
+  restored.tick=restored.pve.nextWaveAt-1;restored.step();
+  assert.equal(restored.pve.riskyWave,5);
   ctx.send(host,'trial',{epoch:room.epoch,wave:4,choice:'safe'});
-  assert.equal(b.pve.trial.choice,'risk');
+  assert.equal(b.pve.trial,undefined);
   const scheduled=b.pve.nextWaveAt;
   ctx.send(guest,'startWave',{epoch:room.epoch,wave:4});
   assert.match(guest.last('error').message,/未知消息/);

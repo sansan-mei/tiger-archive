@@ -618,9 +618,8 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   survival.pve.wave=4;survival.pve.queue=0;survival.pve.nextWaveAt=0;
   for(const z of survival.entities.filter(e=>e.tankType==='zombie')){z.alive=false;z.hp=0;z.maxHp=C.PVE.healthFor(z.zombieType,1,4);}
   advance(12);
-  assert.equal(nodes.get('trial-risk').hidden,false,'host sees the risk decision');
-  nodes.get('trial-risk').emit('click');advance(12);
-  assert.equal(survival.pve.trial.choice,'risk');
+  assert.equal(nodes.has('trial-risk'),false);
+  assert.equal(nodes.has('trial-safe'),false);
   survival.tick=survival.pve.nextWaveAt-1;advance(12);
   assert.equal(survival.pve.wave,5);
   survival.pve.wave = 7; survival.pve.nextWaveAt = survival.tick;

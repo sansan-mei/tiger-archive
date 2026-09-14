@@ -231,9 +231,7 @@
       clearInput();
       network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId });
     }
-  }, chooseTrial:(wave,choice)=>{
-    if(session.online&&!session.suspended)network.send({type:"trial",epoch:session.current().epoch,wave,choice});
-  }, isHost:()=>roomHost });
+  } });
   function config() {
     return {
       tankType: $("tank-select").value,
