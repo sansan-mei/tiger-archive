@@ -37,6 +37,36 @@ function browser() {
   return context.window;
 }
 const fetchKit = async (url) => ({ ok: true, json: async () => url?.includes("paimon") ? character : url?.includes("public-weapons") ? publicWeapons : data });
+test("human shots and beams originate at the rendered barrel across aim angles", async () => {
+  const browserWindow = browser();
+  await browserWindow.TankModelAssets.load(T, fetchKit);
+  for (const weaponType of Object.keys(C.WEAPONS)) {
+    const view = browserWindow.createTankModel(T, { tankType: "human", weaponType });
+    const battle = new C.Battle({ participants: [
+      { id: "p1", controller: "human", tankType: "human", weaponType, spawn: 0 },
+      { id: "p2", controller: "human", tankType: "heavy", weaponType: "standard", spawn: 1 },
+    ] });
+    battle.start();
+    const body = battle.entities[0];
+    for (const aim of [0, .8, -1.6, Math.PI]) for (const pitch of [-.55, 0, .55]) {
+      Object.assign(body, { aim, pitch, cooldown: 0, ammo: 10 });
+      view.tank.position.set(body.x, body.y, body.z);
+      view.turret.rotation.y = aim;
+      view.gun.rotation.z = -pitch;
+      view.tank.updateMatrixWorld(true);
+      const muzzle = view.gun.localToWorld(new T.Vector3(
+        -(view.weapon.muzzle - .35 / .55), 0, 0));
+      battle.events = [];
+      battle.shoot(body);
+      const shot = battle.events.find(e => e.type === "shot");
+      assert.ok(muzzle.distanceTo(new T.Vector3(shot.x, shot.y, shot.z)) < 1e-6,
+        `${weaponType}: aim=${aim}, pitch=${pitch}`);
+      const beam = battle.events.find(e => e.type === "beam");
+      if (beam) assert.ok(muzzle.distanceTo(new T.Vector3().copy(beam.from)) < 1e-6);
+    }
+    view.dispose();
+  }
+});
 test("all sixteen Blender loadouts retain muzzle reach, pivots and bounded drawing cost", async () => {
   const b = browser();
   assert.equal(await b.TankModelAssets.load(T, fetchKit), true);

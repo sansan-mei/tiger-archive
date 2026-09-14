@@ -319,11 +319,13 @@
       const dx = state.activeAim.x - player.x,
         dz = state.activeAim.z - player.z;
       input.aimYaw = Math.atan2(dz, -dx);
+      const origin = C.shotOrigin({ ...player, aim: input.aimYaw });
       input.aimPitch = Math.max(
         -0.55,
         Math.min(
           0.55,
-          Math.atan2(state.activeAim.y - player.y - 2.2, Math.hypot(dx, dz)),
+          Math.atan2(state.activeAim.y - origin.y,
+            Math.hypot(state.activeAim.x - origin.x, state.activeAim.z - origin.z)),
         ),
       );
     }

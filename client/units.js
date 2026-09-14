@@ -273,7 +273,7 @@
       view.frontShield.visible = false;
       view.warning.visible = e.alive && view.tank.visible && e.charge > 0;
       if (view.warning.visible) {
-        const start = new T.Vector3(e.x, e.y + 2.2, e.z),
+        const start = new T.Vector3().copy(C.shotOrigin(e)),
           direction = new T.Vector3(
             -Math.cos(e.aim) * Math.cos(e.pitch),
             Math.sin(e.pitch),

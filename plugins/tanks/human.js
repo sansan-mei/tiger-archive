@@ -6,7 +6,7 @@
   registry.register({
     kind: "tank",
     id: "human",
-    version: "1.0.1",
+    version: "1.0.2",
     apiVersion: 1,
     spec: {
       name: "人类 · 火箭兵",
@@ -23,6 +23,7 @@
       radius: 0.7,
       scale: 1,
       mount: [0, 1.65, 0],
+      gunMount: [-0.35, -0.41, -0.14],
     },
     buildVisual({
       T,

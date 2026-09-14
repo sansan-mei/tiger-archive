@@ -196,9 +196,9 @@
         y: Math.sin(body.pitch),
         z: Math.sin(body.aim) * c,
       };
-    const start = { x: body.x, y: body.y + 2.2, z: body.z },
+    const start = C.shotOrigin(body),
       length =
-        spec.muzzle *
+        (spec.muzzle - (TANKS[body.tankType].gunMount ? 0.35 / 0.55 : 0)) *
         TANKS[body.tankType].scale *
         (TANKS[body.tankType].muzzleScale || 1);
     const muzzle = {

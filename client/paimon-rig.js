@@ -9,8 +9,7 @@ window.TankPaimonRig = {
       joints.set(o.name, {bone: o, rest: o.quaternion.clone(),
         parentRest: o.parent.getWorldQuaternion(new T.Quaternion()).invert()});
     });
-    // This model's shoulders are at 1.26 world units, below the old 2.16 gun mount.
-    ctx.characterGunPosition = new T.Vector3(-.35, 1.24 - window.TankBattle.TANKS.human.mount[1], -.14);
+    // The shared human gun mount sits at shoulder height (1.24 world units).
     const grips = {};
     for (const side of ['R', 'L']) {
       const grip = new T.Object3D();

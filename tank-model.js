@@ -109,7 +109,7 @@ window.createTankModel = function (
     gun.scale.setScalar(0.55);
     gun.position.set(-0.35, 0.51, 0.6);
   }
-  if (ctx.characterGunPosition) gun.position.copy(ctx.characterGunPosition);
+  if (spec.gunMount) gun.position.fromArray(spec.gunMount);
   const gunRestPosition = gun.position.clone();
   tank.scale.setScalar(spec.scale);
   // Merge stationary armor by material, preserving turret/gun/limb/wheel pivots.

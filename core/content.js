@@ -78,6 +78,17 @@
         Object.entries(Plugins.weapons).map(([id, p]) => [id, p.spec]),
       ),
     );
+    function shotOrigin(body) {
+      const spec = TANKS[body.tankType], mount = spec.gunMount;
+      if (!mount) return { x: body.x, y: body.y + 2.2, z: body.z };
+      const x = (spec.mount[0] + mount[0]) * spec.scale,
+        z = (spec.mount[2] + mount[2]) * spec.scale;
+      return {
+        x: body.x + Math.cos(body.aim) * x + Math.sin(body.aim) * z,
+        y: body.y + (spec.mount[1] + mount[1]) * spec.scale,
+        z: body.z - Math.sin(body.aim) * x + Math.cos(body.aim) * z,
+      };
+    }
     function normalizeInput(raw = {}) {
       if (!raw || typeof raw !== "object" || Array.isArray(raw))
         throw new Error("Invalid input");
@@ -153,6 +164,7 @@
       PLAYER_TANKS,
       ZOMBIE_SPECS,
       unitSpec,
+      shotOrigin,
       WEAPONS,
       MAP,
       PVE_MAP,

@@ -479,7 +479,7 @@
     if (hit)
       input.state.activeAim = { x: hit.point.x, y: hit.point.y, z: hit.point.z };
     else {
-      plane.constant = -(player.y + 2.2);
+      plane.constant = -C.shotOrigin(player).y;
       if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
       input.state.activeAim = { x: aimWorld.x, y: aimWorld.y, z: aimWorld.z };
     }
@@ -534,7 +534,7 @@
         if (hit?.object.userData.entityId !== entity.id) return false;
         return !window.TankSystems.world.collision(
           { map: C.mapForMode(before.mode), entities: before.entities },
-          { x: localBefore.x, y: localBefore.y + 2.2, z: localBefore.z },
+          C.shotOrigin(localBefore),
           point,
           localBefore.id,
           { bodies: false },
