@@ -219,8 +219,8 @@ test('charge visuals and HUD use normal, returned and baseline laser charge dura
     }
   }
 });
-test('bipod balance v41 rejects v40 checkpoints and welcomes',()=>{
-  assert.equal(C.VERSION,41);
+test('current protocol rejects pre-bipod v40 checkpoints and welcomes',()=>{
+  assert.equal(C.VERSION,42);
   const {b}=make('laser'),old=b.snapshot();old.version=40;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
   assert.throws(()=>b.restore(old),/snapshot/i);

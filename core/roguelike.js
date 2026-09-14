@@ -30,10 +30,10 @@
     refraction: { name: "光棱折射", description: "每次发射额外折射至 12 米内最多 4 名敌人，各 100 伤害", requires: "plasmaBurst", weapon: "laser" },
     stellar: { name: "恒星射线", description: "预热缩至 0.75 秒；1.5 米宽束、250 伤害、8 米 120 首爆并折射 6 名敌人", requires: "refraction", weapon: "laser" },
     blast: { name: "巨型弹头", description: "火箭爆炸半径提升至 10 米，中心伤害提升至 100", weapon: "rocket" },
-    fire: { name: "烈焰地带", description: "留下 5 米燃烧区，持续 4 秒，每半秒 15 伤害", requires: "blast", weapon: "rocket" },
+    fire: { name: "高爆装药", description: "普通火箭中心爆炸伤害提升至 200，不留下火区", requires: "blast", weapon: "rocket" },
     chain: { name: "尸爆连锁", description: "击杀感染者触发 6 米、80 伤害尸爆；尸爆不递归", requires: "fire", weapon: "rocket" },
     cluster: { name: "集束弹头", description: "主爆炸后产生 5 个 4 米、50 伤害集束爆炸", requires: "chain", weapon: "rocket" },
-    doomsday: { name: "末日弹头", description: "每第 3 发变为 16 米、200 伤害核爆，并留下 8 米辐射区", requires: "cluster", weapon: "rocket" },
+    doomsday: { name: "末日弹头", description: "每第 3 发变为 16 米、500 伤害核爆，不留下辐射区", requires: "cluster", weapon: "rocket" },
     ...M.rewards, ...B.rewards,
   });
   const caps = Object.freeze({ haste:3, regen:3,
@@ -214,13 +214,6 @@
     B.fireZone(b,hit,shot);
     const u=b.pve.upgrades[shot.owner],owner=b.getEntity(shot.owner);
     if(!u||shot.weaponType!=="rocket"||owner?.weaponType!=="rocket")return;
-    if(u.fire) {
-      if(b.pve.hazards.length>=12)b.pve.hazards.shift();
-      const nuclear=u.doomsday&&shot.doomsday;
-      b.pve.hazards.push({id:b.pve.nextHazard++,owner:shot.owner,x:hit.point.x-shot.dx*.04,
-        y:(b.map.levels.filter(level=>level.y<=hit.point.y+.05).at(-1)?.y||0)+.15,z:hit.point.z-shot.dz*.04,
-        radius:nuclear?8:5,damage:nuclear?20:15,until:b.tick+(nuclear?300:240),nextTick:b.tick+30});
-    }
     if(u.cluster) {
       const counts=new Map(),center=hit.point;
       for(let i=0;i<5;i++) {
@@ -234,16 +227,6 @@
   }
   function tick(b) {
     M.tick(b); B.tick(b);
-    for(const zone of b.pve.hazards)if(b.tick>=zone.nextTick&&b.tick<=zone.until) {
-      zone.nextTick=b.tick+30;
-      const from={x:zone.x,y:zone.y+1.35,z:zone.z},budget={owner:zone.owner,remaining:3};
-      b.pveChainBudget=budget;
-      for(const z of enemies(b))
-        if(Math.abs(z.y+.15-zone.y)<2&&Math.hypot(z.x-zone.x,z.z-zone.z)<=zone.radius&&visible(b,from,point(z)))
-          b.damage(z,zone.damage,zone.owner,point(z));
-      if(b.pveChainBudget===budget)b.pveChainBudget=null;
-    }
-    b.pve.hazards=b.pve.hazards.filter(h=>h.until>b.tick);
     const jobs=b.pve.bursts.filter(job=>job.at<=b.tick).slice(0,16),due=new Set(jobs);
     b.pve.bursts=b.pve.bursts.filter(job=>!due.has(job));b.resolvingPveBurst=true;
     try {for(const job of jobs)burst(b,job.owner,job,job.radius,job.damage);} finally {b.resolvingPveBurst=false;}
@@ -307,7 +290,7 @@
     if(!int(v.level,20)||v.level<1||!int(v.xp,xpNeeded(v.level)-1)||!int(v.rng,4294967295)||!v.rng||
        !int(v.nextChoiceId)||!object(v.pending)||!object(v.choiceIds)||!object(v.hits)||
        !object(v.rapidHits)||!object(v.rocketShots)||!int(v.nextHazard)||
-       !Array.isArray(v.hazards)||v.hazards.length>12||!Array.isArray(v.bursts)||v.bursts.length>16)throw Error('Invalid run progression');
+       !Array.isArray(v.hazards)||v.hazards.length!==0||!Array.isArray(v.bursts)||v.bursts.length>16)throw Error('Invalid run progression');
     for(const table of [v.pending,v.hits,v.rapidHits,v.rocketShots])if(Object.keys(table).length!==players.length||Object.keys(table).some(id=>!ids.has(id)))throw Error('Invalid run owners');
     for(const p of players) {
       const u=v.upgrades[p.id];
@@ -318,9 +301,6 @@
     }
     if(Object.keys(v.choiceIds).length!==Object.keys(v.choices).length)throw Error('Invalid reward identifiers');
     for(const id of Object.keys(v.choices))if(!int(v.choiceIds[id])||v.choiceIds[id]>=v.nextChoiceId)throw Error('Invalid reward identifier');
-    for(const h of v.hazards)if(!pos(h)||!ids.has(h.owner)||!int(h.id)||!int(h.until)||!int(h.nextTick)||
-      ![[5,15],[8,20]].some(([r,d])=>h.radius===r&&h.damage===d)||h.nextTick<=s.tick||h.nextTick>h.until||h.until>s.tick+300)
-      throw Error('Invalid fire zone');
     for(const h of v.bursts)if(!pos(h)||!ids.has(h.owner)||!['chain','quake'].includes(h.kind)||!int(h.at)||h.at<=s.tick||
       (h.kind==='chain'&&(h.radius!==6||h.damage!==80||h.at>s.tick+1))||
       (h.kind==='quake'&&(h.radius!==8||h.damage!==60||h.at>s.tick+30)))throw Error('Invalid burst');

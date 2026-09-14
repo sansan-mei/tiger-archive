@@ -2,7 +2,7 @@
 
 自由混战使用三层战场，僵尸合作生存使用无台阶的地面战场。支持本地训练（1 名玩家 + 7 AI）、WebSocket 自由混战（2–8 人）和僵尸合作生存（1–8 人），可使用现有 Redis 保存恢复检查点。
 
-当前协议 **v41**，十个内容插件（zombie 1.5.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
+当前协议 **v42**，十个内容插件（zombie 1.5.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
 
 ## 启动与操作
 
@@ -44,7 +44,7 @@
 
 ## 全武器进阶（当前 PvE）
 
-本节按当前协议 v41 的实际代码整理。定义来源：[core/roguelike.js](core/roguelike.js)、[core/branches.js](core/branches.js)；涉及伤害、贯穿和火区的说明同时核对权威执行逻辑。以下为节点效果，不是实测 DPS，也不包含通用模块叠加。
+本节按当前协议 v42 的实际代码整理。定义来源：[core/roguelike.js](core/roguelike.js)、[core/branches.js](core/branches.js)；涉及伤害、贯穿和火区的说明同时核对权威执行逻辑。以下为节点效果，不是实测 DPS，也不包含通用模块叠加。
 
 ### 解锁与分支规则
 
@@ -155,12 +155,12 @@
 
 #### 核爆流
 
-路线：巨型弹头 → 烈焰地带 → 尸爆连锁 → 集束弹头 → 末日弹头。
+路线：巨型弹头 → 高爆装药 → 尸爆连锁 → 集束弹头 → 末日弹头。
 
-- **第 2 阶 · 烈焰地带**（`fire`）：留下 5 米燃烧区，持续 4 秒，每半秒 15 伤害
+- **第 2 阶 · 高爆装药**（`fire`）：普通爆炸中心伤害提升至 200，不再留下火焰地带
 - **第 3 阶 · 尸爆连锁**（`chain`）：击杀感染者触发 6 米、80 伤害尸爆；尸爆不递归
 - **第 4 阶 · 集束弹头**（`cluster`）：主爆炸后产生 5 个半径 4 米、50 伤害集束爆炸；同一目标最多承受其中 2 次。
-- **第 5 阶 · 末日弹头**（`doomsday`）：每第 3 发变为半径 16 米、中心伤害 200 的核爆，并留下半径 8 米的辐射区，持续 5 秒，每 0.5 秒造成 20 伤害。
+- **第 5 阶 · 末日弹头**（`doomsday`）：每第 3 发变为半径 16 米、中心伤害 500 的核爆，不再留下辐射区；保留伤害衰减与 2.5 秒射击间隔。
 
 #### 燃烧流
 
@@ -276,7 +276,7 @@
 
 ## 插件化版本
 
-车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v41 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
+车库自动读取车体和武器目录，十个内置插件独立维护参数与外观。核心统一执行射击和坡面碰撞；当前协议 v42 核对插件版本及参数。扩展方式见 [PLUGINS.md](PLUGINS.md)，联机选型建议见 [NETWORK-CHOICE.md](NETWORK-CHOICE.md)。
 
 ## 联机与部署文件
 
@@ -305,7 +305,7 @@
 
 开发源码保持可读，Docker 默认在构建阶段生成混淆后的前端；也可通过 `pnpm run build:client` 生成 public-dist，再用 `pnpm run start:release` 提供服务。发布模式不回退提供源码，Three.js 不混淆，不生成 source map。配置、调试开关和验证边界见 [OBFUSCATION.md](OBFUSCATION.md)。
 
-以下功能记录保留实现时的协议版本描述；当前统一使用 v41，以本文开头和「僵尸合作生存」部分为准。
+以下功能记录保留实现时的协议版本描述；当前统一使用 v42，以本文开头和「僵尸合作生存」部分为准。
 
 ## 坡道下穿
 

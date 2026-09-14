@@ -234,7 +234,7 @@ test('crowded PvE fire zones deliver every authoritative damage event across a r
     for(const p of peers)t.send(p,'ready',{ready:true});
     t.send(peers[0],'start');
     const room=t.rooms.rooms.get(code),b=room.authority.battle,roster=enemies(b);
-    Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000,nextHazard:zoneCount+1});
+    Object.assign(b.pve,{wave:4,queue:0,nextWaveAt:100000,nextBranchZone:zoneCount+1});
     for(const [i,z] of roster.entries()){
       z.maxHp=C.PVE.healthFor(z.zombieType,8,4);
       if(i===32)continue;
@@ -243,8 +243,9 @@ test('crowded PvE fire zones deliver every authoritative damage event across a r
     }
     for(let i=0;i<zoneCount;i++){
       const owner=room.seats[i%8].id;
-      b.pve.upgrades[owner].blast=1;b.pve.upgrades[owner].fire=1;
-      b.pve.hazards.push({id:i+1,owner,x:12,y:.15,z:55,radius:5,damage:15,until:240,nextTick:30});
+      b.pve.upgrades[owner].blast=1;b.pve.upgrades[owner].napalm=1;
+      Object.assign(b.getEntity(owner),{weaponType:"rocket",ammo:0});
+      b.pve.branchZones.push({id:i+1,owner,life:0,weapon:"rocket",from:{x:12,y:1.5,z:55},to:{x:12,y:1.5,z:55},radius:5,damage:20,until:240,nextTick:30,spread:false,stacks:{}});
     }
     S.validateSnapshot(b.snapshot());
     t.tick(30);

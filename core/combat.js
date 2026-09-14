@@ -94,7 +94,7 @@
     if(chainBudget)battle.pveChainBudget=chainBudget;
     const spec = shot.weaponType === "rocket" && routeActive
       ? { ...base, splashRadius: nuclear ? 16 : upgrades.blast ? 10 : base.splashRadius,
-          splashDamage: upgrades.napalm ? Math.round((upgrades.blast?100:base.splashDamage)*.6) : nuclear ? 200 : upgrades.blast ? 100 : base.splashDamage }
+          splashDamage: upgrades.napalm ? Math.round((upgrades.blast?100:base.splashDamage)*.6) : nuclear ? 500 : upgrades.fire ? 200 : upgrades.blast ? 100 : base.splashDamage }
       : base;
     if (hit.kind === "tank") {
       const target = battle.getEntity(hit.id), wasAlive = target?.alive,

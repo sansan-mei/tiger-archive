@@ -330,8 +330,9 @@ test('a spread module reuses the original burner owner across players',()=>{
 test('module secondary kills never trigger an in-flight rocket corpse chain',()=>{
   const b=make(),p=b.entities[0],z=enemy(b,0,0,55),side=enemy(b,1,2,55);
   p.weaponType='rocket';Object.assign(b.pve.upgrades[p.id],{blast:1,fire:1,chain:1,modEmber:1,modCombustion:1});
-  Object.assign(z,{hp:500,maxHp:500});Object.assign(side,{hp:100,maxHp:100});
+  Object.assign(z,{hp:500,maxHp:500});Object.assign(side,{hp:1000,maxHp:1000});
   hit(b,p,z,'rocket');
+  assert.equal(side.alive,true);side.hp=1; // Isolate the next module burst kill from the stronger primary splash.
   b.pveChainBudget={owner:p.id,remaining:3};hit(b,p,z,'rocket');
   assert.equal(side.alive,false);assert.equal(b.pve.bursts.length,0);
   b.pveChainBudget=null;
@@ -491,14 +492,14 @@ test('rocket evolves into clustered fire and every third shot becomes doomsday',
   hit(b,p,near,'rocket',false,{doomsday:false});
   assert.equal(b.events.filter(e=>e.type==='explosion'&&e.radius===4).length,5);
   assert.equal(b.events.findLast(e=>e.type==='explosion').radius,10);
-  assert.deepEqual([b.pve.hazards[0].radius,b.pve.hazards[0].damage,b.pve.hazards[0].until],[5,15,240]);
+  assert.deepEqual(b.pve.hazards,[]);
   b.events.length=0;b.pve.hazards=[];b.bullets=[];
   for(let i=0;i<3;i++){p.cooldown=0;b.shoot(p);}
   assert.deepEqual(b.bullets.map(x=>x.doomsday),[false,false,true]);assert.equal(b.pve.rocketShots[p.id],0);
   const nuclear=b.bullets.at(-1);b.bullets=[];
   b.resolveHit({kind:'tank',id:near.id,point:{x:.6,y:1.5,z:55}},nuclear);
   assert.equal(b.events.findLast(e=>e.type==='explosion').radius,16);
-  assert.deepEqual([b.pve.hazards[0].radius,b.pve.hazards[0].damage,b.pve.hazards[0].until],[8,20,300]);
+  assert.deepEqual(b.pve.hazards,[]);
   const crowded=make(),cp=crowded.entities[0],cu=crowded.pve.upgrades[cp.id];Object.assign(cp,{x:20,z:55,weaponType:'rocket'});
   Object.assign(cu,{blast:1,fire:1,chain:1,cluster:1,doomsday:1});
   const packed=crowded.entities.filter(e=>e.tankType==='zombie').slice(0,16);packed.forEach((z,i)=>Object.assign(z,{alive:true,hp:60,maxHp:60,x:Math.cos(i*Math.PI/8)*3,z:55+Math.sin(i*Math.PI/8)*3,y:0,floor:0,protectedUntil:0}));
@@ -659,4 +660,37 @@ test('rebalanced frost expires after 168 ticks without shortening an existing we
   hit(b,p,z);assert.equal(z.slowUntil,168);
   b.tick=168;assert.equal(z.slowUntil>b.tick,false);
   z.slowUntil=500;hit(b,p,z);assert.equal(z.slowUntil,500);
+});
+test('natural nuclear route shots preserve base and shared splash, upgrade to 200 and 500 without delayed damage',()=>{
+  for(let tier=0;tier<=5;tier++) {
+    const b=waveFour(make(8)),p=b.entities[0],u=b.pve.upgrades[p.id];
+    Object.assign(p,{x:20,z:55,weaponType:'rocket',ammo:0,aim:0,pitch:0});
+    for(const key of ['blast','fire','chain','cluster','doomsday'].slice(0,tier))u[key]=1;
+    const target=bucket(b,0,0,55);
+    for(let n=1;n<=3;n++) {
+      p.cooldown=0;b.shoot(p);const shot=b.bullets.pop();
+      assert.equal(p.cooldown,150);assert.equal(shot.damage,20);
+      target.hp=target.maxHp;target.alive=true;
+      b.resolveHit({kind:'tank',id:target.id,point:{x:.6,y:1.5,z:55}},shot);
+      assert.deepEqual(b.pve.hazards,[]);
+      const nuclear=tier===5&&n===3,splash=nuclear?500:tier>=2?200:tier===1?100:80;
+      assert.equal(target.maxHp-target.hp,20+splash,`tier ${tier} shot ${n}`);
+      assert.equal(b.events.findLast(e=>e.type==='explosion').radius,nuclear?16:tier?10:8);
+      const hp=target.hp;for(let tick=0;tick<300;tick++){b.tick++;R.tick(b);}
+      assert.equal(target.hp,hp,'no delayed nuclear damage');
+      S.validateSnapshot(b.snapshot());b.events.length=0;
+    }
+  }
+});
+test('v42 accepts empty legacy hazards and rejects forged old damaging zones',()=>{
+  const a=new S.Authority({mode:'pve',matchId:'nuclear-wire',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'rocket'}]});
+  a.battle.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));
+  assert.equal(C.VERSION,42);
+  assert.equal(r.receive(a.statePacket({network:true})).ok,true);
+  for(const [radius,damage] of [[5,15],[8,20]]) {
+    const s=a.battle.snapshot();s.pve.hazards=[{id:1,owner:'p0',x:0,y:.15,z:55,radius,damage,until:240,nextTick:30}];
+    S.validateSnapshot(a.battle.snapshot());assert.throws(()=>S.validateSnapshot(s));
+    const packet=a.statePacket({network:true});packet.snapshot.pve.hazards=s.pve.hazards;
+    assert.equal(r.receive(packet).ok,false);
+  }
 });
