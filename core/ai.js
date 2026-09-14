@@ -6,6 +6,8 @@
 })(typeof window === "undefined" ? globalThis : window, function (C) {
   "use strict";
   const { wrap, clamp } = C;
+  // Shared by battles using the same map; never serialized into checkpoints.
+  const navigation = new WeakMap();
   function route(battle, body, to) {
     const floor = body.floor,
       spacing = 4,
@@ -36,45 +38,80 @@
     };
     // Snap to a reachable free cell, not merely the closest grid coordinate:
     // a tank can legally stand beside a wall whose nearest grid cell is occupied.
-    const cells = [];
-    for (let z = 0; z < n; z++)
-      for (let x = 0; x < n; x++) {
-        const p = { x, z },
-          point = world(p);
-        if (
-          battle.valid(point.x, point.z, floor, body, {
-            ignoreEntities: true,
-            margin: 0.5,
-          })
-        )
-          cells.push(p);
-      }
-    const sorted = cells
-      .slice()
-      .sort(
-        (a, b) =>
-          Math.hypot(world(a).x - body.x, world(a).z - body.z) -
-            Math.hypot(world(b).x - body.x, world(b).z - body.z) ||
-          key(a) - key(b),
-      );
-    const start = sorted.find((p) => clear(body, world(p)));
-    const goal = cells
-      .slice()
-      .sort(
-        (a, b) =>
-          Math.hypot(world(a).x - to.x, world(a).z - to.z) -
-            Math.hypot(world(b).x - to.x, world(b).z - to.z) || key(a) - key(b),
-      )[0];
+    // Maps are normally static. Detect edits to collision data as well as map
+    // replacement so custom maps cannot reuse stale cells or edges.
+    const signature = JSON.stringify([battle.map.levels, battle.map.obstacles, battle.map.ramps]);
+    let cache = navigation.get(battle.map);
+    if (!cache || cache.signature !== signature) {
+      cache = { signature, profiles: new Map() };
+      navigation.set(battle.map, cache);
+    }
+    const spec = C.TANKS[body.tankType];
+    const profile = `${floor}:${spec.radius}:${spec.height || 3}`;
+    let grid = cache.profiles.get(profile);
+    if (!grid) {
+      const cells = [];
+      for (let z = 0; z < n; z++)
+        for (let x = 0; x < n; x++) {
+          const p = { x, z }, point = world(p);
+          if (battle.valid(point.x, point.z, floor, body, {
+            ignoreEntities: true, margin: 0.5,
+          })) cells.push(p);
+        }
+      grid = { cells, passable: new Set(cells.map(key)), edges: new Map() };
+      cache.profiles.set(profile, grid);
+    }
+    const { cells, passable, edges } = grid;
+    let start, goal, startDistance = Infinity, goalDistance = Infinity;
+    for (const cell of cells) {
+      const point = world(cell),
+        fromDistance = Math.hypot(point.x - body.x, point.z - body.z),
+        toDistance = Math.hypot(point.x - to.x, point.z - to.z);
+      // Cells are ordered by key, preserving the original distance tie-break.
+      if (fromDistance < startDistance) { start = cell; startDistance = fromDistance; }
+      if (toDistance < goalDistance) { goal = cell; goalDistance = toDistance; }
+    }
+    if (start && !clear(body, world(start))) {
+      // Only unusual starts beside a wall need the ordered fallback search.
+      start = cells.map(cell => ({ cell, distance: Math.hypot(
+        world(cell).x - body.x, world(cell).z - body.z,
+      ) })).sort((a, b) => a.distance - b.distance || key(a.cell) - key(b.cell))
+        .find(({ cell }) => clear(body, world(cell)))?.cell;
+    }
     if (!start || !goal) return [];
-    const passable = new Set(cells.map(key)),
-      open = [{ ...start, g: 0, f: 0 }],
+    const open = [{ ...start, g: 0, f: 0 }],
       best = new Map([[key(start), 0]]),
       parent = new Map(),
       closed = new Set();
+    // A min-heap keeps the original f/key order without sorting every expansion.
+    const compare = (a, b) => a.f - b.f || key(a) - key(b);
+    function push(node) {
+      let i = open.length;
+      open.push(node);
+      while (i > 0) {
+        const p = (i - 1) >> 1;
+        if (compare(open[p], node) <= 0) break;
+        open[i] = open[p]; i = p;
+      }
+      open[i] = node;
+    }
+    function pop() {
+      const first = open[0], last = open.pop();
+      if (open.length) {
+        let i = 0;
+        while (i * 2 + 1 < open.length) {
+          let child = i * 2 + 1;
+          if (child + 1 < open.length && compare(open[child + 1], open[child]) < 0) child++;
+          if (compare(last, open[child]) <= 0) break;
+          open[i] = open[child]; i = child;
+        }
+        open[i] = last;
+      }
+      return first;
+    }
     let found = null;
     while (open.length) {
-      open.sort((a, b) => a.f - b.f || key(a) - key(b));
-      const cur = open.shift(),
+      const cur = pop(),
         id = key(cur);
       if (closed.has(id)) continue;
       closed.add(id);
@@ -97,13 +134,16 @@
           !passable.has(key(next))
         )
           continue;
-        if (!clear(world(cur), world(next), 0.5)) continue;
+        // Directed edges retain the exact sampling order of the old clearance test.
+        const edge = id * n * n + key(next);
+        if (!edges.has(edge)) edges.set(edge, clear(world(cur), world(next), 0.5));
+        if (!edges.get(edge)) continue;
         const k = key(next),
           g = cur.g + 1;
         if (g >= (best.get(k) ?? Infinity)) continue;
         parent.set(k, id);
         best.set(k, g);
-        open.push({
+        push({
           ...next,
           g,
           f: g + Math.abs(next.x - goal.x) + Math.abs(next.z - goal.z),

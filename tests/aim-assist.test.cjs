@@ -192,6 +192,23 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   assert.equal(units.aimHit(ray, [wall]).object, wall);
   wall.visible = false;
   assert.equal(units.aimHit(ray, [wall]).object.userData.entityId, "p2");
+  const ignored = new T.Group(), hidden = new T.Group();
+  ignored.userData.aimIgnore = true; hidden.visible = false;
+  const foliage = new T.InstancedMesh(new T.BoxGeometry(), new T.MeshBasicMaterial(), 3000);
+  const hiddenMesh = new T.Mesh(new T.BoxGeometry(), new T.MeshBasicMaterial());
+  foliage.raycast = hiddenMesh.raycast = () => { throw Error("Excluded geometry was raycast"); };
+  ignored.add(foliage); hidden.add(hiddenMesh);
+  assert.equal(units.aimHit(ray, [ignored, hidden]).object.userData.entityId, "p2");
+  // A late-loaded wall and subsequent parent visibility changes are observed immediately.
+  const loaded = new T.Group(); loaded.add(wall); wall.visible = true;
+  scene.add(loaded); scene.updateMatrixWorld(true);
+  assert.equal(units.aimHit(ray, [loaded]).object, wall);
+  loaded.visible = false;
+  assert.equal(units.aimHit(ray, [loaded]).object.userData.entityId, "p2");
+  loaded.visible = true;
+  assert.equal(units.aimHit(ray, [loaded]).object, wall);
+  loaded.clear();
+  assert.equal(units.aimHit(ray, [loaded]).object.userData.entityId, "p2");
   state.entities[1].alive = false;
   update("p2");
   assert.equal(enemy.paint.color.getHex(), base);
@@ -215,6 +232,8 @@ test("target highlighting restores paint and ignores invisible shields, walls an
   visibleWall.position.set(10,2.2,0);ignoredWall.position.set(17,2.2,0);ignoredWall.userData.aimIgnore=true;
   hiddenWall.position.set(15,2.2,0);hiddenParent.visible=false;hiddenParent.add(hiddenWall);floorGroup.add(visibleWall,ignoredWall,hiddenParent);
   Object.assign(state.entities[0],{weaponType:"laser",charge:45,x:20,y:0,z:0,aim:0,pitch:0});
+  // These subtrees must never invoke geometry raycasting, even for laser warnings.
+  ignoredWall.raycast = hiddenWall.raycast = () => { throw Error("Excluded geometry was raycast"); };
   scene.updateMatrixWorld(true);update(null);
   const warning=units.views.get("p1").warning.geometry.getAttribute("position");
   assert.ok(warning.getX(1)<11,"hidden or aimIgnore terrain must not clip the charge warning");

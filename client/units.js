@@ -78,10 +78,27 @@
       views.set(body.id, view);
     });
   }
-  function visibleRayHit(hit) {
-    for (let node = hit.object; node; node = node.parent)
-      if (!node.visible || node.userData.aimIgnore) return false;
-    return true;
+  const rayTargets = [], rayHits = [];
+  function firstVisibleHit(ray, roots) {
+    rayTargets.length = 0;
+    rayHits.length = 0;
+    function collect(node) {
+      if (!node.visible || node.userData.aimIgnore) return;
+      rayTargets.push(node);
+      for (const child of node.children) collect(child);
+    }
+    for (const root of roots) {
+      let visible = true;
+      for (let parent = root.parent; parent; parent = parent.parent)
+        if (!parent.visible || parent.userData.aimIgnore) { visible = false; break; }
+      if (visible) collect(root);
+    }
+    // Prune entire ignored/hidden subtrees before Three.js touches their geometry.
+    // Recollect on each query to respect async model replacement and visibility changes.
+    const hit = ray.intersectObjects(rayTargets, false, rayHits)[0];
+    rayTargets.length = 0;
+    rayHits.length = 0;
+    return hit;
   }
   function update({
     state,
@@ -263,10 +280,7 @@
             Math.sin(e.aim) * Math.cos(e.pitch),
           );
         const warningRay = new T.Raycaster(start, direction, 0.1, 140),
-          wallHit = warningRay.intersectObjects(
-            floorGroups.filter((g) => g.visible),
-            true,
-          ).find(visibleRayHit);
+          wallHit = firstVisibleHit(warningRay, floorGroups);
         const end = start
           .clone()
           .addScaledVector(
@@ -366,7 +380,7 @@
       e.alive && (getMode() !== "pve" || e.tankType === "zombie")).map((e) => e.id)), roots=[];
     for (const [id, view] of views)
       if (id !== getPlayerId() && view.tank.visible && live.has(id)) roots.push(view.tank);
-    return ray.intersectObjects([...roots, ...floors], true).find(visibleRayHit);
+    return firstVisibleHit(ray, [...roots, ...floors]);
   }
   // Recreate against the current session only after the optional library has loaded.
   // No captured entity list: room/loadout changes during the request remain safe.
