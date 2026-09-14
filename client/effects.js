@@ -21,6 +21,22 @@
     o.start(at);
     o.stop(at + 0.24);
   }
+  function formationSound() {
+    const audio = getAudio();
+    if (!audio || audio.state !== "running") return;
+    [523.25, 659.25, 783.99].forEach((frequency, index) => {
+      const at = audio.currentTime + index * 0.1,
+        oscillator = audio.createOscillator(), gain = audio.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, at);
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.055, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.45);
+      oscillator.connect(gain); gain.connect(audio.destination);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      oscillator.start(at); oscillator.stop(at + 0.46);
+    });
+  }
   function puff(point, size = 1, count = 6) {
     count=Math.min(count,Math.max(0,160-effects.length));
     for (let i = 0; i < count; i++) {
@@ -68,5 +84,5 @@
     scene.add(m);
     effects.push({ m, age: 0, life: 0.24, beam: true, dx: 0, dz: 0, dy: 0 });
   }
-  return { sound, puff, beam };
+  return { sound, puff, beam, formationSound };
 };

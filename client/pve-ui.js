@@ -1,7 +1,16 @@
 /* Small wave HUD and keyboard/touch reward choices; sends intentions only. */
-(window.TankClient ??= {}).createPveUI = function ({ C, $, choose }) {
+(window.TankClient ??= {}).createPveUI = function ({ C, $, choose, onFormation = () => {} }) {
   const panel = $("pve-rewards"), cards = $("pve-choices");
   let current = null, signature = "", deferred = false, match = null;
+  const routes = [
+    ["thunder", "雷电流"], ["judgment", "重炮流"], ["metalStorm", "压制流"],
+    ["stellar", "光棱流"], ["doomsday", "核爆流"],
+  ].map(([key, name]) => ({ key, label: name, ...C.PVE.rewards[key] }));
+  const toast = $("pve-formation"), badge = $("pve-formed");
+  let seen = null, toastUntil = 0;
+  function formed(state, id) {
+    return routes.filter(route => state.pve?.upgrades[id]?.[route.key] > 0);
+  }
   const toggle = $("pve-toggle");
   toggle.addEventListener("click", () => { deferred = !deferred; });
   function select(index) {
@@ -17,13 +26,39 @@
     }
   });
   return {
-    update(state, id) {
+    summary(state, id) {
+      const completed = formed(state, id);
+      return completed.length ? "本局成型 · " + completed.map(route =>
+        route.label + " · " + C.PVE.rewards[route.key].name).join(" ｜ ") : "本局尚未解锁终极进阶";
+    },
+    update(state, id, time = performance.now()) {
       const pve = state.mode === "pve" ? state.pve : null,
         boss = pve ? state.entities.find(e => ['boss','titan'].includes(e.zombieType) && e.alive) : null,
         bossName = boss ? C.ZOMBIE_SPECS[boss.zombieType].name : "";
       const options = pve?.choices[id];
-      const matchKey = state.matchId + ":" + state.epoch;
-      if (match !== matchKey) { match = matchKey; deferred = false; }
+      const matchKey = state.mode + ":" + state.matchId + ":" + state.epoch + ":" + id;
+      if (match !== matchKey) {
+        match = matchKey; deferred = false; signature = ""; seen = null; toastUntil = 0;
+      }
+      const completed = pve ? formed(state, id) : [];
+      const fresh = completed.filter(route => seen && !seen.has(route.key));
+      // First snapshot establishes a baseline, including when joining an existing run.
+      if (pve) {
+        if (!seen) seen = new Set();
+        for (const route of completed) seen.add(route.key);
+      }
+      if (fresh.length && state.status === "playing") {
+        $("pve-formation-title").textContent = fresh.map(route => route.label + "成型 · " + route.name).join(" ｜ ");
+        $("pve-formation-detail").textContent = fresh.map(route => route.description).join("；");
+        toastUntil = time + 5000;
+        onFormation();
+      }
+      if (!pve || state.status !== "playing") toastUntil = 0;
+      toast.hidden = !toastUntil || time >= toastUntil;
+      const weapon = state.entities.find(e => e.id === id)?.weaponType;
+      badge.hidden = !pve || !completed.length;
+      badge.textContent = completed.map(route => route.label + "已成型" +
+        (route.weapon === weapon ? " · " + route.name : "（换回对应武器生效）")).join(" ｜ ");
       $("pve-progress").hidden = !pve;
       if (pve) {
         $("pve-level").textContent = "团队 Lv." + pve.level + " · 经验 " + pve.xp + "/" + C.PVE.progression.xpNeeded(pve.level);
@@ -62,7 +97,9 @@
       cards.replaceChildren(...options.map((key, index) => {
         const button = document.createElement("button"), title = document.createElement("strong"), detail = document.createElement("span");
         button.type = "button";
-        title.textContent = (index + 1) + " · " + (C.PVE.rewards[key].module ? "通用模块｜" : "") + C.PVE.rewards[key].name;
+        const ultimate = routes.find(route => route.key === key);
+        if (ultimate) button.dataset.ultimate = "true";
+        title.textContent = (index + 1) + " · " + (ultimate ? "终极进阶｜" : C.PVE.rewards[key].module ? "通用模块｜" : "") + C.PVE.rewards[key].name;
         detail.textContent = C.PVE.rewards[key].description;
         button.append(title, detail);
         button.addEventListener("click", () => select(index));

@@ -122,3 +122,16 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 @media(max-width:700px){.menu{padding:20px}.logo{font-size:15px}.menu .network-panel{padding:12px}}
 
 @media(pointer:fine){.controls-hint{display:block;line-height:1.7}}
+
+/* Ultimate progression feedback stays outside the aiming area and does not capture input. */
+#pve-formed{display:block;color:#ffda82;font-size:12px;margin-top:5px}
+#pve-formation{position:fixed;z-index:12;right:24px;top:235px;width:min(330px,calc(100vw - 32px));padding:16px;border:1px solid #e9c771;border-radius:12px;background:linear-gradient(125deg,#263b36f5,#172924f5);box-shadow:0 0 28px #e9c77130;color:#fff3cf;pointer-events:none;animation:formation-in .35s ease-out}
+#pve-formation small{display:block;letter-spacing:.25em;color:#e9c771;font-size:11px}
+#pve-formation strong{display:block;font-size:20px;margin:7px 0}
+#pve-formation span{display:block;font-size:12px;line-height:1.7;color:#e2e8d8}
+#pve-choices button[data-ultimate="true"]{border-color:#e9c771;box-shadow:inset 0 0 20px #e9c77118}
+#pve-choices button[data-ultimate="true"] strong{color:#ffda82}
+#pve-formed[hidden],#pve-formation[hidden]{display:none}
+@keyframes formation-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:700px){#pve-formation{right:16px;top:220px;width:260px;padding:10px}#pve-formation strong{font-size:16px}}
+@media(prefers-reduced-motion:reduce){#pve-formation{animation:none}}

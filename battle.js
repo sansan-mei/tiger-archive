@@ -87,7 +87,7 @@
     getPlayerId: () => playerId,
     getMode: () => session.current().mode || "pvp",
   });
-  const { sound, puff, beam } = window.TankClient.createEffects({
+  const { sound, puff, beam, formationSound } = window.TankClient.createEffects({
     T,
     scene,
     sphere,
@@ -226,7 +226,7 @@
       }),
     );
   }
-  const pveUI = window.TankClient.createPveUI({ C, $, choose: (wave, choice, offerId) => {
+  const pveUI = window.TankClient.createPveUI({ C, $, onFormation: () => { if (!session.suspended) formationSound(); }, choose: (wave, choice, offerId) => {
     if (session.online && !session.suspended) {
       clearInput();
       network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId });
@@ -392,7 +392,7 @@
           const row=document.createElement("p"),u=s.pve.upgrades[playerId]||{},
             modules=Object.entries(u).filter(([key,level])=>level>0&&C.PVE.rewards[key]?.module)
               .map(([key,level])=>C.PVE.rewards[key].name+(level>1?" "+level+"级":""));
-          row.textContent="本局构筑 · "+(C.WEAPONS[p?.weaponType]?.name||"小手枪")+
+          row.textContent=pveUI.summary(s, playerId)+" ｜ 本局构筑 · "+(C.WEAPONS[p?.weaponType]?.name||"小手枪")+
             " · "+(modules.join(" · ")||"暂无通用模块");
           return row;
         })()] : []),
@@ -561,7 +561,7 @@
       clearInput();
     }
     if (events.some((e) => e.type === "end")) showMenu("finished");
-    pveUI.update(truth, playerId);
+    pveUI.update(truth, playerId, time);
     const renderPlayer = state.entities.find((e) => e.id === playerId);
     const target =
       !p.alive && observing
