@@ -18,7 +18,7 @@ test('all four natural trails follow the exact authority height and use bounded 
       const hits=new T.Raycaster(new T.Vector3(r.a.x,y+3,z),new T.Vector3(0,-1,0)).intersectObject(group,true);
       assert.ok(hits.length && Math.abs(hits[0].point.y-y)<.02,r.id+' road height');
     }
-    assert.equal(group.getObjectByName('trail-sand').material.color.getHex(),0xd5af79);
+    assert.equal(group.getObjectByName('trail-sand').material.color.getHex(),0xcdb486);
     assert.equal(group.children.filter(m=>m.userData.rampSupport).length,2);
   }
 });

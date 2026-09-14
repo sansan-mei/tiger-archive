@@ -540,7 +540,7 @@
       this.sync();
     }
     sync() {
-      const result = this.replica.receive(this.authority.statePacket({ network: true }));
+      const result = this.replica.receive(this.authority.statePacket());
       if (!result.ok) throw new Error(result.reason);
       return result.events;
     }

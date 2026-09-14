@@ -25,7 +25,7 @@ The adjacent `bruno-folio-reference` shallow checkout contains the original sour
 and selected static resources. Re-import with `node scripts/assets/import-folio.mjs`
 (or pass another checkout path). This only converts assets, not the application.
 
-坦克大战和僵尸模式现在共用此花园地形。坦克大战出生点在 `core/map.js` 中分散布置；旧多层地图数据及其场景加载已移除。
+此花园素材现仅归档保留，不再进入页面资源清单或参与当前地图碰撞。当前地图已恢复到换图前的 woodland-crossfire-v5：PvP 为三层，PvE 仅地面。
 
 ## Visual pass 2
 

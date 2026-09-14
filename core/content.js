@@ -6,13 +6,12 @@
     node ? require("./network-state.js") : root.TankNetworkState,
     node ? require("./map.js") : root.TankMap,
     node ? require("./math.js") : root.TankMath,
-    node ? require("./folio-map.js") : root.TankFolioMap,
   );
   if (node) module.exports = api;
   else root.TankContent = api;
 })(
   typeof window === "undefined" ? globalThis : window,
-  function (Plugins, Abilities, NetworkState, MAP, Maths, FolioMap) {
+  function (Plugins, Abilities, NetworkState, MAP, Maths) {
     const {
       clone,
       clamp,
@@ -29,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 38,
+    const VERSION = 39,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;
@@ -63,7 +62,16 @@
     const unitSpec = (body) => body.tankType === "zombie"
       ? ZOMBIE_SPECS[body.zombieType || "walker"] : TANKS[body.tankType];
     const PLAYER_TANKS = Object.freeze(Object.fromEntries(Object.entries(TANKS).filter(([, spec]) => !spec.enemyOnly)));
-    const PVE_MAP = Object.freeze(FolioMap);
+    const PVE_MAP = Object.freeze({
+      ...MAP,
+      id: MAP.id + "-pve-ground-v1",
+      levels: Object.freeze(MAP.levels.slice(0, 1).map((level) => Object.freeze({ ...level }))),
+      obstacles: Object.freeze(MAP.obstacles.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
+      ramps: Object.freeze([]),
+      dropExits: Object.freeze([]),
+      pickups: Object.freeze(MAP.pickups.filter((item) => item.floor === 0).map((item) => Object.freeze({ ...item }))),
+      spawns: Object.freeze(MAP.spawns.map(({ x, z }) => Object.freeze({ x, z, floor: 0 }))),
+    });
     const mapForMode = (mode) => mode === "pve" ? PVE_MAP : MAP;
     const WEAPONS = Object.freeze(
       Object.fromEntries(

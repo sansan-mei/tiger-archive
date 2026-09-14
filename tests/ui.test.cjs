@@ -242,6 +242,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   }
   advance(3);
   const driver = room.authority.battle.entities[0];
+  assert.equal(renderedCamera.fov,25,'map restoration preserves the current chase-camera framing');
   assert.equal(driver.weaponType, "standard");
   assert.equal(html.includes('直接驾驶上坡'),false,'initial page no longer advertises ramp driving');
   assert.equal(nodes.has('trial-early'),false,'early-wave button is removed');
@@ -261,6 +262,9 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   advance(18);
   assert.equal(halo.visible, false);
   assert.match(nodes.get("weapon-description").textContent, /0\/2/);
+  // Probe orbit on open ground, not beside the restored spawn cover.
+  Object.assign(driver,{x:0,z:75,y:0,floor:0});
+  advance(60);
   for (const heading of [0, Math.PI / 2, -Math.PI / 2, Math.PI - 0.01]) {
     driver.heading = heading;
     // Allow the 100 ms playout buffer and angular interpolation to settle.
@@ -269,7 +273,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     assert.ok(
       renderedCamera.position.y - driver.y > 4 &&
         renderedCamera.position.y - driver.y < 30,
-      "garden camera stays elevated without losing the player",
+      "chase camera stays elevated without losing the player",
     );
     assert.ok(
       (renderedCamera.position.x - driver.x) * forward.x +
@@ -308,7 +312,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.match(nodes.get("network-quality").textContent,/校验失败.*Invalid entity state/);
   advance(6);
   assert.doesNotMatch(nodes.get("network-quality").textContent,/校验失败/);
-  assert.equal(e.floor, 0);
+  assert.equal(e.floor, 1);
   for (const fn of windowEvents.keyup)
     fn({ code: "KeyW", preventDefault() {} });
   advance(70);
@@ -350,7 +354,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   Object.assign(e, {
     x: 0,
     y: 0,
-    z: 56,
+    z: 75,
     floor: 0,
     rampId: null,
     rampDir: 0,
@@ -487,9 +491,28 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.equal(nodes.get("respawn-status").hidden, true);
   assert.equal(nodes.get("scoreboard").children.length, 2);
   assert.ok(audioValues.length > 0);
-  assert.equal(e.floor, 0);
+  Object.assign(e, {
+    x: 30,
+    z: 45,
+    y: 16,
+    floor: 2,
+    rampId: null,
+    rampDir: 0,
+    heading: Math.PI / 2,
+    aim: Math.PI / 2,
+    speed: 11,
+  });
+  for (const fn of windowEvents.keydown)
+    fn({ code: "KeyW", preventDefault() {}, repeat: false });
+  advance(18);
+  assert.equal(e.falling, true);
+  assert.ok(nodes.get("ramp-status").textContent.includes("下落中"));
+  assert.equal(nodes.get("ramp-status").hidden,false,'falling still shows its status banner');
+  for (const fn of windowEvents.keyup)
+    fn({ code: "KeyW", preventDefault() {} });
+  advance(150);
   assert.equal(e.falling, false);
-  assert.equal(nodes.get("ramp-status").hidden, true);
+  assert.equal(e.floor, 0);
   e.kills = 15;
   advance(6);
   assert.equal(nodes.get("menu-title").textContent, "本局冠军");

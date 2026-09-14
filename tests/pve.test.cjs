@@ -33,17 +33,17 @@ test('PvE has 32 ordinary slots plus a dedicated boss and only ordinary enemy he
     assert.equal(C.PVE.healthFor(type,1,wave),
       Math.round(C.ZOMBIE_SPECS[type].hp*(1+C.RULES.pveHealthPerWave*(wave-1))),type);
   }
-  assert.equal(C.VERSION,38);
+  assert.equal(C.VERSION,39);
   S.validateSnapshot(b.snapshot());
 });
-test("PvE and PvP both use the ground-only garden with distinct starts",()=>{
+test("PvE uses the ground-only woodland while PvP retains its floors and ramps",()=>{
   const pve=create(),pvp=new C.Battle();
   assert.equal(pve.map.levels.length,1);assert.equal(pve.map.ramps.length,0);
   assert.equal(pve.map.dropExits.length,0);assert.equal(pve.map.spawns.length,8);
   assert.ok([...pve.map.obstacles,...pve.map.pickups,...pve.map.spawns].every(x=>x.floor===0));
   assert.ok(pve.entities.every(e=>e.floor===0));
-  assert.equal(pvp.map.levels.length,1);assert.equal(pvp.map.ramps.length,0);
-  assert.deepEqual(pvp.map.terrain,pve.map.terrain);assert.notDeepEqual(pvp.map.spawns,pve.map.spawns);
+  assert.equal(pvp.map.levels.length,3);assert.equal(pvp.map.ramps.length,4);
+  assert.equal(pve.map.terrain,undefined);
   S.validateSnapshot(pve.snapshot());
   const upper=pve.snapshot();Object.assign(upper.entities[0],{floor:1,y:8});
   assert.throws(()=>S.validateSnapshot(upper),/Invalid entity state/);
@@ -71,7 +71,7 @@ test('PvP keeps eight minutes while the sixteen-wave PvE campaign has no simulat
   assert.equal(b.status,'playing'); S.validateSnapshot(b.snapshot());
 });
 test('v36 weapon branches reject pre-branch checkpoints',()=>{
-  assert.equal(C.VERSION,38);
+  assert.equal(C.VERSION,39);
   const old=create().snapshot();old.version=35;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
 });
