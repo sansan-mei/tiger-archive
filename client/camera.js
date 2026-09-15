@@ -10,7 +10,17 @@
   const isTouchLayout = () => window.innerWidth <= 700 ||
     (window.innerWidth <= 1000 && window.innerHeight <= 500) ||
     (window.innerHeight <= 600 && window.matchMedia?.("(pointer: coarse)").matches === true);
-  const isFixedView = () => getMode() === "pve";
+  let pveView = "fixed";
+  try { if (window.localStorage?.getItem("tiger-pve-view") === "orbit") pveView = "orbit"; } catch {}
+  const isFixedView = () => getMode() === "pve" && pveView === "fixed";
+  function toggleView(body) {
+    if (getMode() !== "pve") return false;
+    pveView = pveView === "fixed" ? "orbit" : "fixed";
+    try { window.localStorage?.setItem("tiger-pve-view", pveView); } catch {}
+    updateChaseCamera(body, 0, true);
+    camera.updateMatrixWorld();
+    return true;
+  }
   const movementYaw = () => isFixedView() ? Math.PI / 4 : state.viewYaw;
   const defaultPitch = () => isFixedView() ? .95 : isTouchLayout() ? .72 : .6;
   const pivot = new T.Vector3(0, 3.2, 52);
@@ -126,5 +136,5 @@
       );
     camera.lookAt(state.look);
   }
-  return Object.assign(state, { update: updateChaseCamera, isTouchLayout, isFixedView, movementYaw });
+  return Object.assign(state, { update: updateChaseCamera, toggleView, isTouchLayout, isFixedView, movementYaw });
 };

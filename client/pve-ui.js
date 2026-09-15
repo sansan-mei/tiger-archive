@@ -1,3 +1,24 @@
+/* Camera-space directions: eight sectors bound DOM work even for a full swarm. */
+(window.TankClient ??= {}).pveDirections = function ({ T, camera, entities, width, height }) {
+  const groups = new Map(), view = new T.Vector3(), projected = new T.Vector3();
+  camera.updateMatrixWorld();
+  for (const enemy of entities) {
+    if (!enemy.alive || enemy.tankType !== "zombie") continue;
+    view.set(enemy.x, enemy.y + 1.5, enemy.z).applyMatrix4(camera.matrixWorldInverse);
+    projected.copy(view).applyMatrix4(camera.projectionMatrix);
+    if (view.z < 0 && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1) continue;
+    // Do not use perspective-divided coordinates behind the camera: they mirror direction.
+    let dx = view.x * camera.projectionMatrix.elements[0] * width,
+      dy = -view.y * camera.projectionMatrix.elements[5] * height;
+    if (Math.hypot(dx, dy) < .001) dy = height;
+    const angle = Math.atan2(dy, dx), sector = (Math.round(angle / (Math.PI / 4)) + 8) % 8;
+    const group = groups.get(sector);
+    if (group) { group.count++; continue; }
+    const scale = Math.min(width * .44 / Math.max(.001, Math.abs(dx)), height * .42 / Math.max(.001, Math.abs(dy)));
+    groups.set(sector, {x: 50 + dx * scale / width * 100, y: 50 + dy * scale / height * 100, angle, count: 1});
+  }
+  return [...groups.values()];
+};
 /* Small wave HUD and keyboard/touch reward choices; sends intentions only. */
 (window.TankClient ??= {}).createPveUI = function ({ C, $, choose, onFormation = () => {} }) {
   const compact = () => window.matchMedia?.("(max-width: 700px), (pointer: coarse) and (max-height: 600px), (max-width: 1000px) and (max-height: 500px)").matches === true;

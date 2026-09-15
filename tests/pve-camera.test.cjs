@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const T=require('three'),C=require('../battle-core.js');
-function setup(){
- const window={innerWidth:1280,innerHeight:800,TankClient:{}};
+function setup(storage){
+ const window={innerWidth:1280,innerHeight:800,TankClient:{},get localStorage(){if(storage instanceof Error)throw storage;return storage;}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../client/camera.js'),'utf8'),{window});
  const map={obstacles:[],ramps:[],levels:[{id:0,y:0,bound:100}]};
  let mode='pve';
@@ -22,6 +22,19 @@ test('PvE fixed diagonal view ignores heading and aim, follows position smoothly
  assert.ok(camera.quaternion.angleTo(rotation)<1e-7,'translation cannot rotate view');
  setMode('pvp');rig.update(player,0,true);rig.viewYaw=-1;rig.viewPitch=.4;rig.update(player,1/60);
  assert.equal(rig.cameraHeading,-1);assert.equal(rig.cameraElevation,.4);
+});
+test('local PvE preference toggles with a camera snap, persists safely and leaves PvP unchanged',()=>{
+ let saved='invalid';const storage={getItem:()=>saved,setItem:(key,value)=>{assert.equal(key,'tiger-pve-view');saved=value;}};
+ const s=setup(storage);assert.equal(s.rig.isFixedView(),true);
+ s.rig.viewYaw=2;s.player.x=25;s.rig.toggleView(s.player);
+ assert.equal(s.rig.isFixedView(),false);assert.equal(s.rig.cameraHeading,s.player.heading);
+ assert.equal(s.rig.cameraElevation,.6);assert.equal(s.rig.look.x,20);assert.equal(saved,'orbit');
+ assert.equal(setup(storage).rig.isFixedView(),false);
+ s.setMode('pvp');assert.equal(s.rig.toggleView(s.player),false);assert.equal(saved,'orbit');
+ s.setMode('pve');s.rig.toggleView(s.player);assert.equal(s.rig.cameraHeading,Math.PI/4);assert.equal(saved,'fixed');
+ for(const storage of [undefined,new Error('denied'),{getItem:()=>{throw Error('denied')},setItem:()=>{throw Error('quota')}}]){
+  const s=setup(storage);assert.equal(s.rig.isFixedView(),true);assert.doesNotThrow(()=>s.rig.toggleView(s.player));assert.equal(s.rig.isFixedView(),false);
+ }
 });
 test('PvE collision shortens without rotating and smoothly recovers after tall cover',()=>{
  const {camera,rig,player,map}=setup(),start=camera.position.clone(),rotation=camera.quaternion.clone();

@@ -587,6 +587,24 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(survival.entities[0].x<beforeMove.x && survival.entities[0].z>beforeMove.z,'W travels screen-up independently of aim');
   for(const fn of windowEvents.keyup)fn({code:'KeyW',preventDefault(){}});
   assert.equal(nodes.get("weapon-label").textContent, "小手枪 · 8/9");
+  assert.equal(nodes.get("pve-view-toggle")?.hidden,false,'visible PvE view control on desktop and mobile');
+  nodes.get('pve-view-toggle').emit('click');advance(1);
+  const orbitRotation=renderedCamera.quaternion.clone();
+  if(document.pointerLockElement===canvas) {
+    for(const fn of documentEvents.mousemove)fn({clientX:700,clientY:0,movementX:200,movementY:-1000});
+  } else {
+    canvas.emit('pointermove',{clientX:500,clientY:400});
+    canvas.emit('pointermove',{clientX:700,clientY:-600});
+  }
+  advance(1);
+  assert.ok(renderedCamera.quaternion.angleTo(orbitRotation)>.01,'orbit camera responds to mouse');
+  for(const fn of windowEvents.keydown)fn({code:'KeyF',preventDefault(){},repeat:false});
+  assert.ok(Math.abs(coop.authority.commands.get(survival.entities[0].id).aimPitch)>.001,'orbit retains 3D pitch');
+  for(const fn of windowEvents.keyup)fn({code:'KeyF',preventDefault(){}});
+  nodes.get('pve-view-toggle').emit('click');advance(1);
+  assert.equal(nodes.get('game-overlay').hidden,true,'intentional pointer unlock does not pause');
+  assert.equal(nodes.get('pve-enemy-directions').hidden,false);
+  assert.ok(nodes.get('pve-enemy-directions').children.length<=8);
   assert.match(nodes.get("mission-title").textContent, /CO-OP/);
   assert.equal(nodes.get("enemy-capacity").textContent," / 32 僵尸");
   assert.match(nodes.get("battle-clock").textContent,/^已进行 00:/);

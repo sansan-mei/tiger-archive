@@ -236,7 +236,24 @@
     ShiftLeft: "ability",
     ShiftRight: "ability",
   };
+  function toggleView() {
+    const session = getSession(), snapshot = session.current();
+    const player = snapshot.entities.find(e => e.id === getPlayerId());
+    if (snapshot.mode !== "pve" || status() !== "playing" || !player?.alive) return;
+    clearInput();
+    cameraRig.toggleView(player);
+    state.mouseKnown = true;
+    if (fixedView() && document.pointerLockElement === canvas) document.exitPointerLock?.();
+    canvas.focus({ preventScroll: true });
+    if (!fixedView() && !cameraRig.isTouchLayout()) lockMouse();
+    if (session.online) session.input(command(player), true);
+    notify(fixedView() ? "固定斜俯视 · 水平指向射击" : "自由 3D 视角 · 移动鼠标转向");
+  }
+  $("pve-view-toggle")?.addEventListener("click", toggleView);
   window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyV" && !e.repeat && document.activeElement === canvas) {
+      e.preventDefault(); toggleView(); return;
+    }
     if (lookKeys.has(e.code) && status() === "playing" && document.activeElement === canvas) {
       e.preventDefault();
       heldLookKeys.add(e.code);

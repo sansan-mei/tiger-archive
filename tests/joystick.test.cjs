@@ -9,8 +9,27 @@ function setup(tankType='human'){
  const context=vm.createContext({window,document,navigator:{platform:'test'}});
  vm.runInContext(fs.readFileSync(require.resolve('../client/input.js'),'utf8'),context);
  const cameraRig={viewYaw:0},input=window.TankClient.createInput({T,C,canvas:node('canvas'),$:node,cameraRig,getSession:()=>session,getPlayerId:()=>player.id,notify(){},pause(){},resume(){}});
- return {input,player,node,cameraRig,packets};
+ return {input,player,node,cameraRig,packets,session};
 }
+test('V and mobile view button reset held input, free look, pointer and aim without changing PvP',()=>{
+ const s=setup(),canvas=s.node('canvas'),doc=s.node('document');let fixed=true,mode='pve',snaps=0,locks=0;
+ s.cameraRig.isFixedView=()=>fixed;s.cameraRig.movementYaw=()=>Math.PI/4;
+ s.cameraRig.toggleView=()=>{snaps++;fixed=!fixed;return true};
+ s.cameraRig.isTouchLayout=()=>false;
+ // Scope is checked against the current session, not a remembered view.
+ s.session.current=()=>({mode,status:'playing',entities:[s.player]});
+ canvas.requestPointerLock=()=>{locks++;doc.pointerLockElement=canvas};
+ doc.exitPointerLock=()=>{doc.pointerLockElement=null;doc.emit('pointerlockchange')};
+ s.input.state.activeAim={x:1,y:20,z:3};s.input.state.touchAimYaw=1;
+ s.node('window').emit('keydown',{code:'KeyW'});
+ s.node('window').emit('keydown',{code:'KeyV'});
+ assert.equal(snaps,1);assert.equal(locks,1);assert.equal(s.input.state.activeAim,null);
+ assert.equal(s.input.state.touchAimYaw,null);assert.equal(s.input.pointer.x,0);assert.ok(!s.input.command(s.player).forward);
+ s.node('window').emit('keydown',{code:'KeyV',repeat:true});assert.equal(snaps,1);
+ s.node('pve-view-toggle').emit('click');assert.equal(snaps,2);assert.equal(doc.pointerLockElement,null);
+ s.cameraRig.isTouchLayout=()=>true;s.node('pve-view-toggle').emit('click');assert.equal(locks,1);
+ mode='pvp';s.node('pve-view-toggle').emit('click');assert.equal(snaps,3);
+});
 test('joystick follows camera-relative full-circle directions and has a center dead zone',()=>{
  const s=setup(),pad=s.node('move-joystick');
  pad.emit('pointerdown',{clientX:64,clientY:64});assert.equal(s.input.command(s.player).brake,true);

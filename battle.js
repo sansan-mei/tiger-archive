@@ -480,7 +480,7 @@
     cameraRig.update(player, 0);
     camera.updateMatrixWorld();
     ray.setFromCamera(pointer, camera);
-    if (session.current().mode === "pve") {
+    if (cameraRig.isFixedView()) {
       // Twin-stick direction, not a 3D target: cover never changes gun elevation.
       plane.constant = -C.shotOrigin(player).y;
       if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
@@ -596,6 +596,27 @@
     sun.target.position.set(target.x, target.y, target.z);
     units.update({ state, truth, cameraFloor, camera, dt, time, targetedId });
     pveEffects.update(truth, cameraFloor);
+    const viewToggle = $("pve-view-toggle"), directionHost = $("pve-enemy-directions");
+    const pveControls = truth.mode === "pve" && status() === "playing" && p.alive && $("game-overlay").hidden;
+    viewToggle.hidden = !pveControls;
+    viewToggle.textContent = (cameraRig.isTouchLayout() ? "视角：" : "V 视角：") + (cameraRig.isFixedView() ? "斜俯视" : "自由 3D");
+    directionHost.hidden = !pveControls;
+    // Reuse eight small markers; no scene raycasts or per-enemy labels.
+    if (pveControls) {
+      const aliveIds = new Set(truth.entities.filter(e => e.alive).map(e => e.id));
+      const directions = window.TankClient.pveDirections({T, camera, entities: state.entities.filter(e => aliveIds.has(e.id)), width: window.innerWidth, height: window.innerHeight});
+      while (directionHost.children.length < directions.length) {
+        const marker = document.createElement("span"), arrow = document.createElement("b"), count = document.createElement("small");
+        arrow.textContent = "➤"; marker.append(arrow, count); directionHost.append(marker);
+      }
+      Array.from(directionHost.children).forEach((marker, i) => {
+        const direction = directions[i]; marker.hidden = !direction;
+        if (!direction) return;
+        marker.style.left = direction.x + "%"; marker.style.top = direction.y + "%";
+        marker.children[0].style.transform = "rotate(" + direction.angle + "rad)";
+        marker.children[1].textContent = direction.count > 1 ? String(direction.count) : "";
+      });
+    }
     const touchAim = cameraRig.isFixedView() ? input.state.touchAimYaw : null;
     const reticlePosition = touchAim !== null
       ? projectAim({x: p.x - Math.cos(touchAim) * 20, y: C.shotOrigin(p).y, z: p.z + Math.sin(touchAim) * 20})
