@@ -62,9 +62,14 @@
         (R.caps[choice] && upgrades[choice]>=R.caps[choice])) return false;
     if (Object.hasOwn(upgrades, choice)) upgrades[choice] = Math.min(R.caps[choice], upgrades[choice] + 1);
     else {
+      // Park persistent magazines, not route shot counters. Offhand reloads pause.
+      if(p.weaponType==='standard'&&upgrades.shrapnel)
+        b.pve.magazines[id][p.weaponType]={ammo:p.ammo,cooldown:p.cooldown};
       p.weaponType = choice;
       p.ammo = C.WEAPONS[choice].magazineSize || 0;
       p.cooldown = 0;
+      const magazine=b.pve.magazines[id][choice];
+      if(magazine){p.ammo=magazine.ammo;p.cooldown=magazine.cooldown;delete b.pve.magazines[id][choice];}
       p.charge = 0;
       p.criticalProgress = 0;
       p.fireHeld = false;
@@ -74,6 +79,7 @@
     if (choice==='lightMagazine' || (!Object.hasOwn(upgrades,choice) && p.weaponType==='pistol' && upgrades.lightMagazine)) {
       p.ammo=4; p.cooldown=0; R.branches.reload(b,p);
     }
+    if (choice==='shrapnel') { p.ammo=2; p.charge=0; p.criticalProgress=0; p.fireHeld=false; p.needsRelease=true; p.cooldown=Math.min(p.cooldown,18); }
     if (choice==='chargeCore') { p.charge=0; p.fireHeld=false; p.needsRelease=true; }
     if (choice==='stellar') p.charge=Math.min(p.charge,b.pveWeapon(p).charge);
     R.complete(b, p, rewards);
@@ -200,6 +206,7 @@
       pve.choiceIds = {};
       pve.enemyAttacks = [];
       pve.branchZones = []; pve.branchEchoes = [];
+      pve.scatterMarks = {}; pve.scatterSlows = {};
       pve.boss.telegraph = null;
       b.emit("end", { winnerId: null });
       return;

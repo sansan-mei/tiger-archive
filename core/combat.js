@@ -20,6 +20,7 @@
       const source = battle.getEntity(owner);
       if (source && (source.tankType === "zombie") === (target.tankType === "zombie")) return false;
     }
+    if (battle.pve?.scatterMarks?.[target.id]?.until > battle.tick) amount *= 1.15;
     const attacker = battle.getEntity(owner),
       spec = TANKS[target.tankType],
       ability = ABILITIES[spec.ability];
@@ -118,7 +119,7 @@
       // Old projectiles may still hurt, but cannot charge a dead or respawned shooter.
       if (
         applied &&
-        spec.criticalHits &&
+        spec.criticalHits && !(shot.weaponType==='standard'&&upgrades?.shrapnel) &&
         !shot.critical &&
         owner?.alive &&
         owner.id !== hit.id &&
@@ -185,7 +186,7 @@
   function shoot(battle, body, power = 1) {
     if (battle.status !== "playing" || !body.alive || body.cooldown)
       return false;
-    if (WEAPONS[body.weaponType].magazineSize && body.ammo <= 0) return false;
+    if (battle.pveWeapon(body).magazineSize && body.ammo <= 0) return false;
     body.protectedUntil = 0;
     body.lastDamageTick = battle.tick;
     const base = WEAPONS[body.weaponType],
@@ -213,7 +214,7 @@
       z: start.z + dir.z * length,
     };
     if (spec.trigger === "delayed") power = 1;
-    body.cooldown = Math.round(spec.cooldown * (1 - 0.1 * (battle.pve?.upgrades[body.id]?.haste || 0)));
+    body.cooldown = body.weaponType==='standard'&&upgrades?.shrapnel ? 18 : Math.round(spec.cooldown * (1 - 0.1 * (battle.pve?.upgrades[body.id]?.haste || 0)));
     if (spec.magazineSize) {
       body.ammo--;
       if (body.ammo === 0) body.cooldown = spec.reloadTicks;
@@ -258,7 +259,9 @@
     });
     // Wide energy beams may graze the ground; full width still collides with cover and bodies.
     const beamRadius = spec.delivery === "ray" ? spec.beamRadius || 0 : 0;
-    if (spec.delivery === "ray") {
+    if (body.weaponType === "standard" && upgrades?.shrapnel) {
+      battle.pveBranch("afterShot",body,shot,start);
+    } else if (spec.delivery === "ray") {
       const end = {
           x: start.x + dir.x * spec.range,
           y: start.y + dir.y * spec.range,

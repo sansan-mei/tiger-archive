@@ -22,10 +22,10 @@
     doubleTap:['双响快射','强化弹额外攻击 10 米内另一名敌人，造成 25 伤害'],
     refundRound:['击杀续杯','强化弹直接击杀返还一发强化弹，每次装填最多两次'],
     openingForever:['无限开场','装填后 2 秒内每发均强化并触发双响；强化弹直接击杀延长 0.25 秒，每轮最多 3 秒'],
-    shrapnel:['破片炮膛','主炮外追加 3 枚扇形破片，射程 12 米，每枚 20 伤害'],
-    fanShot:['扇面扫荡','破片增加至 5 枚，扩大扇形覆盖；同一目标最多承受 3 枚'],
-    breach:['近距破阵','破片击退 6 米内敌人；同次射击命中两枚破片追加一次 30 伤害，Boss 不被击退'],
-    siegeScatter:['攻城霰炮','每第 3 炮破片伤害提高至 35，每枚额外贯穿一名敌人'],
+    shrapnel:['破片炮膛','改为双管霰弹炮：2 发弹匣，每发 3 枚、每枚 35 伤害、射程 12 米；间隔 18 tick，打空换弹 120 tick；第二发全部弹片结算后施加 15% 易伤 240 tick，两发基础伤害相同'],
+    fanShot:['扇面扫荡','每发增加至 5 枚，扩大扇形覆盖；同一目标可吃满全部弹片'],
+    breach:['近距破阵','击退 6 米内敌人；无法击退时改为减速 40%、持续 90 tick（含 Boss），无额外 30 伤害'],
+    siegeScatter:['攻城霰炮','每枚伤害提高至 50，射程提高至 15 米；不增加贯穿'],
     bipod:['稳定支架','站定持续开火 1.5 秒，射速逐步提高至两倍；跑动迅速失去加成'],
     piercingBelt:['穿甲弹链','完全展开后发射的主弹直击伤害增加 8（13 → 21），不再贯穿后方敌人'],
     guardPlate:['应急护板','完全展开获得 25 点护盾，持续 3 秒，冷却 10 秒'],
@@ -51,7 +51,8 @@
   const fresh=life=>({life,bonus:0,refunds:0,burstUntil:0,burstCap:0,deploy:0,guard:0,guardUntil:0,guardReady:0,shots:0,chargeReady:0});
   function initialize(b) {
     b.pve.branchState=Object.fromEntries(b.entities.filter(e=>e.tankType!=='zombie').map(p=>[p.id,fresh(p.deaths)]));
-    b.pve.branchZones=[];b.pve.branchEchoes=[];b.pve.nextBranchZone=1;
+    b.pve.magazines=Object.fromEntries(Object.keys(b.pve.branchState).map(id=>[id,{}]));
+    b.pve.branchZones=[];b.pve.branchEchoes=[];b.pve.nextBranchZone=1;b.pve.scatterMarks={};b.pve.scatterSlows={};
   }
   function reset(b,p) {
     const previous=b.pve.branchState[p.id];
@@ -63,6 +64,7 @@
   function weapon(b,p) {
     const base=C.WEAPONS[p.weaponType],u=b.pve?.upgrades[p.id],s=b.pve?.branchState?.[p.id];
     if(!u||!s)return base;
+    if(p.weaponType==='standard'&&u.shrapnel)return {...base,name:'双管霰弹炮',magazineSize:2,reloadTicks:120,cooldown:18,criticalHits:0,charge:0};
     if(p.weaponType==='pistol'&&u.lightMagazine)return {...base,magazineSize:4,reloadTicks:45};
     if(p.weaponType==='rapid'&&u.bipod)return {...base,cooldown:Math.max(1,Math.round(base.cooldown/(1+s.deploy/90)))};
     if(p.weaponType==='laser'&&u.chargeCore)return {...base,trigger:'release',charge:s.chargeReady?72:120,damage:240,minPower:.25};
@@ -147,16 +149,21 @@
     if(!u)return;
     s.shots=(s.shots+1)%3;
     if(p.weaponType==='standard'&&u.shrapnel) {
-      const n=u.fanShot?5:3,counts=new Map(),targets=new Map(),epic=u.siegeScatter&&s.shots===0;
+      const n=u.fanShot?5:3,targets=new Map(),range=u.siegeScatter?15:12;
       for(let i=0;i<n;i++) {
-        const angle=p.aim+(i-(n-1)/2)*.12,c=Math.cos(p.pitch),to={x:start.x-Math.cos(angle)*12*c,y:start.y+Math.sin(p.pitch)*12,z:start.z+Math.sin(angle)*12*c};
-        for(const target of ray(b,p,start,to,epic?35:20,.25,epic?2:1,counts))targets.set(target.id,target);
+        const angle=p.aim+(i-(n-1)/2)*.12,c=Math.cos(p.pitch),to={x:start.x-Math.cos(angle)*range*c,y:start.y+Math.sin(p.pitch)*range,z:start.z+Math.sin(angle)*range*c};
+        for(const target of ray(b,p,start,to,u.siegeScatter?50:35,.25,1))targets.set(target.id,target);
       }
-      if(u.breach)for(const [id,target] of targets) {
-        if(counts.get(id)>=2)secondaryDamage(b,target,30,p.id,point(target));
-        if(target.alive&&!['boss','titan'].includes(target.zombieType)&&Math.hypot(target.x-p.x,target.z-p.z)<=6) {
+      // Resolve the complete activation before publishing its second-shell mark.
+      if(p.ammo===0)for(const target of targets.values())if(target.alive)
+        b.pve.scatterMarks[target.id]={owner:p.id,at:b.tick,until:b.tick+240};
+      if(u.breach)for(const target of targets.values()) {
+        if(target.alive&&Math.hypot(target.x-p.x,target.z-p.z)<=6) {
+          const oldX=target.x,oldZ=target.z;
           const length=Math.max(.1,Math.hypot(target.x-p.x,target.z-p.z)),dx=(target.x-p.x)/length*.25,dz=(target.z-p.z)/length*.25;
-          for(let i=0;i<6;i++){const x=target.x+dx,z=target.z+dz;if(!b.valid(x,z,target.floor,target))break;target.x=x;target.z=z;}
+          if(!['boss','titan'].includes(target.zombieType))
+            for(let i=0;i<6;i++){const x=target.x+dx,z=target.z+dz;if(!b.valid(x,z,target.floor,target))break;target.x=x;target.z=z;}
+          if(target.x===oldX&&target.z===oldZ)b.pve.scatterSlows[target.id]={owner:p.id,at:b.tick,until:b.tick+90};
         }
       }
     }
@@ -183,6 +190,8 @@
     zone(b,p,from,from,epic?8:5,20,360,!!u.embers);
   }
   function tick(b) {
+    for(const table of [b.pve.scatterMarks,b.pve.scatterSlows])
+      for(const [id,mark] of Object.entries(table))if(mark.until<=b.tick||!b.getEntity(id)?.alive)delete table[id];
     const zones=b.pve.branchZones.slice();
     for(const area of zones) {
       const owner=b.getEntity(area.owner),u=b.pve.upgrades[area.owner];
@@ -209,6 +218,7 @@
   }
   function death(b,target) {
     if(target.tankType!=='zombie'){reset(b,target);return;}
+    delete b.pve.scatterMarks[target.id];delete b.pve.scatterSlows[target.id];
     for(const area of b.pve.branchZones)delete area.stacks[target.id];
   }
   function validate(b) {
@@ -225,6 +235,25 @@
         (s.bonus&&!p.upgrades[player.id].lightMagazine)||(s.deploy&&!p.upgrades[player.id].bipod)||
         (s.guard&&!p.upgrades[player.id].guardPlate)||(s.chargeReady&&!p.upgrades[player.id].energyReturn))throw Error('Invalid branch player');
       for(const r of routes)if(r.keys.some(key=>p.upgrades[player.id][key]>0)&&!allowed(p.upgrades[player.id],r.keys[0]))throw Error('Conflicting weapon branches');
+    }
+    for(const [key,duration,upgrade] of [['scatterMarks',240,'shrapnel'],['scatterSlows',90,'breach']]) {
+      const table=p[key];
+      if(!plain(table)||Object.keys(table).length>b.entities.filter(e=>e.tankType==='zombie'&&e.alive).length)throw Error('Invalid scatter status');
+      for(const [id,a] of Object.entries(table)) {
+        const target=b.entities.find(e=>e.id===id);
+        if(!target?.alive||target.tankType!=='zombie'||!plain(a)||Object.keys(a).sort().join()!=='at,owner,until'||
+          !ids.has(a.owner)||!p.upgrades[a.owner]?.[upgrade]||!int(a.at,b.tick)||!int(a.until,b.tick+duration)||
+          a.until!==a.at+duration||a.until<=b.tick)throw Error('Invalid scatter status');
+      }
+    }
+    if(!plain(p.magazines)||Object.keys(p.magazines).sort().join()!==[...ids].sort().join())throw Error('Invalid magazines');
+    for(const player of players) {
+      const parked=p.magazines[player.id],unlocked=p.upgrades[player.id]?.shrapnel,
+        required=unlocked&&player.weaponType!=='standard';
+      if(!plain(parked)||Object.keys(parked).join()!==(required?'standard':''))throw Error('Invalid magazine owner');
+      const magazine=required?parked.standard:unlocked?player:null;
+      if(magazine&&(!int(magazine.ammo,2)||!int(magazine.cooldown,magazine.ammo===0?120:18)||
+        (!magazine.ammo&&!magazine.cooldown)||(required&&Object.keys(magazine).sort().join()!=='ammo,cooldown')))throw Error('Invalid magazine');
     }
     if(new Set(p.branchZones.map(a=>a.id)).size!==p.branchZones.length)throw Error('Invalid branch zones');
     for(const a of p.branchZones)if(!plain(a)||!owner(a)||!int(a.id,p.nextBranchZone-1)||!pos(a.from)||!pos(a.to)||!['laser','rocket'].includes(a.weapon)||

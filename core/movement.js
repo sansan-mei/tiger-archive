@@ -71,6 +71,7 @@
         battle.pve.branchState[body.id]?.deploy===90 && input.brake && input.fire && !input.ability;
       if(crawling && (input.forward||input.reverse||input.left||input.right)) desired=spec.speed*.25;
       if (body.slowUntil > battle.tick) desired *= 0.55;
+      else if (battle.pve?.scatterSlows?.[body.id]?.until > battle.tick) desired *= 0.6;
       if (active) {
         desired *= ability.speedFactor;
         if (ability.burstSpeed) {

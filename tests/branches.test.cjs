@@ -8,6 +8,7 @@ function make(weapon='pistol',tier=5) {
   const route=B.routes.find(r=>r.weapon===weapon&&B.rewards[r.keys[0]]),u=b.pve.upgrades.p;
   if(tier){u[route.shared]=1;for(const key of route.keys.slice(0,tier-1))u[key]=1;}
   if(u.lightMagazine){p.ammo=4;B.reload(b,p);}
+  if(u.shrapnel)p.ammo=2;
   return {b,p,u,s:b.pve.branchState.p,route};
 }
 function enemy(b,i,x=-8,z=55,type='bucket') {
@@ -53,7 +54,7 @@ test('quick reload uses four rounds and confirmed boosted shots; refunds and bur
   assert.deepEqual(copy.pve.branchState,b.pve.branchState);
 });
 test('scatter adds bounded close-range hits, knocks enemies back without entering walls, and leaves distant targets alone',()=>{
-  const {b,p}=make('standard'),near=enemy(b,0,-5),far=enemy(b,1,-20);
+  const {b,p}=make('standard',4),near=enemy(b,0,-5,56.3),far=enemy(b,1,-20);
   const hp=near.hp,farHp=far.hp;
   b.shoot(p);
   assert.ok(near.hp<hp);assert.ok(near.x<-5);assert.equal(far.hp,farHp);
@@ -219,8 +220,30 @@ test('charge visuals and HUD use normal, returned and baseline laser charge dura
     }
   }
 });
+test('shotgun HUD shows pellet stats, second-shell mark and magazine reload progress',()=>{
+  const fs=require('node:fs'),vm=require('node:vm');
+  const nodes=new Map(),context2d=new Proxy({}, {get:(o,k)=>o[k]??(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const element=()=>({style:{},dataset:{},replaceChildren(){},getContext:()=>context2d});
+  const $=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
+  const ctx=vm.createContext({window:{},document:{createElement:element}});
+  vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../client/hud.js'),'utf8'),ctx);
+  for(const [tier,pellets,damage,range] of [[2,3,35,12],[3,5,35,12],[5,5,50,15]]) {
+    const {b,p}=make('standard',tier);
+    const hud=ctx.window.TankClient.createHUD({C,$,getPlayerId:()=>p.id});
+    for(const [ammo,cooldown,progress] of [[2,0,1],[1,9,.5],[0,60,.5]]) {
+      Object.assign(p,{ammo,cooldown});const truth=b.snapshot();
+      hud.update({truth,p,state:truth,target:p});
+      assert.match($('weapon-label').textContent,new RegExp(`双管霰弹炮 · ${ammo}/2`));
+      assert.match($('weapon-description').textContent,new RegExp(`${pellets} 枚 × ${damage} 伤害 · 射程 ${range} 米`));
+      assert.match($('weapon-description').textContent,/第二发全弹片结算后易伤 15% \/ 4 秒/);
+      assert.doesNotMatch($('weapon-description').textContent,/强化弹进度|强化弹就绪/);
+      assert.equal($('reload-bar').value,progress);
+      if(!ammo)assert.equal($('reload-label').textContent,'换弹 1.0s');
+    }
+  }
+});
 test('current protocol rejects pre-bipod v40 checkpoints and welcomes',()=>{
-  assert.equal(C.VERSION,42);
+  assert.equal(C.VERSION,43);
   const {b}=make('laser'),old=b.snapshot();old.version=40;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
   assert.throws(()=>b.restore(old),/snapshot/i);

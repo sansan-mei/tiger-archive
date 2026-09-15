@@ -685,7 +685,7 @@ test('natural nuclear route shots preserve base and shared splash, upgrade to 20
 test('v42 accepts empty legacy hazards and rejects forged old damaging zones',()=>{
   const a=new S.Authority({mode:'pve',matchId:'nuclear-wire',participants:[{id:'p0',controller:'human',tankType:'human',weaponType:'rocket'}]});
   a.battle.start();const r=new S.Replica();r.welcome(a.attach('peer','p0'));
-  assert.equal(C.VERSION,42);
+  assert.equal(C.VERSION,43);
   assert.equal(r.receive(a.statePacket({network:true})).ok,true);
   for(const [radius,damage] of [[5,15],[8,20]]) {
     const s=a.battle.snapshot();s.pve.hazards=[{id:1,owner:'p0',x:0,y:.15,z:55,radius,damage,until:240,nextTick:30}];

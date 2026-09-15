@@ -74,7 +74,7 @@
         throw new Error("Invalid entity identity");
       const tank = C.unitSpec(e),
         maxHp = e.tankType === "zombie" ? C.PVE.healthFor(e.zombieType, s.pve.teamSize, s.pve.wave) : tank.hp,
-        weapon = C.WEAPONS[e.weaponType];
+        weapon = s.mode === "pve" ? C.PVE.progression.branches.weapon(s,e) : C.WEAPONS[e.weaponType];
       if (
         !number(e.x, -WORLD_LIMIT, WORLD_LIMIT) ||
         !number(e.z, -WORLD_LIMIT, WORLD_LIMIT) ||
