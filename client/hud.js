@@ -145,7 +145,7 @@
             " · 直接命中积攒";
     if (truth.mode === "pve" && p.weaponType === "standard" && truth.pve?.upgrades[p.id]?.shrapnel) {
       const u = truth.pve.upgrades[p.id];
-      $("weapon-description").textContent = `${u.fanShot ? 5 : 3} 枚 × ${u.siegeScatter ? 50 : 35} 伤害 · 射程 ${u.siegeScatter ? 15 : 12} 米 · 第二发全弹片结算后易伤 15% / 4 秒 · 两发基础伤害相同`;
+      $("weapon-description").textContent = `${u.fanShot ? 5 : 3} 枚 × ${u.siegeScatter ? 50 : 35} 伤害 · 射程 ${u.siegeScatter ? 24 : 19.2} 米 · 6 米后距离衰减，末端保留 25% · 第二发全弹片结算后易伤 15% / 4 秒 · 两发基础伤害相同`;
     }
     if (weapon.trigger === "release") $("weapon-description").textContent = "按住蓄力，松开发射 · 满蓄力 240 伤害";
     if (p.weaponType === "rapid" && truth.pve?.upgrades[p.id]?.bipod)

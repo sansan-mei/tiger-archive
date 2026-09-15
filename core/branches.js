@@ -22,10 +22,10 @@
     doubleTap:['双响快射','强化弹额外攻击 10 米内另一名敌人，造成 25 伤害'],
     refundRound:['击杀续杯','强化弹直接击杀返还一发强化弹，每次装填最多两次'],
     openingForever:['无限开场','装填后 2 秒内每发均强化并触发双响；强化弹直接击杀延长 0.25 秒，每轮最多 3 秒'],
-    shrapnel:['破片炮膛','改为双管霰弹炮：2 发弹匣，每发 3 枚、每枚 35 伤害、射程 12 米；间隔 18 tick，打空换弹 120 tick；第二发全部弹片结算后施加 15% 易伤 240 tick，两发基础伤害相同'],
+    shrapnel:['破片炮膛','改为双管霰弹炮：2 发弹匣，每发 3 枚、每枚近距 35 伤害、射程 19.2 米；6 米后逐渐衰减，末端保留 25%；间隔 18 tick，打空换弹 120 tick；第二发全部弹片结算后施加 15% 易伤 240 tick，两发基础伤害相同'],
     fanShot:['扇面扫荡','每发增加至 5 枚，扩大扇形覆盖；同一目标可吃满全部弹片'],
     breach:['近距破阵','击退 6 米内敌人；无法击退时改为减速 40%、持续 90 tick（含 Boss），无额外 30 伤害'],
-    siegeScatter:['攻城霰炮','每枚伤害提高至 50，射程提高至 15 米；不增加贯穿'],
+    siegeScatter:['攻城霰炮','每枚近距伤害提高至 50，射程提高至 24 米；不增加贯穿'],
     bipod:['稳定支架','站定持续开火 1.5 秒，射速逐步提高至两倍；跑动迅速失去加成'],
     piercingBelt:['穿甲弹链','完全展开后发射的主弹直击伤害增加 8（13 → 21），不再贯穿后方敌人'],
     guardPlate:['应急护板','完全展开获得 25 点护盾，持续 3 秒，冷却 10 秒'],
@@ -102,7 +102,7 @@
       ignored.push(hit.id);
       const target=b.getEntity(hit.id);
       if(target?.tankType==='zombie'&&(!counts||(counts.get(target.id)||0)<perTarget)) {
-        if(secondaryDamage(b,target,damage,owner.id,hit.point)) {
+        if(secondaryDamage(b,target,typeof damage==='function'?damage(target):damage,owner.id,hit.point)) {
           targets.push(target);if(counts)counts.set(target.id,(counts.get(target.id)||0)+1);
         }
       }
@@ -149,10 +149,11 @@
     if(!u)return;
     s.shots=(s.shots+1)%3;
     if(p.weaponType==='standard'&&u.shrapnel) {
-      const n=u.fanShot?5:3,targets=new Map(),range=u.siegeScatter?15:12;
+      const n=u.fanShot?5:3,targets=new Map(),range=(u.siegeScatter?15:12)*1.6;
+      const damage=target=>(u.siegeScatter?50:35)*Math.max(.25,1-.75*Math.max(0,Math.hypot(target.x-p.x,target.z-p.z)-6)/(range-6));
       for(let i=0;i<n;i++) {
-        const angle=p.aim+(i-(n-1)/2)*.12,c=Math.cos(p.pitch),to={x:start.x-Math.cos(angle)*range*c,y:start.y+Math.sin(p.pitch)*range,z:start.z+Math.sin(angle)*range*c};
-        for(const target of ray(b,p,start,to,u.siegeScatter?50:35,.25,1))targets.set(target.id,target);
+        const angle=p.aim+(i-(n-1)/2)*.075,c=Math.cos(p.pitch),to={x:start.x-Math.cos(angle)*range*c,y:start.y+Math.sin(p.pitch)*range,z:start.z+Math.sin(angle)*range*c};
+        for(const target of ray(b,p,start,to,damage,.25,1))targets.set(target.id,target);
       }
       // Resolve the complete activation before publishing its second-shell mark.
       if(p.ammo===0)for(const target of targets.values())if(target.alive)

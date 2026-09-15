@@ -54,7 +54,7 @@ test('quick reload uses four rounds and confirmed boosted shots; refunds and bur
   assert.deepEqual(copy.pve.branchState,b.pve.branchState);
 });
 test('scatter adds bounded close-range hits, knocks enemies back without entering walls, and leaves distant targets alone',()=>{
-  const {b,p}=make('standard',4),near=enemy(b,0,-5,56.3),far=enemy(b,1,-20);
+  const {b,p}=make('standard',4),near=enemy(b,0,-5,56.3),far=enemy(b,1,-27);
   const hp=near.hp,farHp=far.hp;
   b.shoot(p);
   assert.ok(near.hp<hp);assert.ok(near.x<-5);assert.equal(far.hp,farHp);
@@ -227,7 +227,7 @@ test('shotgun HUD shows pellet stats, second-shell mark and magazine reload prog
   const $=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const ctx=vm.createContext({window:{},document:{createElement:element}});
   vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../client/hud.js'),'utf8'),ctx);
-  for(const [tier,pellets,damage,range] of [[2,3,35,12],[3,5,35,12],[5,5,50,15]]) {
+  for(const [tier,pellets,damage,range] of [[2,3,35,19.2],[3,5,35,19.2],[5,5,50,24]]) {
     const {b,p}=make('standard',tier);
     const hud=ctx.window.TankClient.createHUD({C,$,getPlayerId:()=>p.id});
     for(const [ammo,cooldown,progress] of [[2,0,1],[1,9,.5],[0,60,.5]]) {
@@ -243,7 +243,7 @@ test('shotgun HUD shows pellet stats, second-shell mark and magazine reload prog
   }
 });
 test('current protocol rejects pre-bipod v40 checkpoints and welcomes',()=>{
-  assert.equal(C.VERSION,43);
+  assert.equal(C.VERSION,44);
   const {b}=make('laser'),old=b.snapshot();old.version=40;
   assert.throws(()=>S.validateSnapshot(old),/Invalid snapshot header/);
   assert.throws(()=>b.restore(old),/snapshot/i);

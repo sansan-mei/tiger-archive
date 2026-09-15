@@ -28,7 +28,7 @@
     } = Maths;
     ("use strict");
     const ABILITIES = Abilities.definitions;
-    const VERSION = 43,
+    const VERSION = 44,
       TICK_RATE = 60,
       DT = 1 / TICK_RATE,
       MAX_PLAYERS = 8;

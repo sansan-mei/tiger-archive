@@ -35,8 +35,8 @@ test('branch acquisition fires only three 35-damage pellets, no main projectile,
  assert.equal(b.bullets.length,0);assert.equal(b.events.filter(e=>e.type==='beam').length,3);
  assert.equal(p.ammo,1);assert.equal(p.cooldown,18);S.validateSnapshot(b.snapshot());
 });
-test('fan shot allows all five pellets on one target; siege uses 50 per pellet on every shell with 15m reach',()=>{
- for(const [tier,damage,range] of [[3,35,12],[5,50,15]]) {
+test('fan shot allows all five pellets on one target; siege uses 50 per pellet on every shell with 19.2m/24m reach',()=>{
+ for(const [tier,damage,range] of [[3,35,19.2],[5,50,24]]) {
   const {b,p}=scene(tier),z=target(b);z.hp=z.maxHp=10000;
   for(let shell=0;shell<4;shell++) {
    delete b.pve.scatterMarks?.[z.id];z.x=-4;const hp=z.hp;b.events=[];assert.equal(b.shoot(p),true);assert.equal(hp-z.hp,damage*5);
