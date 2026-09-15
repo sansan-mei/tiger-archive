@@ -228,9 +228,12 @@
     );
   }
   const pveUI = window.TankClient.createPveUI({ C, $, onFormation: () => { if (!session.suspended) formationSound(); }, choose: (wave, choice, offerId) => {
-    if (session.online && !session.suspended) {
+    if (session.current().status === "playing" && !session.suspended) {
       clearInput();
-      if (network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId })) {
+      const accepted = session.online
+        ? network.send({ type: "upgrade", epoch: session.current().epoch, wave, choice, offerId })
+        : session.chooseUpgrade(wave, choice, offerId);
+      if (accepted) {
         // Upgrade clicks otherwise leave focus on a card that the next snapshot removes.
         // Reacquire pointer lock in this user gesture, not in the wave/render loop.
         canvas.focus({ preventScroll: true });
@@ -346,7 +349,9 @@
     $("game-overlay").hidden = false;
     if (document.pointerLockElement === canvas) document.exitPointerLock?.();
     $("aim-reticle").style.display = "none";
-    $("garage").hidden = kind === "paused" || !!session.online;
+    $("singleplayer-button").hidden = true;
+    $("local-menu-button").hidden = !!session.online;
+    $("garage").hidden = kind === "paused" || !!session.online || session.mode === "pve";
     $("restart-button").hidden = false;
     startButton.hidden = kind === "finished";
     if (kind !== "finished") $("match-results").hidden = true;
@@ -423,7 +428,8 @@
         $("menu-description").textContent =
           "战斗仍在继续，可继续观战，或离开房间。";
     }
-    (startButton.hidden ? $("leave-room") : startButton).focus({
+    if (!session.online && session.mode === "pve") $("restart-button").textContent = "重新挑战 · 单机打僵尸 →";
+    (startButton.hidden ? (session.online ? $("leave-room") : $("restart-button")) : startButton).focus({
       preventScroll: true,
     });
   }
@@ -433,6 +439,18 @@
     resume();
     if (!window.matchMedia("(pointer: coarse)").matches) lockMouse();
   });
+  $("singleplayer-button").addEventListener("click", () => {
+    network?.close();
+    network = null;
+    session = new window.TankSession.LocalSession({ mode: "pve" });
+    $("singleplayer-button").hidden = true;
+    $("local-menu-button").hidden = false;
+    $("garage").hidden = true;
+    $("room-lobby").hidden = true;
+    newMatch();
+    resume();
+  });
+  $("local-menu-button").addEventListener("click", resetLocal);
   $("restart-button").addEventListener("click", () => {
     newMatch();
     resume();
@@ -739,6 +757,8 @@
     input.state.mouseKnown = cameraRig.isTouchLayout();
     input.state.activeAim = null;
     $("game-overlay").hidden = false;
+    $("singleplayer-button").hidden = false;
+    $("local-menu-button").hidden = true;
     $("network-entry").hidden = false;
     $("room-lobby").hidden = true;
     $("garage").hidden = false;
@@ -754,6 +774,8 @@
     $("join-room").disabled = false;
   }
   function roomChanged(room) {
+    $("singleplayer-button").hidden = true;
+    $("local-menu-button").hidden = true;
     $("network-panel").open = true;
     $("network-entry").hidden = true;
     $("room-lobby").hidden = false;

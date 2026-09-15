@@ -516,7 +516,9 @@
     constructor({
       loadout = { tankType: "medium", weaponType: "standard" },
       participants = null,
+      mode = "pvp",
     } = {}) {
+      this.mode = mode;
       this.epoch = 0;
       this.loadout = loadout;
       this.participants = participants;
@@ -528,7 +530,10 @@
       this.authority = new Authority({
         matchId: "local",
         epoch: this.epoch,
-        participants: this.participants || C.defaultParticipants(loadout),
+        mode: this.mode,
+        participants: this.mode === "pve"
+          ? [{ id: "player", controller: "human", tankType: "human", weaponType: "pistol" }]
+          : this.participants || C.defaultParticipants(loadout),
       });
       this.replica = new Replica();
       this.replica.welcome(
@@ -558,6 +563,12 @@
       this.authority.commands.clear();
       this.accumulator = 0;
       this.sync();
+    }
+    chooseUpgrade(wave, choice, offerId) {
+      if (this.authority.battle.status !== "playing") return false;
+      const accepted = this.authority.battle.chooseUpgrade(this.playerId, wave, choice, offerId);
+      if (accepted) this.sync();
+      return accepted;
     }
     advance(seconds, input = {}) {
       if (this.authority.battle.status !== "playing") return [];

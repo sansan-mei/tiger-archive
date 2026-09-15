@@ -1,0 +1,22 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const C=require('../battle-core.js'),S=require('../battle-session.js');
+test('local PvE starts without network with one human and forced pistol rules; restart retains mode',()=>{
+  const s=new S.LocalSession({mode:'pve',loadout:{tankType:'heavy',weaponType:'laser'}});
+  assert.equal(s.current().mode,'pve');
+  const humans=s.current().entities.filter(e=>e.controller==='human');
+  assert.equal(humans.length,1);assert.equal(humans[0].tankType,'human');assert.equal(humans[0].weaponType,'pistol');
+  assert.equal(s.current().pve.teamSize,1);s.start();s.advance(.25);assert.ok(s.current().tick>0);
+  const b=s.authority.battle,p=b.entities[0];
+  b.pve.pending[p.id]=1;C.PVE.progression.offer(b,p,C.PVE.rewards);s.sync();
+  const offer=b.pve.choiceIds[p.id],choice=b.pve.choices[p.id][0];
+  s.pause();const frozen=JSON.stringify(s.current());
+  let steps=0;const originalStep=b.step.bind(b);b.step=(...args)=>{steps++;return originalStep(...args);};
+  for(let i=0;i<60;i++)s.advance(.25,{fire:true,forward:true});
+  assert.equal(steps,0);assert.equal(s.chooseUpgrade(b.pve.wave,choice,offer),false);
+  assert.equal(JSON.stringify(s.current()),frozen,'wave, timers and progression stay frozen');
+  s.start();s.advance(C.DT);assert.equal(steps,1);
+  assert.equal(s.chooseUpgrade(b.pve.wave,choice,offer),true);
+  assert.equal(s.chooseUpgrade(b.pve.wave,choice,offer),false,'offer cannot be replayed');
+  S.validateSnapshot(s.current());
+  const epoch=s.current().epoch;s.restart();assert.equal(s.current().mode,'pve');assert.equal(s.current().tick,0);assert.equal(s.current().epoch,epoch+1);
+});

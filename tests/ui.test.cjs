@@ -552,6 +552,38 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
     advance(90);
   }
   nodes.get("pause-btn").emit("click");
+  const socketCount=sockets.length;
+  const localSessions=[];
+  const OriginalLocal=context.TankSession.LocalSession;
+  context.TankSession.LocalSession=class extends OriginalLocal { constructor(options){super(options);localSessions.push(this);} };
+  nodes.get('singleplayer-button').emit('click');
+  advance(120);
+  const solo=localSessions.at(-1), soloBattle=solo.authority.battle;
+  assert.equal(sockets.length,socketCount,'singleplayer never opens a socket');
+  assert.equal(solo.current().mode,'pve');assert.equal(solo.current().pve.teamSize,1);
+  assert.equal(nodes.get('garage').hidden,true);
+  soloBattle.pve.pending[solo.playerId]=1;
+  C.PVE.progression.offer(soloBattle,soloBattle.entities[0],{rocket:C.PVE.rewards.rocket,rapid:C.PVE.rewards.rapid,modEmber:C.PVE.rewards.modEmber});
+  solo.sync();advance(6);
+  if(nodes.get('pve-rewards').hidden){nodes.get('pve-toggle').emit('click');advance(1);}
+  const chosen=solo.current().pve.choices[solo.playerId][0];
+  nodes.get('pve-choices').children[0].emit('click');advance(6);
+  assert.equal(solo.current().pve.pending[solo.playerId],0,'local card applies upgrade');
+  if(C.WEAPONS[chosen])assert.equal(solo.current().entities[0].weaponType,chosen);
+  nodes.get('pause-btn').emit('click');
+  const frozen=JSON.stringify(solo.current());advance(120);
+  assert.equal(JSON.stringify(solo.current()),frozen,'pause freezes entire simulation');
+  nodes.get('start-button').emit('click');advance(6);
+  assert.ok(solo.current().tick>JSON.parse(frozen).tick);
+  soloBattle.damage(soloBattle.entities[0],10000,null,soloBattle.entities[0]);
+  advance(6);
+  assert.equal(nodes.get('menu-title').textContent,'挑战失败');
+  nodes.get('restart-button').emit('click');advance(6);
+  assert.equal(solo.current().mode,'pve');assert.equal(solo.current().pve.level,1);
+  nodes.get('pause-btn').emit('click');nodes.get('local-menu-button').emit('click');
+  assert.equal(nodes.get('singleplayer-button').hidden,false);
+  assert.equal(nodes.get('garage').hidden,false);
+  assert.equal(sockets.length,socketCount);
   // Real browser modules and an in-memory socket: solo cooperative room, spawn,
   // reward key, weapon view replacement and cooperative result UI.
   nodes.get("room-mode").value = "pve";
@@ -586,6 +618,7 @@ test("page event wiring creates a room, starts, renders snapshots, pauses locall
   assert.ok(Math.abs(coop.authority.commands.get(survival.entities[0].id).moveYaw-Math.PI/4)<1e-12);
   assert.ok(survival.entities[0].x<beforeMove.x && survival.entities[0].z>beforeMove.z,'W travels screen-up independently of aim');
   for(const fn of windowEvents.keyup)fn({code:'KeyW',preventDefault(){}});
+  advance(6); // Wait for the throttled HUD after the latest state packet.
   assert.equal(nodes.get("weapon-label").textContent, "小手枪 · 8/9");
   assert.equal(nodes.get("pve-view-toggle")?.hidden,false,'visible PvE view control on desktop and mobile');
   nodes.get('pve-view-toggle').emit('click');advance(1);

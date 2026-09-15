@@ -4,6 +4,12 @@
 
 当前协议 **v44**，十个内容插件（zombie 1.5.0 / pistol 1.1.0）；原有插件（车体 light/medium/heavy 2.2.0、human 1.0.1；武器 standard 2.2.1、rapid 2.1.4、laser 2.5.0、rocket 1.0.4），Redis 默认前缀 `tiger:rooms:production`。验证状态见 [VERIFICATION.md](VERIFICATION.md)；异机联机、真实 Redis 和 Docker 运行仍待验收。
 
+## 单机打僵尸
+
+首页点击「单机打僵尸」直接开始本地 PvE：仅一名人类、小手枪开局，不创建房间、不需要准备或 WebSocket。复用完整 16 波、Boss、经验三选一、武器进阶、双视角及已保存的视角偏好、来怪方向提示。Esc／暂停按钮真正冻结模拟、波次和成长；继续后恢复。结算点击「重新挑战」直接重开单机 PvE，暂停或结算可返回主菜单。原本地 PvP 训练与联机两种模式保留；联机暂停仍仅停止自己的操作。
+
+页面及资源仍需先加载，不承诺断网首次访问，也不保存单机对局进度。
+
 ## 启动与操作
 
 通过 Node 或 Docker 服务网址打开页面，选择车体和武器，进入本地训练或创建/加入多人房间。Three.js 0.158.0 随服务提供，无需访问外部 CDN。部署步骤与 Redis 配置见 [DEPLOY.md](DEPLOY.md)。
