@@ -10,7 +10,9 @@
   const isTouchLayout = () => window.innerWidth <= 700 ||
     (window.innerWidth <= 1000 && window.innerHeight <= 500) ||
     (window.innerHeight <= 600 && window.matchMedia?.("(pointer: coarse)").matches === true);
-  const defaultPitch = () => isTouchLayout() ? .72 : .6;
+  const isFixedView = () => getMode() === "pve";
+  const movementYaw = () => isFixedView() ? Math.PI / 4 : state.viewYaw;
+  const defaultPitch = () => isFixedView() ? .95 : isTouchLayout() ? .72 : .6;
   const pivot = new T.Vector3(0, 3.2, 52);
   let collisionFraction = 1;
   const state = {
@@ -32,18 +34,19 @@
       state.cameraElevation = defaultPitch();
     }
     const local = body.id === getPlayerId();
-    const map = C.mapForMode(getMode()), heading =
+    const fixed = isFixedView();
+    const map = C.mapForMode(getMode()), heading = fixed ? Math.PI / 4 :
       local
         ? (state.viewYaw ?? body.heading)
         : body.heading;
     const distance = state.zoom + (window.innerWidth < 700 ? 14 : 0),
       ease = snap || reduced ? 1 : 1 - Math.exp(-dt * 8);
-    state.cameraHeading = local ? heading : C.turn(
+    state.cameraHeading = fixed || local ? heading : C.turn(
       state.cameraHeading,
       heading,
       Math.abs(C.wrap(heading - state.cameraHeading)) * ease,
     );
-    state.cameraElevation += (state.viewPitch - state.cameraElevation) * (local ? 1 : ease);
+    state.cameraElevation += ((fixed ? .95 : state.viewPitch) - state.cameraElevation) * (fixed || local ? 1 : ease);
     const forward = new T.Vector3(
       -Math.cos(state.cameraHeading),
       0,
@@ -60,7 +63,7 @@
     pivot.lerp(new T.Vector3(body.x, body.y + pivotHeight, body.z), ease);
     state.look.copy(pivot);
     // Keep the center ray ahead of the muzzle with the higher diorama camera.
-    state.look.addScaledVector(forward, 5);
+    if (!fixed) state.look.addScaledVector(forward, 5);
     const horizontal = distance * Math.cos(state.cameraElevation);
     camera.position.set(
       state.look.x - forward.x * horizontal,
@@ -123,5 +126,5 @@
       );
     camera.lookAt(state.look);
   }
-  return Object.assign(state, { update: updateChaseCamera, isTouchLayout });
+  return Object.assign(state, { update: updateChaseCamera, isTouchLayout, isFixedView, movementYaw });
 };

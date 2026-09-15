@@ -17,12 +17,16 @@
     plane = new T.Plane(new T.Vector3(0, 1, 0), -2.2),
     aimWorld = new T.Vector3();
   const state = {};
+  const fixedView = () => cameraRig.isFixedView?.() === true;
   state.freeLook = false;
+  state.touchAimYaw = null;
+  let aimPad = null;
   const isMac = /Mac|iPhone|iPad|iPod/i.test(globalThis.navigator?.userAgentData?.platform || globalThis.navigator?.platform || "");
   const lookKeys = new Set(isMac ? ["MetaLeft", "MetaRight"] : ["AltLeft", "AltRight"]);
   const heldLookKeys = new Set();
   let savedLook = null;
   function freeLook(active) {
+    if (active && fixedView()) return;
     if (active === state.freeLook) return;
     const player = getSession().current().entities.find(e => e.id === getPlayerId());
     if (active) {
@@ -63,6 +67,9 @@
     state.activeAim = null;
     cameraRig.lastPointer = null;
     keys.clear();
+    pointer.set(0, 0);
+    state.touchAimYaw = null;
+    aimPad = null;
     resetStick(); stickUsed = false;
     touch.clear();
     mouseFire = false;
@@ -80,6 +87,19 @@
       return;
     }
     const locked = document.pointerLockElement === canvas;
+    if (fixedView()) {
+      state.touchAimYaw = null;
+      const rect = canvas.getBoundingClientRect();
+      pointer.set(
+        Math.max(-1, Math.min(1, (e.clientX - rect.left) / rect.width * 2 - 1)),
+        Math.max(-1, Math.min(1, 1 - (e.clientY - rect.top) / rect.height * 2)),
+      );
+      state.aimRevision++;
+      state.activeAim = null;
+      state.mouseKnown = true;
+      cameraRig.lastPointer = null;
+      return;
+    }
     const dx = locked
       ? e.movementX || 0
       : cameraRig.lastPointer
@@ -108,6 +128,7 @@
     $("aim-reticle").style.top = "50%";
   }
   function lockMouse() {
+    if (fixedView()) return;
     if (document.pointerLockElement === canvas) return;
     if (!canvas.requestPointerLock) {
       notify("浏览器不支持鼠标锁定，可拖动视角");
@@ -132,7 +153,7 @@
       pointer.set(0, 0);
       $("aim-reticle").style.left = "50%";
       $("aim-reticle").style.top = "50%";
-    } else if (status() === "playing" && $("game-overlay").hidden) pause();
+    } else if (!fixedView() && status() === "playing" && $("game-overlay").hidden) pause();
   });
   document.addEventListener("pointerlockerror", () =>
     notify("鼠标锁定失败，请点击战场重试"),
@@ -149,7 +170,7 @@
     e.preventDefault();
     canvas.focus({ preventScroll: true });
     if (
-      e.pointerType !== "touch" &&
+      !fixedView() && e.pointerType !== "touch" &&
       document.pointerLockElement !== canvas &&
       canvas.requestPointerLock
     ) {
@@ -306,8 +327,26 @@
     ...document.querySelectorAll("[data-action]"),
     $("fire-button"),
   ]) {
+    b.addEventListener("pointermove", e => {
+      if (!fixedView() || !aimPad || e.pointerId !== aimPad.id || b !== $("fire-button")) return;
+      const dx = e.clientX - aimPad.x, dy = e.clientY - aimPad.y;
+      if (Math.hypot(dx, dy) < 8) return;
+      e.preventDefault();
+      state.touchAimYaw = C.wrap(cameraRig.movementYaw() - Math.atan2(dx, -dy));
+      state.aimRevision++;
+      state.activeAim = null;
+      sendStick();
+    });
     b.addEventListener("pointerdown", (e) => {
       if (status() !== "playing") return;
+      if (fixedView() && b === $("fire-button") && e.pointerType === "touch") {
+        if (aimPad) return;
+        const player = getSession().current().entities.find(p => p.id === getPlayerId());
+        aimPad = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        state.touchAimYaw ??= player.aim ?? player.heading;
+        state.activeAim = null;
+        state.mouseKnown = true;
+      }
       e.preventDefault();
       b.setPointerCapture(e.pointerId);
       touch.set(e.pointerId, b.dataset.action || "fire");
@@ -323,6 +362,7 @@
         );
     });
     const release = (e) => {
+      if (aimPad?.id === e.pointerId) aimPad = null;
       touch.delete(e.pointerId);
       b.classList.remove("held");
       if (getSession().online)
@@ -342,14 +382,14 @@
     const input = { fire: mouseFire };
     if (C.TANKS[player.tankType].movement === "strafe") {
       cameraRig.viewYaw ??= player.heading;
-      input.moveYaw = state.freeLook ? savedLook.yaw : cameraRig.viewYaw;
+      input.moveYaw = fixedView() ? cameraRig.movementYaw() : state.freeLook ? savedLook.yaw : cameraRig.viewYaw;
     }
     for (const key of keys) input[bindings[key]] = true;
     for (const v of touch.values()) input[v] = true;
     if (stickUsed && !["forward", "reverse", "left", "right"].some(action =>
       [...keys].some(key => bindings[key] === action))) {
       if (Math.hypot(stickX, stickY) > .16) {
-        const yaw = C.wrap((cameraRig.viewYaw ?? player.heading) - Math.atan2(stickX, -stickY));
+        const yaw = C.wrap((fixedView() ? cameraRig.movementYaw() : cameraRig.viewYaw ?? player.heading) - Math.atan2(stickX, -stickY));
         if (C.TANKS[player.tankType].movement === "strafe") {
           input.moveYaw = yaw; input.forward = true;
         } else {
@@ -362,11 +402,16 @@
         }
       } else input.brake = true;
     }
+    if (fixedView() && state.touchAimYaw !== null) {
+      input.aimYaw = state.touchAimYaw;
+      input.aimPitch = 0;
+      return input;
+    }
     if (input.fire && state.mouseKnown && !state.freeLook && !state.activeAim)
       refreshAim(player);
     if (state.freeLook && savedLook) {
       input.aimYaw = savedLook.aimYaw;
-      input.aimPitch = savedLook.aimPitch;
+      input.aimPitch = fixedView() ? 0 : savedLook.aimPitch;
       return input;
     }
     if (state.activeAim) {
@@ -374,7 +419,7 @@
         dz = state.activeAim.z - player.z;
       input.aimYaw = Math.atan2(dz, -dx);
       const origin = C.shotOrigin({ ...player, aim: input.aimYaw });
-      input.aimPitch = Math.max(
+      input.aimPitch = fixedView() ? 0 : Math.max(
         -0.55,
         Math.min(
           0.55,
@@ -383,6 +428,7 @@
         ),
       );
     }
+    if (fixedView()) input.aimPitch = 0;
     return input;
   }
   return {

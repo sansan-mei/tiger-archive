@@ -4,8 +4,8 @@ test('local mouse camera yaw and pitch match the requested view on the next fram
   const window={innerWidth:1280,TankClient:{}};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../client/camera.js'),'utf8'),{window});
   const camera=new T.PerspectiveCamera(65,1.6,.1,300),
-    rig=window.TankClient.createCameraRig({T,C,camera,reduced:false,getPlayerId:()=> 'p0',getMode:()=> 'pve'}),
-    player={id:'p0',x:0,y:0,z:55,heading:0,floor:0,rampId:null};
+    rig=window.TankClient.createCameraRig({T,C,camera,reduced:false,getPlayerId:()=> 'p0',getMode:()=> 'pvp'}),
+    player={id:'p0',x:0,y:0,z:75,heading:0,floor:0,rampId:null};
   rig.update(player,1/60,true);
   rig.viewYaw=Math.PI/2;
   rig.viewPitch=.55;
@@ -20,7 +20,7 @@ test('phone portrait and landscape center aim starts ahead of the player, with t
  for(const [width,height] of [[393,852],[852,393],[320,568]]){
   const window={innerWidth:width,innerHeight:height,TankClient:{}};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../client/camera.js'),'utf8'),{window});
-  const camera=new T.PerspectiveCamera(65,width/height,.1,300),rig=window.TankClient.createCameraRig({T,C,camera,reduced:false,getPlayerId:()=> 'p0',getMode:()=> 'pve'});
+  const camera=new T.PerspectiveCamera(65,width/height,.1,300),rig=window.TankClient.createCameraRig({T,C,camera,reduced:false,getPlayerId:()=> 'p0',getMode:()=> 'pvp'});
   for(const tankType of ['human','heavy']){
    const spawn=C.PVE_MAP.spawns[0],player={id:'p0',...spawn,y:0,heading:-Math.PI/2,aim:-Math.PI/2,tankType,rampId:null};
    rig.update(player,0,true);camera.updateMatrixWorld();

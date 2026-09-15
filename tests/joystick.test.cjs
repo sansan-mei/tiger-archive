@@ -3,7 +3,7 @@ const C=require('../battle-core.js'),T=require('three');
 function setup(tankType='human'){
  const nodes=new Map();
  const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},classList:{add(){},remove(){}},events:{},addEventListener(k,f){(this.events[k]??=[]).push(f)},setPointerCapture(){},getBoundingClientRect(){return {left:0,top:0,width:128,height:128}},emit(k,e={}){for(const f of this.events[k]||[])f({preventDefault(){},button:0,pointerId:1,...e})}});return nodes.get(id)};
- const document=node('document');document.querySelectorAll=()=>[];
+ const document=node('document');document.querySelectorAll=()=>[];document.activeElement=node('canvas');node('canvas').focus=()=>{};
  const window=node('window'),player={id:'p',tankType,heading:0,alive:true},packets=[];
  const session={online:true,current:()=>({status:'playing',entities:[player]}),input:i=>packets.push(i)};
  const context=vm.createContext({window,document,navigator:{platform:'test'}});
@@ -31,10 +31,61 @@ test('joystick owns one finger, keeps simultaneous fire, and resets on cancel, r
   s.node('fire-button').emit('pointerup',{pointerId:2});
  }
 });
+test('PvE clamps stale and assisted aim elevation, PvP preserves 3D pitch',()=>{
+ const s=setup();Object.assign(s.player,{x:0,y:0,z:0,aim:0});
+ let mode='pve';s.cameraRig.isFixedView=()=>mode==='pve';s.cameraRig.movementYaw=()=>Math.PI/4;
+ for(const y of [-10,0,30]){s.input.state.activeAim={x:-20,y,z:10};assert.equal(s.input.command(s.player).aimPitch,0);}
+ s.input.state.activeAim=null;assert.equal(s.input.command(s.player).aimPitch,0);
+ mode='pvp';s.input.state.activeAim={x:-20,y:30,z:10};assert.ok(s.input.command(s.player).aimPitch>0);
+});
 test('tank joystick steers and reverses without changing authority movement rules',()=>{
  const s=setup('heavy'),pad=s.node('move-joystick');
  pad.emit('pointerdown',{clientX:64,clientY:0});assert.equal(s.input.command(s.player).forward,true);
  pad.emit('pointermove',{clientX:64,clientY:128});assert.equal(s.input.command(s.player).reverse,true);
  pad.emit('pointermove',{clientX:128,clientY:64});assert.equal(s.input.command(s.player).right,true);
  assert.doesNotThrow(()=>C.normalizeInput(s.input.command(s.player)));
+});
+test('PvE mouse and touch aim move the screen ray, never the camera or movement basis',()=>{
+ const s=setup(),canvas=s.node('canvas');
+ s.cameraRig.isFixedView=()=>true;s.cameraRig.movementYaw=()=>Math.PI/4;
+ let locks=0;canvas.requestPointerLock=()=>locks++;
+ s.cameraRig.viewYaw=2;s.cameraRig.viewPitch=.95;
+ s.node('window').emit('keydown',{code:'KeyW'});
+ canvas.emit('pointermove',{clientX:96,clientY:32});
+ assert.equal(s.input.pointer.x,.5);assert.equal(s.input.pointer.y,.5);
+ assert.equal(s.input.command(s.player).moveYaw,Math.PI/4);
+ canvas.emit('pointerdown',{clientX:96,clientY:32,pointerType:'mouse'});
+ assert.equal(locks,0);assert.equal(s.input.command(s.player).fire,true);
+ canvas.emit('pointerup');
+ s.node('window').emit('keyup',{code:'KeyW'});
+ s.node('move-joystick').emit('pointerdown',{clientX:128,clientY:64});
+ canvas.emit('pointerdown',{pointerId:2,pointerType:'touch',clientX:32,clientY:96});
+ assert.equal(s.input.pointer.x,-.5);assert.equal(s.input.pointer.y,-.5);
+ assert.ok(Math.abs(s.input.command(s.player).moveYaw+Math.PI/4)<1e-12);
+ assert.equal(s.cameraRig.viewYaw,2);assert.equal(s.cameraRig.viewPitch,.95);
+ s.node('window').emit('keydown',{code:'AltLeft'});assert.equal(s.input.state.freeLook,false);
+});
+test('PvE to PvP reset centers the ray before mobile fire without a canvas touch',()=>{
+ const s=setup();let fixed=true;s.cameraRig.isFixedView=()=>fixed;s.cameraRig.movementYaw=()=>Math.PI/4;
+ s.node('canvas').emit('pointermove',{clientX:96,clientY:32});
+ assert.equal(s.input.pointer.x,.5);assert.equal(s.input.pointer.y,.5);
+ s.input.clearInput();fixed=false;
+ s.node('fire-button').emit('pointerdown',{pointerType:'touch',pointerId:2,clientX:64,clientY:64});
+ assert.equal(s.input.command(s.player).fire,true);
+ assert.equal(s.input.pointer.x,0);assert.equal(s.input.pointer.y,0);
+ assert.equal(s.input.state.touchAimYaw,null);
+});
+test('PvE right fire pad drags aim through a full circle independently of left movement',()=>{
+ const s=setup();s.cameraRig.isFixedView=()=>true;s.cameraRig.movementYaw=()=>Math.PI/4;
+ s.node('move-joystick').emit('pointerdown',{clientX:64,clientY:0});
+ const fire=s.node('fire-button');
+ fire.emit('pointerdown',{pointerType:'touch',pointerId:2,clientX:64,clientY:64});
+ fire.emit('pointermove',{pointerType:'touch',pointerId:2,clientX:100,clientY:64});
+ let command=s.input.command(s.player);
+ assert.ok(Math.abs(command.aimYaw+Math.PI/4)<1e-12);assert.equal(command.aimPitch,0);
+ assert.ok(Math.abs(command.moveYaw-Math.PI/4)<1e-12);assert.equal(command.fire,true);
+ fire.emit('pointermove',{pointerType:'touch',pointerId:2,clientX:28,clientY:64});
+ command=s.input.command(s.player);assert.ok(Math.abs(C.wrap(command.aimYaw-3*Math.PI/4))<1e-12);
+ fire.emit('pointercancel',{pointerId:2});assert.equal(s.input.command(s.player).fire,false);
+ s.input.clearInput();assert.equal(s.input.state.touchAimYaw,null);
 });

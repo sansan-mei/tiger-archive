@@ -462,8 +462,8 @@
       x: (assistPoint.x + 1) * 50,
       y: (1 - assistPoint.y) * 50,
       distance: Math.hypot(
-        (assistPoint.x * window.innerWidth) / 2,
-        (assistPoint.y * window.innerHeight) / 2,
+        ((assistPoint.x - pointer.x) * window.innerWidth) / 2,
+        ((assistPoint.y - pointer.y) * window.innerHeight) / 2,
       ),
       visible:
         assistPoint.z >= -1 &&
@@ -474,11 +474,19 @@
   }
   function refreshAim(player) {
     input.state.activeAim = null;
+    if (cameraRig.isFixedView() && input.state.touchAimYaw !== null) return null;
     if (!player?.alive || !input.state.mouseKnown || input.state.freeLook || status() !== "playing") return null;
     // The camera pose must be current before projecting the centered reticle.
     cameraRig.update(player, 0);
     camera.updateMatrixWorld();
     ray.setFromCamera(pointer, camera);
+    if (session.current().mode === "pve") {
+      // Twin-stick direction, not a 3D target: cover never changes gun elevation.
+      plane.constant = -C.shotOrigin(player).y;
+      if (!ray.ray.intersectPlane(plane, aimWorld)) ray.ray.at(120, aimWorld);
+      input.state.activeAim = { x: aimWorld.x, y: -plane.constant, z: aimWorld.z };
+      return null;
+    }
     const hit = units.aimHit(ray, floorGroups.filter((group) => group.visible));
     if (hit)
       input.state.activeAim = { x: hit.point.x, y: hit.point.y, z: hit.point.z };
@@ -508,6 +516,7 @@
       time,
       inputRevision: input.state.aimRevision,
       enabled:
+        input.state.touchAimYaw === null &&
         !input.state.freeLook &&
         input.state.mouseKnown &&
         localBefore.alive &&
@@ -587,9 +596,12 @@
     sun.target.position.set(target.x, target.y, target.z);
     units.update({ state, truth, cameraFloor, camera, dt, time, targetedId });
     pveEffects.update(truth, cameraFloor);
-    const reticlePosition = assisted
+    const touchAim = cameraRig.isFixedView() ? input.state.touchAimYaw : null;
+    const reticlePosition = touchAim !== null
+      ? projectAim({x: p.x - Math.cos(touchAim) * 20, y: C.shotOrigin(p).y, z: p.z + Math.sin(touchAim) * 20})
+      : assisted
       ? projectAim(assisted.point)
-      : { x: 50, y: 50 };
+      : { x: (pointer.x + 1) * 50, y: (1 - pointer.y) * 50 };
     $("aim-reticle").style.left = reticlePosition.x + "%";
     $("aim-reticle").style.top = reticlePosition.y + "%";
     $("aim-reticle").dataset.assisted = String(Boolean(assisted));
