@@ -65,7 +65,8 @@ window.TankModelAssets = (() => {
             const kit = await new T.ObjectLoader().parseAsync(data);
             for (const name of ["pistol", "standard", "rapid", "rocket", "laser"])
               if (!kit.children.some(w => w.name === name)) throw new Error("Incomplete weapon library");
-            for (const weapon of kit.children) loaded.set(weapon.name, weapon);
+            // Keep the original cannon library for vehicles; handheld guns belong to humans.
+            for (const weapon of kit.children) loaded.set("human-weapon:" + weapon.name, weapon);
           } catch (error) {
             console.warn("公开武器模型加载失败，保留原武器：", error.message);
           }
@@ -79,8 +80,10 @@ window.TankModelAssets = (() => {
       return pending;
     },
     build(ctx, { tankType, weaponType }) {
+      const handheld = "human-weapon:" + weaponType;
+      const weaponModel = tankType === "human" && models?.has(handheld) ? handheld : weaponType;
       if (!models?.has(tankType) ||
-          (!models.has(weaponType) && !window.TankPlugins?.weapons[weaponType])) return false;
+          (!models.has(weaponModel) && !window.TankPlugins?.weapons[weaponType])) return false;
       // Each live view owns its geometry; disposal never invalidates another player or cache.
       let wheelMaterial;
       const characterMaterials = new Map();
@@ -129,8 +132,8 @@ window.TankModelAssets = (() => {
         hull.remove(turret);
       }
       ctx.tank.add(hull);
-      if (models.has(weaponType)) {
-        const weapon = copy(weaponType);
+      if (models.has(weaponModel)) {
+        const weapon = copy(weaponModel);
         // All authoring barrels end at local X=-3.5. Keep the shared gameplay muzzle distance.
         weapon.scale.x = ctx.weaponLength / 3.5;
         ctx.gun.add(weapon);
