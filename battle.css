@@ -213,3 +213,6 @@ progress,progress::-webkit-progress-bar{background:#89997930}
 #pve-enemy-directions small { margin-left: 3px; }
 #pve-enemy-directions [hidden], #pve-enemy-directions[hidden], #pve-view-toggle[hidden] { display: none; }
 @media(max-width:700px), (max-height:500px) { #pve-view-toggle { position: fixed; right: 12px; top: 58px; z-index: 12; font-size: 12px; min-height: 40px; } }
+
+/* Separate the two local game entries only while both are visible. */
+.menu #singleplayer-button:not([hidden]) ~ #start-button { margin-top: 16px; }
